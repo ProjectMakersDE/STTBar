@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# stt-global.sh — System-wide STT toggle for X11
+# Triggered by global hotkey. First call starts recording, second call stops + transcribes + pastes.
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=/dev/null
+[[ -f "$SCRIPT_DIR/.env" ]] && source "$SCRIPT_DIR/.env"
+
+STT_PID_FILE="/tmp/stt-recording.pid"
+
+notify() {
+    local urgency="${1:-normal}"
+    local timeout="${2:-3000}"
+    local title="STT"
+    local body="$3"
+    notify-send -u "$urgency" -t "$timeout" "$title" "$body" 2>/dev/null || true
+}
+
+is_recording() {
+    [[ -f "$STT_PID_FILE" ]] && kill -0 "$(cat "$STT_PID_FILE")" 2>/dev/null
+}
+
+if is_recording; then
+    # --- STOP RECORDING & TRANSCRIBE & TYPE ---
+
+    # Save focused window BEFORE any notifications or work
+    target_window="$(xdotool getactivewindow 2>/dev/null)" || true
+
+    notify normal 2000 "Transcribing..."
+
+    audio_file="$("$SCRIPT_DIR/stt-record.sh" stop 2>/dev/null)" || true
+    if [[ -z "$audio_file" ]]; then
+        notify critical 3000 "Recording failed or was empty."
+        exit 1
+    fi
+
+    text="$("$SCRIPT_DIR/stt-transcribe.sh" "$audio_file" 2>/dev/null)"
+    rc=$?
+    rm -f "$audio_file"
+
+    if [[ $rc -ne 0 ]] || [[ -z "$text" ]]; then
+        notify critical 3000 "Transcription failed. Is the whisper server running?"
+        exit 1
+    fi
+
+    # Also set clipboard as fallback for manual paste
+    printf '%s' "$text" | xclip -selection clipboard 2>/dev/null || true
+
+    # Restore focus to the original window and type text directly
+    if [[ -n "$target_window" ]]; then
+        xdotool windowfocus --sync "$target_window" 2>/dev/null || true
+        sleep 0.1
+    fi
+    xdotool type --clearmodifiers --delay 12 -- "$text"
+
+    notify normal 2000 "$text"
+else
+    # --- START RECORDING ---
+    if ! "$SCRIPT_DIR/stt-record.sh" start >/dev/null 2>&1; then
+        notify critical 3000 "Could not start recording. Is sox installed?"
+        exit 1
+    fi
+
+    notify normal 5000 "Recording... (Ctrl+T to stop)"
+fi
