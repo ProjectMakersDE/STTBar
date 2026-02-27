@@ -29,6 +29,11 @@ check_deps() {
         missing+=("sox (rec command)")
     fi
 
+    # Check for docker compose v2 plugin
+    if command -v docker &>/dev/null && ! docker compose version &>/dev/null; then
+        missing+=("docker-compose-v2")
+    fi
+
     if [[ ${#missing[@]} -gt 0 ]]; then
         error "Missing dependencies: ${missing[*]}"
         echo "Install them with:"

@@ -11,16 +11,17 @@ STT_PLUGIN_DIR="${0:A:h}"
 typeset -g _stt_recording=0
 
 stt-widget() {
+    emulate -L zsh
     if (( _stt_recording == 0 )); then
         # --- START RECORDING ---
         _stt_recording=1
         zle -M "Recording... (${STT_HOTKEY:-^T} to stop)"
 
         # Start recording in background
-        "$STT_PLUGIN_DIR/stt-record.sh" start >/dev/null 2>&1
-        if [[ $? -ne 0 ]]; then
+        if ! "$STT_PLUGIN_DIR/stt-record.sh" start >/dev/null 2>&1; then
             _stt_recording=0
             zle -M "ERROR: Could not start recording. Is sox installed?"
+            zle reset-prompt
             return 1
         fi
     else
@@ -30,9 +31,10 @@ stt-widget() {
 
         # Stop recording, get file path
         local audio_file
-        audio_file="$("$STT_PLUGIN_DIR/stt-record.sh" stop 2>/dev/null)"
-        if [[ $? -ne 0 ]] || [[ -z "$audio_file" ]]; then
+        audio_file="$("$STT_PLUGIN_DIR/stt-record.sh" stop 2>/dev/null)" || true
+        if [[ -z "$audio_file" ]]; then
             zle -M "ERROR: Recording failed or was empty."
+            zle reset-prompt
             return 1
         fi
 
@@ -42,10 +44,11 @@ stt-widget() {
         local exit_code=$?
 
         # Cleanup temp file
-        rm -f "$audio_file" /tmp/stt-record-file
+        rm -f "$audio_file"
 
         if [[ $exit_code -ne 0 ]] || [[ -z "$text" ]]; then
             zle -M "ERROR: Transcription failed. Is the whisper server running?"
+            zle reset-prompt
             return 1
         fi
 

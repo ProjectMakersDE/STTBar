@@ -36,6 +36,12 @@ response="$(curl -s -w "\n%{http_code}" \
 http_code="$(echo "$response" | tail -n1)"
 body="$(echo "$response" | sed '$d')"
 
+if [[ "$http_code" == "000" ]]; then
+    echo "ERROR: Could not connect to server at $STT_SERVER_URL" >&2
+    echo "Is the whisper server running? Try: docker compose up -d" >&2
+    exit 1
+fi
+
 if [[ "$http_code" -ne 200 ]]; then
     echo "ERROR: Server returned HTTP $http_code" >&2
     echo "$body" >&2
