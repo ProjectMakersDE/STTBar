@@ -22,7 +22,11 @@ is_recording() {
 }
 
 if is_recording; then
-    # --- STOP RECORDING & TRANSCRIBE & PASTE ---
+    # --- STOP RECORDING & TRANSCRIBE & TYPE ---
+
+    # Save focused window BEFORE any notifications or work
+    target_window="$(xdotool getactivewindow 2>/dev/null)" || true
+
     notify normal 2000 "Transcribing..."
 
     audio_file="$("$SCRIPT_DIR/stt-record.sh" stop 2>/dev/null)" || true
@@ -40,10 +44,15 @@ if is_recording; then
         exit 1
     fi
 
-    # Inject text via clipboard + paste
-    printf '%s' "$text" | xclip -selection clipboard
-    sleep 0.15
-    xdotool key --clearmodifiers ctrl+shift+v
+    # Also set clipboard as fallback for manual paste
+    printf '%s' "$text" | xclip -selection clipboard 2>/dev/null || true
+
+    # Restore focus to the original window and type text directly
+    if [[ -n "$target_window" ]]; then
+        xdotool windowfocus --sync "$target_window" 2>/dev/null || true
+        sleep 0.1
+    fi
+    xdotool type --clearmodifiers --delay 12 -- "$text"
 
     notify normal 2000 "$text"
 else
