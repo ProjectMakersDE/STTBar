@@ -3,7 +3,9 @@ services:
     image: ghcr.io/speaches-ai/speaches:latest-cuda
     container_name: stt-whisper
     ports:
-      - "8000:8000"
+      - "${STT_DOCKER_PORT:-8000}:8000"
+    environment:
+      - PRELOAD_MODELS=["${STT_MODEL:-Systran/faster-whisper-base}"]
     volumes:
       - whisper-models:/home/ubuntu/.cache/huggingface/hub
     deploy:
