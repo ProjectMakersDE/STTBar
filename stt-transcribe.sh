@@ -23,15 +23,23 @@ if [[ ! -f "$audio_file" ]]; then
     exit 1
 fi
 
+# Build curl args — omit language for auto-detection
+curl_args=(
+    -s -w "\n%{http_code}"
+    --max-time 30
+    -X POST "$STT_SERVER_URL"
+    -F "file=@$audio_file"
+    -F "model=$STT_MODEL"
+    -F "response_format=json"
+)
+
+# Only send language param if it's not "auto" (omitting it triggers auto-detection)
+if [[ "$STT_LANGUAGE" != "auto" ]]; then
+    curl_args+=(-F "language=$STT_LANGUAGE")
+fi
+
 # POST to OpenAI-compatible transcription endpoint
-response="$(curl -s -w "\n%{http_code}" \
-    --max-time 30 \
-    -X POST "$STT_SERVER_URL" \
-    -F "file=@$audio_file" \
-    -F "model=$STT_MODEL" \
-    -F "language=$STT_LANGUAGE" \
-    -F "response_format=json" \
-    )"
+response="$(curl "${curl_args[@]}")"
 
 http_code="$(echo "$response" | tail -n1)"
 body="$(echo "$response" | sed '$d')"
