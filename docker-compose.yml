@@ -6,6 +6,7 @@ services:
       - "${STT_DOCKER_PORT:-8000}:8000"
     environment:
       - PRELOAD_MODELS=["${STT_MODEL:-Systran/faster-whisper-base}"]
+      - STT_MODEL_TTL=${STT_MODEL_TTL:--1}
     volumes:
       - whisper-models:/home/ubuntu/.cache/huggingface/hub
     deploy:
