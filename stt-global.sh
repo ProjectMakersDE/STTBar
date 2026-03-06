@@ -52,7 +52,8 @@ if is_recording; then
         xdotool windowfocus --sync "$target_window" 2>/dev/null || true
         sleep 0.1
     fi
-    xdotool type --clearmodifiers --delay 12 -- "$text"
+    sleep 0.2
+    xdotool key --clearmodifiers ctrl+v
 
     notify normal 2000 "$text"
 else
