@@ -65,59 +65,69 @@ check_deps_linux() {
 
 check_deps_macos() {
     local missing=()
-    for cmd in sox rec curl jq skhd; do
+    for cmd in sox rec curl jq; do
         if ! command -v "$cmd" &>/dev/null; then
             missing+=("$cmd")
         fi
     done
 
+    # Hammerspoon is a GUI .app, not a CLI binary. Check for the bundle.
+    if [[ ! -d "/Applications/Hammerspoon.app" ]]; then
+        missing+=("Hammerspoon.app")
+    fi
+
     if [[ ${#missing[@]} -gt 0 ]]; then
         error "Missing dependencies: ${missing[*]}"
         echo "Install them with:"
         echo "  brew install sox jq"
-        echo "  brew install koekeishiya/formulae/skhd   # skhd lives in a tap, not homebrew-core"
-        echo ""
-        echo "If skhd fails with 'Command Line Tools are too outdated':"
-        echo "  sudo rm -rf /Library/Developer/CommandLineTools"
-        echo "  sudo xcode-select --install"
+        echo "  brew install --cask hammerspoon"
         return 1
     fi
 
     info "All dependencies found"
 }
 
-register_skhd_binding() {
-    local skhdrc="$HOME/.config/skhd/skhdrc"
-    local binding_cmd="$INSTALL_DIR/stt-global.sh"
-    local binding_line="cmd + shift - space : $binding_cmd"
+# Append (or replace) the STT hotkey binding in ~/.hammerspoon/init.lua.
+# Uses START/END markers so the block can be safely updated or removed
+# without touching the rest of the user's Hammerspoon config.
+register_hammerspoon_binding() {
+    local init_lua="$HOME/.hammerspoon/init.lua"
+    local script_path="$INSTALL_DIR/stt-global.sh"
+    local start_marker="-- STT Speech to Text - START"
+    local end_marker="-- STT Speech to Text - END"
 
-    mkdir -p "$(dirname "$skhdrc")"
-    touch "$skhdrc"
+    mkdir -p "$(dirname "$init_lua")"
+    touch "$init_lua"
 
-    if grep -qF "stt-global.sh" "$skhdrc"; then
-        warn "skhd binding for stt-global.sh already present — not modifying $skhdrc"
-        return 0
+    # If markers already exist, remove the existing block first so we
+    # always write a fresh, consistent version (handles config drift).
+    if grep -qF "$start_marker" "$init_lua"; then
+        sed -i '' "/$start_marker/,/$end_marker/d" "$init_lua" 2>/dev/null || true
     fi
 
-    # Append with a blank-line separator
+    # Append the new block. hs.task runs the script asynchronously, so the
+    # hotkey returns immediately and Hammerspoon stays responsive.
     {
         echo ""
-        echo "# STT Speech to Text"
-        echo "$binding_line"
-    } >> "$skhdrc"
+        echo "$start_marker"
+        echo "hs.hotkey.bind({\"cmd\", \"shift\"}, \"space\", function()"
+        echo "    hs.task.new(\"$script_path\", nil):start()"
+        echo "end)"
+        echo "$end_marker"
+    } >> "$init_lua"
 
     return 0
 }
 
-unregister_skhd_binding() {
-    local skhdrc="$HOME/.config/skhd/skhdrc"
-    [[ -f "$skhdrc" ]] || return 0
+unregister_hammerspoon_binding() {
+    local init_lua="$HOME/.hammerspoon/init.lua"
+    [[ -f "$init_lua" ]] || return 0
 
-    # Remove the "# STT Speech to Text" comment line and any line containing
-    # stt-global.sh. Uses BSD sed -i '' (macOS). Two passes keeps the regex
-    # simple and avoids GNU/BSD sed portability traps.
-    sed -i '' '/# STT Speech to Text/d' "$skhdrc" 2>/dev/null || true
-    sed -i '' '/stt-global\.sh/d' "$skhdrc" 2>/dev/null || true
+    local start_marker="-- STT Speech to Text - START"
+    local end_marker="-- STT Speech to Text - END"
+
+    # Delete everything between (and including) the markers. BSD sed.
+    sed -i '' "/$start_marker/,/$end_marker/d" "$init_lua" 2>/dev/null || true
 
     return 0
 }
@@ -317,47 +327,35 @@ install_macos() {
         info "Copied docker-compose.yml to $INSTALL_DIR"
     fi
 
-    # Register skhd binding
-    if register_skhd_binding; then
-        info "Registered Cmd+Shift+Space as global STT hotkey (skhd)"
+    # Register Hammerspoon binding
+    if register_hammerspoon_binding; then
+        info "Registered Cmd+Shift+Space as global STT hotkey (Hammerspoon)"
     else
-        warn "Could not register skhd binding automatically."
-        echo "  Add manually to ~/.config/skhd/skhdrc:"
-        echo "  cmd + shift - space : $INSTALL_DIR/stt-global.sh"
-    fi
-
-    # Start skhd service (idempotent — no-op if already running)
-    # Use skhd's native launchd service commands — more reliable than
-    # `brew services` and recommended upstream. --install-service creates
-    # ~/Library/LaunchAgents/com.koekeishiya.skhd.plist; --start-service
-    # loads it into launchd.
-    skhd --stop-service    >/dev/null 2>&1 || true
-    skhd --uninstall-service >/dev/null 2>&1 || true
-    if skhd --install-service >/dev/null 2>&1 && skhd --start-service >/dev/null 2>&1; then
-        info "skhd service installed and started"
-    else
-        warn "Could not start skhd service. Start it manually:"
-        echo "  skhd --install-service && skhd --start-service"
+        warn "Could not write Hammerspoon binding automatically."
+        echo "  Add manually to ~/.hammerspoon/init.lua:"
+        echo "  hs.hotkey.bind({\"cmd\", \"shift\"}, \"space\", function()"
+        echo "      hs.task.new(\"$INSTALL_DIR/stt-global.sh\", nil):start()"
+        echo "  end)"
     fi
 
     echo ""
     info "Installation complete!"
     echo ""
     warn "macOS permissions required (one-time setup):"
-    echo "  1. Press Cmd+Shift+Space once — macOS will prompt to allow skhd"
-    echo "     to control your computer. Click 'Open System Settings' and"
-    echo "     enable 'skhd' in Privacy & Security > Accessibility."
+    echo "  1. Start Hammerspoon (Applications > Hammerspoon). On first launch"
+    echo "     it will prompt for Accessibility permission — click 'Open System"
+    echo "     Settings' and enable 'Hammerspoon' in Privacy & Security >"
+    echo "     Accessibility."
     echo ""
-    echo "  2. After granting Accessibility, restart skhd so the new"
-    echo "     permission takes effect:"
-    echo "       skhd --stop-service && skhd --start-service"
+    echo "  2. In the Hammerspoon menu bar icon, click 'Reload Config' so the"
+    echo "     new STT hotkey binding becomes active."
     echo ""
     echo "  3. On first recording, macOS will prompt for Microphone access."
-    echo "     Grant it to 'skhd' when prompted."
+    echo "     Grant it to 'Hammerspoon' when prompted."
     echo ""
-    read -r -p "Open Accessibility settings now? [y/N] " ans
+    read -r -p "Open Hammerspoon now? [y/N] " ans
     if [[ "$ans" =~ ^[Yy]$ ]]; then
-        open "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
+        open -a Hammerspoon
     fi
 
     echo ""
@@ -381,16 +379,9 @@ uninstall_macos() {
         info "Removed source line from $ZSHRC"
     fi
 
-    # Remove skhd binding (leaves skhd service running — user may use it
-    # for other bindings, so we don't touch brew services state)
-    unregister_skhd_binding && info "Removed skhd binding" || true
-
-    # Reload skhd so the removed binding takes effect immediately.
-    # Uses skhd's native service commands (not brew services).
-    if command -v skhd &>/dev/null; then
-        skhd --stop-service  >/dev/null 2>&1 || true
-        skhd --start-service >/dev/null 2>&1 || true
-    fi
+    # Remove Hammerspoon binding block (leaves the rest of the user's
+    # init.lua intact, and leaves Hammerspoon itself installed)
+    unregister_hammerspoon_binding && info "Removed Hammerspoon binding" || true
 
     # Remove install directory
     if [[ -d "$INSTALL_DIR" ]]; then
@@ -400,8 +391,10 @@ uninstall_macos() {
 
     echo ""
     info "Uninstall complete. Restart your shell."
-    warn "Note: skhd itself and any granted permissions (Accessibility, Microphone)"
-    echo "      were not removed. Revoke those manually in System Settings if desired."
+    warn "Note: Hammerspoon itself and any granted permissions (Accessibility,"
+    echo "      Microphone) were not removed. Reload Hammerspoon config to"
+    echo "      deactivate the STT hotkey, or revoke permissions manually in"
+    echo "      System Settings if desired."
 }
 
 install() {
