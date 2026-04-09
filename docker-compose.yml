@@ -3,7 +3,7 @@ services:
     image: ghcr.io/speaches-ai/speaches:latest-cuda
     container_name: stt-whisper
     ports:
-      - "${STT_DOCKER_PORT:-8000}:8000"
+      - "${STT_DOCKER_PORT:-8082}:8000"
     environment:
       - PRELOAD_MODELS=["${STT_MODEL:-Systran/faster-whisper-base}"]
       - STT_MODEL_TTL=${STT_MODEL_TTL:--1}
