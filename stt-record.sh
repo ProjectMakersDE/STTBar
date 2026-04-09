@@ -7,7 +7,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=/dev/null
 [[ -f "$SCRIPT_DIR/.env" ]] && source "$SCRIPT_DIR/.env"
 
-STT_AUDIO_DEVICE="${STT_AUDIO_DEVICE:-default}"
+STT_AUDIO_DEVICE="${STT_AUDIO_DEVICE:-}"
 STT_RECORD_FILE="${STT_RECORD_FILE:-/tmp/stt-recording.wav}"
 STT_PID_FILE="/tmp/stt-recording.pid"
 
@@ -18,7 +18,13 @@ start_recording() {
     fi
 
     # Record: 16kHz, mono, 16-bit WAV
-    AUDIODEV="$STT_AUDIO_DEVICE" rec -q -r 16000 -c 1 -b 16 "$STT_RECORD_FILE" &
+    # AUDIODEV only set if STT_AUDIO_DEVICE is non-empty (Linux/ALSA).
+    # On macOS, leave empty to let sox use the CoreAudio default input.
+    if [[ -n "$STT_AUDIO_DEVICE" ]]; then
+        AUDIODEV="$STT_AUDIO_DEVICE" rec -q -r 16000 -c 1 -b 16 "$STT_RECORD_FILE" &
+    else
+        rec -q -r 16000 -c 1 -b 16 "$STT_RECORD_FILE" &
+    fi
     local rec_pid=$!
     echo "$rec_pid" > "$STT_PID_FILE"
     echo "$STT_RECORD_FILE"
