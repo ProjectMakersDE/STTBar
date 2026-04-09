@@ -109,9 +109,13 @@ register_hammerspoon_binding() {
 
     # Append the new block. hs.task runs the script asynchronously, so the
     # hotkey returns immediately and Hammerspoon stays responsive.
+    #   - hs.ipc enables the 'hs' CLI for scripted reloads from outside
+    #   - hs.autoLaunch(true) makes Hammerspoon start automatically at login
     {
         echo ""
         echo "$start_marker"
+        echo "require(\"hs.ipc\")"
+        echo "hs.autoLaunch(true)"
         echo "hs.hotkey.bind({\"cmd\", \"shift\"}, \"space\", function()"
         echo "    hs.task.new(\"$script_path\", nil):start()"
         echo "end)"
@@ -340,35 +344,88 @@ install_macos() {
         echo "  end)"
     fi
 
-    echo ""
-    info "Installation complete!"
-    echo ""
-    warn "macOS permissions required (one-time setup):"
-    echo "  1. Start Hammerspoon (Applications > Hammerspoon). On first launch"
-    echo "     it will prompt for Accessibility permission — click 'Open System"
-    echo "     Settings' and enable 'Hammerspoon' in Privacy & Security >"
-    echo "     Accessibility."
-    echo ""
-    echo "  2. In the Hammerspoon menu bar icon, click 'Reload Config' so the"
-    echo "     new STT hotkey binding becomes active."
-    echo ""
-    echo "  3. On first recording, macOS will prompt for Microphone access."
-    echo "     Grant it to 'Hammerspoon' when prompted."
-    echo ""
-    read -r -p "Open Hammerspoon now? [y/N] " ans
-    if [[ "$ans" =~ ^[Yy]$ ]]; then
+    # Make sure Hammerspoon is running — it needs to be active for the
+    # hotkey to work, and for the `hs` CLI reload below to succeed.
+    if ! pgrep -q Hammerspoon; then
         open -a Hammerspoon
+        sleep 1
+    fi
+
+    # Try to reload Hammerspoon's config automatically via the hs CLI.
+    # This only works if hs.ipc has been loaded once before (which happens
+    # the first time the user clicks Reload Config from the menu bar after
+    # our init.lua block is in place). On a fresh install, hs.ipc is not
+    # yet active and we fall back to printing instructions.
+    #
+    # Note: hs.reload() itself returns non-zero (exit 69, "message port
+    # invalidated") because the reload destroys the IPC port mid-call.
+    # That's expected. We verify success by doing a second round-trip
+    # call after the reload settles.
+    local hs_reloaded=0
+    if command -v hs &>/dev/null; then
+        hs -c "hs.reload()" &>/dev/null || true
+        sleep 0.5
+        if hs -c "return 1" &>/dev/null; then
+            hs_reloaded=1
+        fi
     fi
 
     echo ""
-    echo "Next steps:"
-    echo "  1. Edit config:    nano $INSTALL_DIR/.env"
-    echo "     (point STT_SERVER_URL at your whisper server, e.g. http://192.168.30.30:8082/v1/audio/transcriptions)"
-    echo "  2. Reload shell:   source $ZSHRC"
+    info "Installation complete!"
     echo ""
-    echo "Usage:"
-    echo "  Terminal (ZSH):  Press Ctrl+T to start/stop recording"
-    echo "  Anywhere:        Press Cmd+Shift+Space to start/stop recording"
+    echo "=============================================================="
+    echo "  WHAT'S NEXT"
+    echo "=============================================================="
+    echo ""
+
+    if (( hs_reloaded == 1 )); then
+        info "Hammerspoon config reloaded — Cmd+Shift+Space is live."
+        echo ""
+        echo "  First-time permissions (if you haven't already):"
+        echo "    - Privacy & Security > Accessibility  -> enable 'Hammerspoon'"
+        echo "    - Privacy & Security > Microphone     -> enable 'Hammerspoon'"
+        echo "      (prompt appears automatically on first recording)"
+    else
+        warn "FIRST-TIME SETUP — follow these steps in order:"
+        echo ""
+        echo "  1. Hammerspoon should now be running (menu bar icon: hammer)."
+        echo "     If not, launch it from /Applications/Hammerspoon.app."
+        echo ""
+        echo "  2. Grant Accessibility permission:"
+        echo "     - A macOS dialog will appear on Hammerspoon's first launch"
+        echo "     - Click 'Open System Settings'"
+        echo "     - Toggle 'Hammerspoon' ON in Privacy & Security > Accessibility"
+        echo ""
+        echo "  3. Click the Hammerspoon menu bar icon (hammer) -> 'Reload Config'"
+        echo "     (This one-time click is required because the 'hs' CLI needs"
+        echo "      hs.ipc to be loaded in your init.lua, which only happens"
+        echo "      after the first reload.)"
+        echo ""
+        echo "  4. On your first Cmd+Shift+Space recording, macOS will prompt"
+        echo "     for Microphone access. Grant it to 'Hammerspoon'."
+    fi
+
+    echo ""
+    echo "  5. Configure the whisper server:"
+    echo "       nano $INSTALL_DIR/.env"
+    echo "     Set STT_SERVER_URL to your whisper endpoint, e.g."
+    echo "     http://192.168.30.30:8082/v1/audio/transcriptions"
+    echo ""
+    echo "  6. Reload your shell for the in-terminal Ctrl+T widget:"
+    echo "       source $ZSHRC"
+    echo ""
+    echo "=============================================================="
+    echo "  USAGE"
+    echo "=============================================================="
+    echo ""
+    echo "  In any app:     Cmd+Shift+Space   (start/stop — text pastes"
+    echo "                                     into the focused field)"
+    echo "  In zsh prompt:  Ctrl+T            (start/stop — text inserts"
+    echo "                                     at the cursor)"
+    echo ""
+    echo "  Auto-start: Hammerspoon launches at login automatically"
+    echo "              (enabled via hs.autoLaunch in your init.lua)."
+    echo ""
 }
 
 uninstall_macos() {
