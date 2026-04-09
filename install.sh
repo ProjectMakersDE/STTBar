@@ -327,24 +327,33 @@ install_macos() {
     fi
 
     # Start skhd service (idempotent — no-op if already running)
-    if command -v brew &>/dev/null && brew services list 2>/dev/null | grep -q '^skhd'; then
-        brew services start skhd >/dev/null 2>&1 || true
-        info "skhd service started (or already running)"
+    # Use skhd's native launchd service commands — more reliable than
+    # `brew services` and recommended upstream. --install-service creates
+    # ~/Library/LaunchAgents/com.koekeishiya.skhd.plist; --start-service
+    # loads it into launchd.
+    skhd --stop-service    >/dev/null 2>&1 || true
+    skhd --uninstall-service >/dev/null 2>&1 || true
+    if skhd --install-service >/dev/null 2>&1 && skhd --start-service >/dev/null 2>&1; then
+        info "skhd service installed and started"
     else
-        warn "Could not start skhd via brew services. Start it manually:"
-        echo "  brew services start skhd"
+        warn "Could not start skhd service. Start it manually:"
+        echo "  skhd --install-service && skhd --start-service"
     fi
 
     echo ""
     info "Installation complete!"
     echo ""
     warn "macOS permissions required (one-time setup):"
-    echo "  On the first Cmd+Shift+Space press, macOS will prompt to allow"
-    echo "  skhd to control your computer and access the microphone."
+    echo "  1. Press Cmd+Shift+Space once — macOS will prompt to allow skhd"
+    echo "     to control your computer. Click 'Open System Settings' and"
+    echo "     enable 'skhd' in Privacy & Security > Accessibility."
     echo ""
-    echo "  Grant these in System Settings:"
-    echo "    - Privacy & Security -> Microphone      -> enable 'skhd'"
-    echo "    - Privacy & Security -> Accessibility   -> enable 'skhd'"
+    echo "  2. After granting Accessibility, restart skhd so the new"
+    echo "     permission takes effect:"
+    echo "       skhd --stop-service && skhd --start-service"
+    echo ""
+    echo "  3. On first recording, macOS will prompt for Microphone access."
+    echo "     Grant it to 'skhd' when prompted."
     echo ""
     read -r -p "Open Accessibility settings now? [y/N] " ans
     if [[ "$ans" =~ ^[Yy]$ ]]; then
@@ -376,9 +385,11 @@ uninstall_macos() {
     # for other bindings, so we don't touch brew services state)
     unregister_skhd_binding && info "Removed skhd binding" || true
 
-    # Reload skhd config so the removed binding takes effect immediately
-    if command -v brew &>/dev/null; then
-        brew services restart skhd >/dev/null 2>&1 || true
+    # Reload skhd so the removed binding takes effect immediately.
+    # Uses skhd's native service commands (not brew services).
+    if command -v skhd &>/dev/null; then
+        skhd --stop-service  >/dev/null 2>&1 || true
+        skhd --start-service >/dev/null 2>&1 || true
     fi
 
     # Remove install directory
