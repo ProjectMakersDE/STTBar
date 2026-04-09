@@ -101,7 +101,9 @@ register_hammerspoon_binding() {
 
     # If markers already exist, remove the existing block first so we
     # always write a fresh, consistent version (handles config drift).
-    if grep -qF "$start_marker" "$init_lua"; then
+    # Note: -- separator needed because the pattern starts with "--",
+    # which BSD grep would otherwise interpret as end-of-options.
+    if grep -qF -- "$start_marker" "$init_lua"; then
         sed -i '' "/$start_marker/,/$end_marker/d" "$init_lua" 2>/dev/null || true
     fi
 
