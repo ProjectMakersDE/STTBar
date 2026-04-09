@@ -63,6 +63,60 @@ check_deps_linux() {
     fi
 }
 
+check_deps_macos() {
+    local missing=()
+    for cmd in sox rec curl jq skhd; do
+        if ! command -v "$cmd" &>/dev/null; then
+            missing+=("$cmd")
+        fi
+    done
+
+    if [[ ${#missing[@]} -gt 0 ]]; then
+        error "Missing dependencies: ${missing[*]}"
+        echo "Install them with:"
+        echo "  brew install sox jq skhd"
+        return 1
+    fi
+
+    info "All dependencies found"
+}
+
+register_skhd_binding() {
+    local skhdrc="$HOME/.config/skhd/skhdrc"
+    local binding_cmd="$INSTALL_DIR/stt-global.sh"
+    local binding_line="cmd + shift - space : $binding_cmd"
+
+    mkdir -p "$(dirname "$skhdrc")"
+    touch "$skhdrc"
+
+    if grep -qF "stt-global.sh" "$skhdrc"; then
+        warn "skhd binding for stt-global.sh already present — not modifying $skhdrc"
+        return 0
+    fi
+
+    # Append with a blank-line separator
+    {
+        echo ""
+        echo "# STT Speech to Text"
+        echo "$binding_line"
+    } >> "$skhdrc"
+
+    return 0
+}
+
+unregister_skhd_binding() {
+    local skhdrc="$HOME/.config/skhd/skhdrc"
+    [[ -f "$skhdrc" ]] || return 0
+
+    # Remove the "# STT Speech to Text" comment line and any line containing
+    # stt-global.sh. Uses BSD sed -i '' (macOS). Two passes keeps the regex
+    # simple and avoids GNU/BSD sed portability traps.
+    sed -i '' '/# STT Speech to Text/d' "$skhdrc" 2>/dev/null || true
+    sed -i '' '/stt-global\.sh/d' "$skhdrc" 2>/dev/null || true
+
+    return 0
+}
+
 register_gnome_shortcut() {
     if ! command -v gsettings &>/dev/null; then
         return 1
@@ -206,6 +260,132 @@ uninstall_linux() {
 
     echo ""
     info "Uninstall complete. Restart your shell."
+}
+
+install_macos() {
+    echo "=== STT Terminal Tool Installer (macOS) ==="
+    echo ""
+
+    check_deps_macos || exit 1
+
+    # Create install directory
+    mkdir -p "$INSTALL_DIR"
+
+    # Copy shared files
+    cp "$SCRIPT_DIR/stt.zsh"          "$INSTALL_DIR/"
+    cp "$SCRIPT_DIR/stt-record.sh"    "$INSTALL_DIR/"
+    cp "$SCRIPT_DIR/stt-transcribe.sh" "$INSTALL_DIR/"
+    chmod +x "$INSTALL_DIR/stt-record.sh"
+    chmod +x "$INSTALL_DIR/stt-transcribe.sh"
+
+    # Copy the macOS global script as stt-global.sh (OS-agnostic name
+    # inside the install dir, so the skhd binding path doesn't depend
+    # on the source filename).
+    cp "$SCRIPT_DIR/stt-global-mac.sh" "$INSTALL_DIR/stt-global.sh"
+    chmod +x "$INSTALL_DIR/stt-global.sh"
+
+    # Copy .env if not exists
+    if [[ ! -f "$INSTALL_DIR/.env" ]]; then
+        if [[ -f "$SCRIPT_DIR/.env" ]]; then
+            cp "$SCRIPT_DIR/.env" "$INSTALL_DIR/"
+        elif [[ -f "$SCRIPT_DIR/.env.example" ]]; then
+            cp "$SCRIPT_DIR/.env.example" "$INSTALL_DIR/.env"
+        fi
+        info "Created config at $INSTALL_DIR/.env"
+    else
+        warn "Config already exists at $INSTALL_DIR/.env (not overwritten)"
+    fi
+
+    # Add source line to .zshrc
+    if ! grep -qF "$SOURCE_LINE" "$ZSHRC" 2>/dev/null; then
+        echo "" >> "$ZSHRC"
+        echo "# STT Terminal Tool - Speech to Text" >> "$ZSHRC"
+        echo "$SOURCE_LINE" >> "$ZSHRC"
+        info "Added source line to $ZSHRC"
+    else
+        warn "Source line already in $ZSHRC"
+    fi
+
+    # Copy docker-compose for reference
+    if [[ -f "$SCRIPT_DIR/docker-compose.yml" ]]; then
+        cp "$SCRIPT_DIR/docker-compose.yml" "$INSTALL_DIR/"
+        info "Copied docker-compose.yml to $INSTALL_DIR"
+    fi
+
+    # Register skhd binding
+    if register_skhd_binding; then
+        info "Registered Cmd+Shift+Space as global STT hotkey (skhd)"
+    else
+        warn "Could not register skhd binding automatically."
+        echo "  Add manually to ~/.config/skhd/skhdrc:"
+        echo "  cmd + shift - space : $INSTALL_DIR/stt-global.sh"
+    fi
+
+    # Start skhd service (idempotent — no-op if already running)
+    if command -v brew &>/dev/null && brew services list 2>/dev/null | grep -q '^skhd'; then
+        brew services start skhd >/dev/null 2>&1 || true
+        info "skhd service started (or already running)"
+    else
+        warn "Could not start skhd via brew services. Start it manually:"
+        echo "  brew services start skhd"
+    fi
+
+    echo ""
+    info "Installation complete!"
+    echo ""
+    warn "macOS permissions required (one-time setup):"
+    echo "  On the first Cmd+Shift+Space press, macOS will prompt to allow"
+    echo "  skhd to control your computer and access the microphone."
+    echo ""
+    echo "  Grant these in System Settings:"
+    echo "    - Privacy & Security -> Microphone      -> enable 'skhd'"
+    echo "    - Privacy & Security -> Accessibility   -> enable 'skhd'"
+    echo ""
+    read -r -p "Open Accessibility settings now? [y/N] " ans
+    if [[ "$ans" =~ ^[Yy]$ ]]; then
+        open "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
+    fi
+
+    echo ""
+    echo "Next steps:"
+    echo "  1. Edit config:    nano $INSTALL_DIR/.env"
+    echo "     (point STT_SERVER_URL at your whisper server, e.g. http://192.168.30.30:8082/v1/audio/transcriptions)"
+    echo "  2. Reload shell:   source $ZSHRC"
+    echo ""
+    echo "Usage:"
+    echo "  Terminal (ZSH):  Press Ctrl+T to start/stop recording"
+    echo "  Anywhere:        Press Cmd+Shift+Space to start/stop recording"
+}
+
+uninstall_macos() {
+    echo "=== STT Terminal Tool Uninstaller (macOS) ==="
+
+    # Remove source line from .zshrc (BSD sed needs '' after -i)
+    if [[ -f "$ZSHRC" ]]; then
+        sed -i '' "\|$SOURCE_LINE|d" "$ZSHRC" 2>/dev/null || true
+        sed -i '' '/# STT Terminal Tool/d' "$ZSHRC" 2>/dev/null || true
+        info "Removed source line from $ZSHRC"
+    fi
+
+    # Remove skhd binding (leaves skhd service running — user may use it
+    # for other bindings, so we don't touch brew services state)
+    unregister_skhd_binding && info "Removed skhd binding" || true
+
+    # Reload skhd config so the removed binding takes effect immediately
+    if command -v brew &>/dev/null; then
+        brew services restart skhd >/dev/null 2>&1 || true
+    fi
+
+    # Remove install directory
+    if [[ -d "$INSTALL_DIR" ]]; then
+        rm -rf "$INSTALL_DIR"
+        info "Removed $INSTALL_DIR"
+    fi
+
+    echo ""
+    info "Uninstall complete. Restart your shell."
+    warn "Note: skhd itself and any granted permissions (Accessibility, Microphone)"
+    echo "      were not removed. Revoke those manually in System Settings if desired."
 }
 
 install() {
