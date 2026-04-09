@@ -74,7 +74,12 @@ check_deps_macos() {
     if [[ ${#missing[@]} -gt 0 ]]; then
         error "Missing dependencies: ${missing[*]}"
         echo "Install them with:"
-        echo "  brew install sox jq skhd"
+        echo "  brew install sox jq"
+        echo "  brew install koekeishiya/formulae/skhd   # skhd lives in a tap, not homebrew-core"
+        echo ""
+        echo "If skhd fails with 'Command Line Tools are too outdated':"
+        echo "  sudo rm -rf /Library/Developer/CommandLineTools"
+        echo "  sudo xcode-select --install"
         return 1
     fi
 
