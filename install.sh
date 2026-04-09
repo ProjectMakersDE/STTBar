@@ -6,6 +6,7 @@ INSTALL_DIR="${STT_INSTALL_DIR:-$HOME/.local/share/stt}"
 ZSHRC="$HOME/.zshrc"
 SOURCE_LINE="source \"$INSTALL_DIR/stt.zsh\""
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+OS="$(uname -s)"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -16,7 +17,7 @@ info()  { echo -e "${GREEN}[OK]${NC} $1"; }
 warn()  { echo -e "${YELLOW}[WARN]${NC} $1"; }
 error() { echo -e "${RED}[ERROR]${NC} $1" >&2; }
 
-check_deps() {
+check_deps_linux() {
     local missing=()
     for cmd in sox curl jq docker; do
         if ! command -v "$cmd" &>/dev/null; then
@@ -113,12 +114,12 @@ unregister_gnome_shortcut() {
     return 0
 }
 
-install() {
+install_linux() {
     echo "=== STT Terminal Tool Installer ==="
     echo ""
 
     # Check dependencies
-    check_deps || exit 1
+    check_deps_linux || exit 1
 
     # Create install directory
     mkdir -p "$INSTALL_DIR"
@@ -184,7 +185,7 @@ install() {
     echo "  Anywhere (X11):  Ctrl+T via global hotkey (Claude Code, any app)"
 }
 
-uninstall() {
+uninstall_linux() {
     echo "=== STT Terminal Tool Uninstaller ==="
 
     # Remove source line from .zshrc
@@ -205,6 +206,22 @@ uninstall() {
 
     echo ""
     info "Uninstall complete. Restart your shell."
+}
+
+install() {
+    case "$OS" in
+        Linux)  install_linux ;;
+        Darwin) install_macos ;;
+        *) error "Unsupported OS: $OS"; exit 1 ;;
+    esac
+}
+
+uninstall() {
+    case "$OS" in
+        Linux)  uninstall_linux ;;
+        Darwin) uninstall_macos ;;
+        *) error "Unsupported OS: $OS"; exit 1 ;;
+    esac
 }
 
 case "${1:-}" in
