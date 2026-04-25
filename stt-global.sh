@@ -8,6 +8,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 [[ -f "$SCRIPT_DIR/.env" ]] && source "$SCRIPT_DIR/.env"
 
 STT_PID_FILE="/tmp/stt-recording.pid"
+STT_STATE_FILE="/tmp/stt-state"
+
+stt_state() {
+    printf '%s' "$1" > "$STT_STATE_FILE" 2>/dev/null || true
+}
 
 notify() {
     local urgency="${1:-normal}"
@@ -27,10 +32,11 @@ if is_recording; then
     # Save focused window BEFORE any notifications or work
     target_window="$(xdotool getactivewindow 2>/dev/null)" || true
 
-    notify normal 2000 "Transcribing..."
+    stt_state "transcribing"
 
     audio_file="$("$SCRIPT_DIR/stt-record.sh" stop 2>/dev/null)" || true
     if [[ -z "$audio_file" ]]; then
+        stt_state "idle"
         notify critical 3000 "Recording failed or was empty."
         exit 1
     fi
@@ -40,6 +46,7 @@ if is_recording; then
     rm -f "$audio_file"
 
     if [[ $rc -ne 0 ]] || [[ -z "$text" ]]; then
+        stt_state "idle"
         notify critical 3000 "Transcription failed. Is the whisper server running?"
         exit 1
     fi
@@ -55,7 +62,7 @@ if is_recording; then
     sleep 0.2
     xdotool key --clearmodifiers ctrl+v
 
-    notify normal 2000 "$text"
+    stt_state "idle"
 else
     # --- START RECORDING ---
     if ! "$SCRIPT_DIR/stt-record.sh" start >/dev/null 2>&1; then
@@ -63,5 +70,5 @@ else
         exit 1
     fi
 
-    notify normal 5000 "Recording... (Ctrl+T to stop)"
+    stt_state "recording"
 fi

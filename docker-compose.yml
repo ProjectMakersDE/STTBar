@@ -1,6 +1,6 @@
 services:
   whisper:
-    image: ghcr.io/speaches-ai/speaches:latest-cuda
+    image: ghcr.io/speaches-ai/speaches:0.9.0-rc.3-cuda
     container_name: stt-whisper
     ports:
       - "${STT_DOCKER_PORT:-8082}:8000"
