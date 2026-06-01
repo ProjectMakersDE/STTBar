@@ -1,12 +1,50 @@
 #!/usr/bin/env bash
 # stt-global-mac.sh — System-wide STT toggle for macOS
-# Triggered by skhd global hotkey. First call starts recording, second
-# call stops + transcribes + pastes into the focused text field.
+# Triggered by Hammerspoon / skhd global hotkey. First call starts
+# recording, second call stops + transcribes + pastes into the focused
+# text field.
 set -euo pipefail
+
+# Hammerspoon launched from launchd (e.g. after a reboot) has a minimal
+# PATH that does NOT include Homebrew, so `rec`, `sox`, `jq` etc. won't
+# be found and the background `rec` dies immediately — which makes the
+# toggle never reach the "stop" branch. Prepend the common Homebrew
+# locations so the script works regardless of how Hammerspoon started.
+export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/local/sbin:${PATH:-/usr/bin:/bin:/usr/sbin:/sbin}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=/dev/null
 [[ -f "$SCRIPT_DIR/.env" ]] && source "$SCRIPT_DIR/.env"
+
+# macOS tools such as pbcopy and osascript decode stdin/argv using the
+# process locale. Launch agents often run without one, and C.UTF-8 is not
+# handled correctly by pbcopy on macOS, causing German umlauts to become
+# mojibake like "√§" instead of "ä".
+configure_utf8_locale() {
+    local locale_candidate="${STT_LOCALE:-}"
+
+    if [[ -z "$locale_candidate" ]]; then
+        case "${LANG:-}" in
+            *UTF-8|*utf-8|*utf8) locale_candidate="$LANG" ;;
+        esac
+    fi
+
+    if [[ -z "$locale_candidate" ]]; then
+        case "${LC_CTYPE:-}" in
+            *UTF-8|*utf-8|*utf8) locale_candidate="$LC_CTYPE" ;;
+        esac
+    fi
+
+    case "$locale_candidate" in
+        ""|C|POSIX|C.UTF-8|*.US-ASCII|*ASCII*) locale_candidate="de_DE.UTF-8" ;;
+    esac
+
+    export LANG="$locale_candidate"
+    export LC_CTYPE="$locale_candidate"
+    export LC_ALL="$locale_candidate"
+}
+
+configure_utf8_locale
 
 STT_PID_FILE="/tmp/stt-recording.pid"
 
