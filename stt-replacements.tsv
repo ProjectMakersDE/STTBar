@@ -1,0 +1,6 @@
+# STT deterministic replacements
+# Format: spoken-or-model-text<TAB>preferred-output
+# Matching is case-insensitive and avoids replacing inside longer words.
+
+horizon	horizOn
+Horizont	horizOn

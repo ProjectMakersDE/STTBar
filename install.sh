@@ -203,8 +203,13 @@ install_linux() {
     cp "$SCRIPT_DIR/stt.zsh" "$INSTALL_DIR/"
     cp "$SCRIPT_DIR/stt-record.sh" "$INSTALL_DIR/"
     cp "$SCRIPT_DIR/stt-transcribe.sh" "$INSTALL_DIR/"
+    cp "$SCRIPT_DIR/stt-postprocess.sh" "$INSTALL_DIR/"
+    if [[ ! -f "$INSTALL_DIR/stt-replacements.tsv" ]]; then
+        cp "$SCRIPT_DIR/stt-replacements.tsv" "$INSTALL_DIR/"
+    fi
     chmod +x "$INSTALL_DIR/stt-record.sh"
     chmod +x "$INSTALL_DIR/stt-transcribe.sh"
+    chmod +x "$INSTALL_DIR/stt-postprocess.sh"
     cp "$SCRIPT_DIR/stt-global.sh" "$INSTALL_DIR/"
     chmod +x "$INSTALL_DIR/stt-global.sh"
 
@@ -296,8 +301,13 @@ install_macos() {
     cp "$SCRIPT_DIR/stt.zsh"          "$INSTALL_DIR/"
     cp "$SCRIPT_DIR/stt-record.sh"    "$INSTALL_DIR/"
     cp "$SCRIPT_DIR/stt-transcribe.sh" "$INSTALL_DIR/"
+    cp "$SCRIPT_DIR/stt-postprocess.sh" "$INSTALL_DIR/"
+    if [[ ! -f "$INSTALL_DIR/stt-replacements.tsv" ]]; then
+        cp "$SCRIPT_DIR/stt-replacements.tsv" "$INSTALL_DIR/"
+    fi
     chmod +x "$INSTALL_DIR/stt-record.sh"
     chmod +x "$INSTALL_DIR/stt-transcribe.sh"
+    chmod +x "$INSTALL_DIR/stt-postprocess.sh"
 
     # Copy the macOS global script as stt-global.sh (OS-agnostic name
     # inside the install dir, so the skhd binding path doesn't depend

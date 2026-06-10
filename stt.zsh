@@ -52,6 +52,12 @@ stt-widget() {
             return 1
         fi
 
+        if [[ -x "$STT_PLUGIN_DIR/stt-postprocess.sh" ]]; then
+            local processed
+            processed="$(printf '%s' "$text" | "$STT_PLUGIN_DIR/stt-postprocess.sh" 2>/dev/null)" || processed="$text"
+            text="$processed"
+        fi
+
         # Insert text at cursor position
         LBUFFER+="$text"
         zle -M ""

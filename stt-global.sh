@@ -51,6 +51,10 @@ if is_recording; then
         exit 1
     fi
 
+    if [[ -x "$SCRIPT_DIR/stt-postprocess.sh" ]]; then
+        text="$(printf '%s' "$text" | "$SCRIPT_DIR/stt-postprocess.sh" 2>/dev/null || printf '%s' "$text")"
+    fi
+
     # Also set clipboard as fallback for manual paste
     printf '%s' "$text" | xclip -selection clipboard 2>/dev/null || true
 

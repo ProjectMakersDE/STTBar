@@ -78,6 +78,10 @@ if is_recording; then
         exit 1
     fi
 
+    if [[ -x "$SCRIPT_DIR/stt-postprocess.sh" ]]; then
+        text="$(printf '%s' "$text" | "$SCRIPT_DIR/stt-postprocess.sh" 2>/dev/null || printf '%s' "$text")"
+    fi
+
     # Put text on clipboard (always — fallback for manual paste)
     printf '%s' "$text" | pbcopy
 
