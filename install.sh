@@ -92,7 +92,9 @@ check_deps_macos() {
 # without touching the rest of the user's Hammerspoon config.
 register_hammerspoon_binding() {
     local init_lua="$HOME/.hammerspoon/init.lua"
-    local script_path="$INSTALL_DIR/stt-global.sh"
+    local hammerspoon_script="$INSTALL_DIR/hammerspoon-stt.lua"
+    local hammerspoon_script_escaped="${hammerspoon_script//\\/\\\\}"
+    hammerspoon_script_escaped="${hammerspoon_script_escaped//\"/\\\"}"
     local start_marker="-- STT Speech to Text - START"
     local end_marker="-- STT Speech to Text - END"
 
@@ -107,8 +109,8 @@ register_hammerspoon_binding() {
         sed -i '' "/$start_marker/,/$end_marker/d" "$init_lua" 2>/dev/null || true
     fi
 
-    # Append the new block. hs.task runs the script asynchronously, so the
-    # hotkey returns immediately and Hammerspoon stays responsive.
+    # Append the new block. The HUD/hotkey implementation is versioned in
+    # hammerspoon-stt.lua and loaded from the install directory.
     #   - hs.ipc enables the 'hs' CLI for scripted reloads from outside
     #   - hs.autoLaunch(true) makes Hammerspoon start automatically at login
     {
@@ -116,9 +118,7 @@ register_hammerspoon_binding() {
         echo "$start_marker"
         echo "require(\"hs.ipc\")"
         echo "hs.autoLaunch(true)"
-        echo "hs.hotkey.bind({\"cmd\", \"shift\"}, \"space\", function()"
-        echo "    hs.task.new(\"$script_path\", nil):start()"
-        echo "end)"
+        echo "dofile(\"$hammerspoon_script_escaped\")"
         echo "$end_marker"
     } >> "$init_lua"
 
@@ -314,6 +314,7 @@ install_macos() {
     # on the source filename).
     cp "$SCRIPT_DIR/stt-global-mac.sh" "$INSTALL_DIR/stt-global.sh"
     chmod +x "$INSTALL_DIR/stt-global.sh"
+    cp "$SCRIPT_DIR/hammerspoon-stt.lua" "$INSTALL_DIR/"
 
     # Copy .env if not exists
     if [[ ! -f "$INSTALL_DIR/.env" ]]; then
@@ -349,9 +350,9 @@ install_macos() {
     else
         warn "Could not write Hammerspoon binding automatically."
         echo "  Add manually to ~/.hammerspoon/init.lua:"
-        echo "  hs.hotkey.bind({\"cmd\", \"shift\"}, \"space\", function()"
-        echo "      hs.task.new(\"$INSTALL_DIR/stt-global.sh\", nil):start()"
-        echo "  end)"
+        echo "  require(\"hs.ipc\")"
+        echo "  hs.autoLaunch(true)"
+        echo "  dofile(\"$INSTALL_DIR/hammerspoon-stt.lua\")"
     fi
 
     # Make sure Hammerspoon is running — it needs to be active for the

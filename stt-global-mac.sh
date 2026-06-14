@@ -48,7 +48,17 @@ configure_utf8_locale
 
 STT_PID_FILE="/tmp/stt-recording.pid"
 
+set_phase() {
+    if [[ -n "${STT_PHASE_FILE:-}" ]]; then
+        printf '%s\n' "$1" > "$STT_PHASE_FILE" 2>/dev/null || true
+    fi
+}
+
 notify() {
+    if [[ "${STT_NOTIFICATIONS:-1}" == "0" ]]; then
+        return 0
+    fi
+
     local body="$1"
     # Escape double quotes for osascript's double-quoted string literal
     local escaped="${body//\"/\\\"}"
@@ -61,25 +71,38 @@ is_recording() {
 
 if is_recording; then
     # --- STOP RECORDING & TRANSCRIBE & PASTE ---
+    set_phase "whisper"
     notify "Transcribing..."
 
     audio_file="$("$SCRIPT_DIR/stt-record.sh" stop 2>/dev/null)" || true
     if [[ -z "$audio_file" ]]; then
+        set_phase "error"
         notify "Recording failed or was empty."
         exit 1
     fi
 
+    set +e
     text="$("$SCRIPT_DIR/stt-transcribe.sh" "$audio_file" 2>/dev/null)"
     rc=$?
+    set -e
     rm -f "$audio_file"
 
     if [[ $rc -ne 0 ]] || [[ -z "$text" ]]; then
+        set_phase "error"
         notify "Transcription failed. Is the whisper server running?"
         exit 1
     fi
 
     if [[ -x "$SCRIPT_DIR/stt-postprocess.sh" ]]; then
-        text="$(printf '%s' "$text" | "$SCRIPT_DIR/stt-postprocess.sh" 2>/dev/null || printf '%s' "$text")"
+        set_phase "llm"
+        set +e
+        processed="$(printf '%s' "$text" | "$SCRIPT_DIR/stt-postprocess.sh" 2>/dev/null)"
+        postprocess_rc=$?
+        set -e
+
+        if [[ $postprocess_rc -eq 0 ]] && [[ -n "$processed" ]]; then
+            text="$processed"
+        fi
     fi
 
     # Put text on clipboard (always — fallback for manual paste)
@@ -90,13 +113,16 @@ if is_recording; then
     # field is still active. Requires Accessibility permission for skhd.
     osascript -e 'tell application "System Events" to keystroke "v" using command down'
 
+    set_phase "done"
     notify "$text"
 else
     # --- START RECORDING ---
     if ! "$SCRIPT_DIR/stt-record.sh" start >/dev/null 2>&1; then
+        set_phase "error"
         notify "Could not start recording. Is sox installed?"
         exit 1
     fi
 
+    set_phase "recording"
     notify "Recording... (Cmd+Shift+Space to stop)"
 fi
