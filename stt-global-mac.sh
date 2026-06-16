@@ -93,8 +93,23 @@ if is_recording; then
         exit 1
     fi
 
+    # STT_MODE selects how the transcript is processed:
+    #   full    (default) -> LLM cleanup in the source language
+    #   raw                -> no LLM; text replacements only (TSV, URLs, e-mail)
+    #   english            -> LLM cleanup, output translated to English
+    stt_mode="${STT_MODE:-full}"
+
     if [[ -x "$SCRIPT_DIR/stt-postprocess.sh" ]]; then
-        set_phase "llm"
+        if [[ "$stt_mode" == "raw" ]]; then
+            # Skip the LLM but still apply the text replacements.
+            export STT_POSTPROCESS_ENABLED=0
+        else
+            set_phase "llm"
+            if [[ "$stt_mode" == "english" ]]; then
+                export STT_POSTPROCESS_TRANSLATE="Englisch"
+            fi
+        fi
+
         set +e
         processed="$(printf '%s' "$text" | "$SCRIPT_DIR/stt-postprocess.sh" 2>/dev/null)"
         postprocess_rc=$?

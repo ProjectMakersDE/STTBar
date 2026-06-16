@@ -461,11 +461,15 @@ local function shellQuote(value)
     return "'" .. tostring(value):gsub("'", "'\\''") .. "'"
 end
 
-local function launchSttToggle()
+-- mode selects post-processing on STOP: "full" (LLM, source language),
+-- "raw" (no LLM), "english" (LLM + translate to English). The mode of the
+-- press that STOPS recording wins; the start press only begins recording.
+local function launchSttToggle(mode)
+    mode = mode or "full"
     local wasRecording = sttIsRecording()
     local action = wasRecording and "stop" or "start"
 
-    log("trigger action=" .. action .. " taskRunning=" .. tostring(taskRunning))
+    log("trigger action=" .. action .. " mode=" .. mode .. " taskRunning=" .. tostring(taskRunning))
 
     if taskRunning then
         if not sttProcessRunning() and not sttIsRecording() then
@@ -487,7 +491,7 @@ local function launchSttToggle()
         overlay.show("recording")
     end
 
-    local command = "STT_NOTIFICATIONS=0 STT_PHASE_FILE=" .. shellQuote(phaseFile) .. " exec " .. shellQuote(sttScript)
+    local command = "STT_MODE=" .. shellQuote(mode) .. " STT_NOTIFICATIONS=0 STT_PHASE_FILE=" .. shellQuote(phaseFile) .. " exec " .. shellQuote(sttScript)
     currentTask = hs.task.new("/bin/bash", function(exitCode)
         log("task exit action=" .. action .. " exitCode=" .. tostring(exitCode))
         taskRunning = false
@@ -547,4 +551,9 @@ STTTrigger = launchSttToggle
 STTReset = resetSttUi
 STTWaveLevels = readAudioLevels
 
-hs.hotkey.bind({ "cmd", "shift" }, "space", launchSttToggle)
+-- Cmd+Shift+Space  : full transcript with LLM cleanup (source language)
+-- Ctrl+Shift+Space : raw transcript, no LLM (text replacements still apply)
+-- Cmd+Alt+Space    : LLM cleanup, output translated to English
+hs.hotkey.bind({ "cmd", "shift" }, "space", function() launchSttToggle("full") end)
+hs.hotkey.bind({ "ctrl", "shift" }, "space", function() launchSttToggle("raw") end)
+hs.hotkey.bind({ "cmd", "alt" }, "space", function() launchSttToggle("english") end)
