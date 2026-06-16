@@ -147,11 +147,18 @@ install_native_app() {
         warn "Swift toolchain not found; keeping the Hammerspoon front-end."
         return 1
     }
-    info "Building STTBar.app (native menu-bar front-end)…"
-    if ! STT_INSTALL_DIR="$INSTALL_DIR" bash "$SCRIPT_DIR/macos-app/build-app.sh" "$HOME/Applications"; then
+    # Prefer /Applications (the standard location the macOS file pickers — e.g.
+    # the Accessibility "+" dialog — open by default) when it is writable;
+    # otherwise fall back to the per-user ~/Applications.
+    local app_dest="/Applications"
+    [[ -w "$app_dest" ]] || app_dest="$HOME/Applications"
+
+    info "Building STTBar.app (native menu-bar front-end) -> $app_dest …"
+    if ! STT_INSTALL_DIR="$INSTALL_DIR" bash "$SCRIPT_DIR/macos-app/build-app.sh" "$app_dest"; then
         warn "STTBar.app build failed; keeping the Hammerspoon front-end."
         return 1
     fi
+    local app_path="$app_dest/STTBar.app"
 
     local plist="$HOME/Library/LaunchAgents/de.projectmakers.sttbar.plist"
     mkdir -p "$(dirname "$plist")"
@@ -161,7 +168,7 @@ install_native_app() {
 <plist version="1.0"><dict>
   <key>Label</key><string>de.projectmakers.sttbar</string>
   <key>ProgramArguments</key><array>
-    <string>$HOME/Applications/STTBar.app/Contents/MacOS/STTBar</string>
+    <string>$app_path/Contents/MacOS/STTBar</string>
   </array>
   <key>EnvironmentVariables</key><dict>
     <key>STT_INSTALL_DIR</key><string>$INSTALL_DIR</string>
@@ -172,7 +179,7 @@ install_native_app() {
 PL
     launchctl unload "$plist" 2>/dev/null || true
     launchctl load "$plist" 2>/dev/null || true
-    info "STTBar.app installed to ~/Applications and started."
+    info "STTBar.app installed to $app_dest and started."
     return 0
 }
 
@@ -520,10 +527,12 @@ uninstall_macos() {
         rm -f "$plist"
         info "Removed STTBar LaunchAgent"
     fi
-    if [[ -d "$HOME/Applications/STTBar.app" ]]; then
-        rm -rf "$HOME/Applications/STTBar.app"
-        info "Removed ~/Applications/STTBar.app"
-    fi
+    for app in "/Applications/STTBar.app" "$HOME/Applications/STTBar.app"; do
+        if [[ -d "$app" ]]; then
+            rm -rf "$app"
+            info "Removed $app"
+        fi
+    done
 
     # Remove install directory
     if [[ -d "$INSTALL_DIR" ]]; then
