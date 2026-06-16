@@ -7,9 +7,8 @@ final class SettingsWindow {
     private let model: SettingsModel
     private var editor: PromptEditorWindow?
 
-    init(installDir: URL, onHotkeysChanged: @escaping () -> Void) {
-        model = SettingsModel(installDir: installDir)
-        model.onHotkeysChanged = onHotkeysChanged
+    init(model: SettingsModel) {
+        self.model = model
     }
 
     func show() {

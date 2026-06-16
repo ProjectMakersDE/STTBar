@@ -8,14 +8,9 @@ final class PromptEditorWindow {
     private let model: SettingsModel
     private let promptId: String?
 
-    /// Standalone init used by the menu — targets the active prompt.
-    init(installDir: URL) {
-        self.model = SettingsModel(installDir: installDir)
-        self.promptId = nil
-    }
-
-    /// Init used from the settings window — shares its model.
-    init(model: SettingsModel, promptId: String) {
+    /// Shares the app's settings model. `promptId == nil` targets the active
+    /// prompt (used by the menu's "Prompt bearbeiten…").
+    init(model: SettingsModel, promptId: String?) {
         self.model = model
         self.promptId = promptId
     }

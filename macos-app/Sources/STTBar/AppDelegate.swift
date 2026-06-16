@@ -7,6 +7,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var hud: HudOverlay!
     private var settingsWindow: SettingsWindow?
     private var promptWindow: PromptEditorWindow?
+    private var model: SettingsModel!
     let installDir = InstallPaths.resolve()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -14,6 +15,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hud = HudOverlay(runner: runner)
         menu = MenuBarController()
         hotkeys = HotkeyManager()
+        // Build the shared settings model up front: this seeds prompts.json +
+        // the default prompt and wires STT_POSTPROCESS_PROMPT_FILE into .env so
+        // prompt switching works even before the settings window is opened.
+        model = SettingsModel(installDir: installDir)
+        model.onHotkeysChanged = { [weak self] in self?.hotkeys.reload() }
 
         runner.onState = { [weak self] state in
             self?.menu.setState(state)
@@ -28,15 +34,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func showSettings() {
-        if settingsWindow == nil {
-            settingsWindow = SettingsWindow(installDir: installDir,
-                                            onHotkeysChanged: { [weak self] in self?.hotkeys.reload() })
-        }
+        if settingsWindow == nil { settingsWindow = SettingsWindow(model: model) }
         settingsWindow?.show()
     }
 
     private func showPromptEditor() {
-        if promptWindow == nil { promptWindow = PromptEditorWindow(installDir: installDir) }
+        if promptWindow == nil { promptWindow = PromptEditorWindow(model: model, promptId: nil) }
         promptWindow?.show()
     }
 }
