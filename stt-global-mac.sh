@@ -101,8 +101,11 @@ if is_recording; then
 
     if [[ -x "$SCRIPT_DIR/stt-postprocess.sh" ]]; then
         if [[ "$stt_mode" == "raw" ]]; then
-            # Skip the LLM but still apply the text replacements.
-            export STT_POSTPROCESS_ENABLED=0
+            # Skip the LLM but still apply the text replacements. Use the
+            # dedicated force-raw override: stt-postprocess.sh sources .env,
+            # which may set STT_POSTPROCESS_ENABLED=1 and clobber a plain
+            # disable. STT_POSTPROCESS_FORCE_RAW is never in .env, so it wins.
+            export STT_POSTPROCESS_FORCE_RAW=1
         else
             set_phase "llm"
             if [[ "$stt_mode" == "english" ]]; then

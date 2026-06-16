@@ -88,6 +88,14 @@ if [[ -z "$input" ]]; then
     exit 0
 fi
 
+# Hard override (raw mode): skip the LLM and apply text replacements only.
+# Checked AFTER sourcing .env on purpose — .env may set STT_POSTPROCESS_ENABLED=1,
+# which would otherwise clobber a caller-exported disable. This var is never
+# present in .env, so the caller's intent always wins.
+case "${STT_POSTPROCESS_FORCE_RAW:-0}" in
+    1|true|TRUE|yes|YES|on|ON) fallback; exit 0 ;;
+esac
+
 case "${STT_POSTPROCESS_ENABLED:-0}" in
     1|true|TRUE|yes|YES|on|ON) ;;
     *) fallback; exit 0 ;;
