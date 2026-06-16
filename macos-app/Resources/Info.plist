@@ -10,5 +10,5 @@
   <key>LSUIElement</key><true/>
   <key>NSMicrophoneUsageDescription</key>
   <string>STTBar records audio for speech-to-text transcription.</string>
-  <key>LSMinimumSystemVersion</key><string>13.0</string>
+  <key>LSMinimumSystemVersion</key><string>14.0</string>
 </dict></plist>

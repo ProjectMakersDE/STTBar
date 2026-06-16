@@ -1,7 +1,36 @@
 import AppKit
+import SwiftUI
 
-// Stub — fully implemented in Task 8.
+/// Hosts `SettingsView` in a native titled window.
 final class SettingsWindow {
-    init(installDir: URL, onHotkeysChanged: @escaping () -> Void) {}
-    func show() {}
+    private var window: NSWindow?
+    private let model: SettingsModel
+    private var editor: PromptEditorWindow?
+
+    init(installDir: URL, onHotkeysChanged: @escaping () -> Void) {
+        model = SettingsModel(installDir: installDir)
+        model.onHotkeysChanged = onHotkeysChanged
+    }
+
+    func show() {
+        if window == nil {
+            let host = NSHostingController(rootView: SettingsView(model: model, openEditor: { [weak self] id in
+                self?.openEditor(id)
+            }))
+            let w = NSWindow(contentViewController: host)
+            w.title = "STTBar – Einstellungen"
+            w.styleMask = [.titled, .closable, .miniaturizable]
+            w.setContentSize(NSSize(width: 540, height: 440))
+            window = w
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        window?.center()
+        window?.makeKeyAndOrderFront(nil)
+    }
+
+    private func openEditor(_ id: String) {
+        let e = PromptEditorWindow(model: model, promptId: id)
+        e.show()
+        editor = e
+    }
 }
