@@ -138,6 +138,44 @@ unregister_hammerspoon_binding() {
     return 0
 }
 
+# Build and install the native STTBar.app menu-bar front-end, then register a
+# login LaunchAgent that starts it (with STT_INSTALL_DIR pointing at the
+# install dir so it finds stt-global.sh + .env). Returns non-zero if the Swift
+# toolchain is unavailable, so the caller can fall back to Hammerspoon.
+install_native_app() {
+    command -v swift >/dev/null 2>&1 || {
+        warn "Swift toolchain not found; keeping the Hammerspoon front-end."
+        return 1
+    }
+    info "Building STTBar.app (native menu-bar front-end)…"
+    if ! STT_INSTALL_DIR="$INSTALL_DIR" bash "$SCRIPT_DIR/macos-app/build-app.sh" "$HOME/Applications"; then
+        warn "STTBar.app build failed; keeping the Hammerspoon front-end."
+        return 1
+    fi
+
+    local plist="$HOME/Library/LaunchAgents/de.projectmakers.sttbar.plist"
+    mkdir -p "$(dirname "$plist")"
+    cat > "$plist" <<PL
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>Label</key><string>de.projectmakers.sttbar</string>
+  <key>ProgramArguments</key><array>
+    <string>$HOME/Applications/STTBar.app/Contents/MacOS/STTBar</string>
+  </array>
+  <key>EnvironmentVariables</key><dict>
+    <key>STT_INSTALL_DIR</key><string>$INSTALL_DIR</string>
+  </dict>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+</dict></plist>
+PL
+    launchctl unload "$plist" 2>/dev/null || true
+    launchctl load "$plist" 2>/dev/null || true
+    info "STTBar.app installed to ~/Applications and started."
+    return 0
+}
+
 register_gnome_shortcut() {
     if ! command -v gsettings &>/dev/null; then
         return 1
@@ -344,8 +382,15 @@ install_macos() {
         info "Copied docker-compose.yml to $INSTALL_DIR"
     fi
 
-    # Register Hammerspoon binding
-    if register_hammerspoon_binding; then
+    # Front-end: prefer the native STTBar.app (owns icon + hotkeys + HUD).
+    # When it installs, stand Hammerspoon down. Otherwise fall back to the
+    # Hammerspoon HUD/hotkey implementation.
+    USED_NATIVE_APP=0
+    if install_native_app; then
+        USED_NATIVE_APP=1
+        unregister_hammerspoon_binding \
+            && info "Disabled the Hammerspoon STT block (native app is now active)."
+    elif register_hammerspoon_binding; then
         info "Registered Cmd+Shift+Space as global STT hotkey (Hammerspoon)"
     else
         warn "Could not write Hammerspoon binding automatically."
@@ -357,7 +402,8 @@ install_macos() {
 
     # Make sure Hammerspoon is running — it needs to be active for the
     # hotkey to work, and for the `hs` CLI reload below to succeed.
-    if ! pgrep -q Hammerspoon; then
+    # Skipped entirely when the native STTBar.app owns the front-end.
+    if (( USED_NATIVE_APP == 0 )) && ! pgrep -q Hammerspoon; then
         open -a Hammerspoon
         sleep 1
     fi
@@ -373,7 +419,7 @@ install_macos() {
     # That's expected. We verify success by doing a second round-trip
     # call after the reload settles.
     local hs_reloaded=0
-    if command -v hs &>/dev/null; then
+    if (( USED_NATIVE_APP == 0 )) && command -v hs &>/dev/null; then
         hs -c "hs.reload()" &>/dev/null || true
         sleep 0.5
         if hs -c "return 1" &>/dev/null; then
@@ -389,7 +435,17 @@ install_macos() {
     echo "=============================================================="
     echo ""
 
-    if (( hs_reloaded == 1 )); then
+    if (( USED_NATIVE_APP == 1 )); then
+        info "STTBar.app is running in the menu bar — Cmd+Shift+Space is live."
+        echo ""
+        echo "  First-time permissions:"
+        echo "    - Privacy & Security > Accessibility -> enable 'STTBar'"
+        echo "      (needed to paste the transcribed text into the focused field)"
+        echo "    - Microphone access is requested automatically on first recording."
+        echo ""
+        echo "  Open the menu bar mic icon -> 'Einstellungen…' to configure"
+        echo "  servers, models, prompts, shortcuts and the HUD position."
+    elif (( hs_reloaded == 1 )); then
         info "Hammerspoon config reloaded — Cmd+Shift+Space is live."
         echo ""
         echo "  First-time permissions (if you haven't already):"
@@ -456,6 +512,18 @@ uninstall_macos() {
     # Remove Hammerspoon binding block (leaves the rest of the user's
     # init.lua intact, and leaves Hammerspoon itself installed)
     unregister_hammerspoon_binding && info "Removed Hammerspoon binding" || true
+
+    # Remove the native STTBar.app front-end + its login LaunchAgent.
+    local plist="$HOME/Library/LaunchAgents/de.projectmakers.sttbar.plist"
+    if [[ -f "$plist" ]]; then
+        launchctl unload "$plist" 2>/dev/null || true
+        rm -f "$plist"
+        info "Removed STTBar LaunchAgent"
+    fi
+    if [[ -d "$HOME/Applications/STTBar.app" ]]; then
+        rm -rf "$HOME/Applications/STTBar.app"
+        info "Removed ~/Applications/STTBar.app"
+    fi
 
     # Remove install directory
     if [[ -d "$INSTALL_DIR" ]]; then
