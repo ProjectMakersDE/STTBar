@@ -433,7 +433,7 @@ install_macos() {
     echo "                                     pastes into the focused field)"
     echo "                  Ctrl+Shift+Space  (start/stop — raw transcript,"
     echo "                                     no LLM; replacements still apply)"
-    echo "                  Cmd+Alt+Space     (start/stop — LLM cleanup,"
+    echo "                  Shift+Option+Spc  (start/stop — LLM cleanup,"
     echo "                                     translated to English)"
     echo "  In zsh prompt:  Ctrl+T            (start/stop — text inserts"
     echo "                                     at the cursor)"

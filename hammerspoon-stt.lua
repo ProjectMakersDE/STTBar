@@ -551,9 +551,10 @@ STTTrigger = launchSttToggle
 STTReset = resetSttUi
 STTWaveLevels = readAudioLevels
 
--- Cmd+Shift+Space  : full transcript with LLM cleanup (source language)
--- Ctrl+Shift+Space : raw transcript, no LLM (text replacements still apply)
--- Cmd+Alt+Space    : LLM cleanup, output translated to English
+-- Cmd+Shift+Space    : full transcript with LLM cleanup (source language)
+-- Ctrl+Shift+Space   : raw transcript, no LLM (text replacements still apply)
+-- Shift+Option+Space : LLM cleanup, output translated to English
+--   (Option == Alt on the Mac keyboard; "alt" is Hammerspoon's name for ⌥)
 hs.hotkey.bind({ "cmd", "shift" }, "space", function() launchSttToggle("full") end)
 hs.hotkey.bind({ "ctrl", "shift" }, "space", function() launchSttToggle("raw") end)
-hs.hotkey.bind({ "cmd", "alt" }, "space", function() launchSttToggle("english") end)
+hs.hotkey.bind({ "shift", "alt" }, "space", function() launchSttToggle("english") end)
