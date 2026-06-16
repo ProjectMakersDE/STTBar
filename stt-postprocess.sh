@@ -173,7 +173,16 @@ Roh: kannst du mal checken ob der endpunkt unter h t t p doppelpunkt slash slash
 Bereinigt: Prüfe, ob der Endpoint unter http://localhost/api/users erreichbar ist.'
 
 input="$(apply_replacements "$input")"
-prompt="${STT_POSTPROCESS_PROMPT:-$default_prompt}"
+
+# Resolve the prompt: explicit inline var wins; else a prompt file (used by
+# the STTBar app for live prompt switching); else the built-in default.
+if [[ -n "${STT_POSTPROCESS_PROMPT:-}" ]]; then
+    prompt="$STT_POSTPROCESS_PROMPT"
+elif [[ -n "${STT_POSTPROCESS_PROMPT_FILE:-}" && -r "${STT_POSTPROCESS_PROMPT_FILE}" ]]; then
+    prompt="$(cat "$STT_POSTPROCESS_PROMPT_FILE")"
+else
+    prompt="$default_prompt"
+fi
 
 # Optional: translate the cleaned text into another language in the SAME
 # LLM call (no second request). STT_POSTPROCESS_TRANSLATE holds the target
@@ -189,6 +198,13 @@ Fassung aus. Alle übrigen Regeln (Inhaltstreue, kein Kürzen/Zusammenfassen,
 korrekte Fachbegriffe, reine Textausgabe) gelten unverändert weiter; nur die
 Ausgabesprache ändert sich. Regel 1 (\"Deutsch bleibt Deutsch\") wird hierfür
 außer Kraft gesetzt."
+fi
+
+# Test hook: print the resolved prompt (after translation tweaks) and exit
+# without calling a model. Used by tests/test-postprocess-prompt-file.sh.
+if [[ "${STT_POSTPROCESS_PRINT_PROMPT:-0}" == "1" ]]; then
+    printf '%s' "$prompt"
+    exit 0
 fi
 
 prompt_input="${prompt}
