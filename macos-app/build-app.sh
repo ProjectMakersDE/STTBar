@@ -13,4 +13,10 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/STTBar"
 cp "$HERE/Resources/Info.plist" "$APP/Contents/Info.plist"
+
+# Ad-hoc sign so the bundle is valid static code — TCC (Accessibility /
+# Microphone) tracks a signed bundle more reliably than an unsigned one.
+codesign --force --sign - --timestamp=none "$APP" >/dev/null 2>&1 \
+    && echo "Signed (ad-hoc): $APP" || echo "WARN: ad-hoc signing failed (continuing)"
+
 echo "Built $APP"

@@ -168,6 +168,32 @@ private struct DisplayTab: View {
     }
 }
 
+/// One permission: name, why it's needed, a status dot, and a grant button
+/// that triggers the system prompt and opens the relevant settings pane.
+private struct PermissionRow: View {
+    let title: String
+    let detail: String
+    /// nil = status cannot be queried reliably (e.g. Automation).
+    let granted: Bool?
+    let action: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack {
+                Image(systemName: granted == true ? "checkmark.circle.fill"
+                      : (granted == false ? "exclamationmark.circle.fill" : "questionmark.circle"))
+                    .foregroundStyle(granted == true ? Color.green
+                                     : (granted == false ? Color.orange : Color.secondary))
+                Text(title)
+                Spacer()
+                Button(granted == true ? "Öffnen" : "Erlauben…", action: action)
+            }
+            Text(detail).font(.caption).foregroundStyle(.secondary)
+        }
+        .padding(.vertical, 2)
+    }
+}
+
 private struct GeneralTab: View {
     @ObservedObject var model: SettingsModel
     @State private var autostart = LaunchAgent.isEnabled
@@ -186,11 +212,23 @@ private struct GeneralTab: View {
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section("Berechtigungen") {
-                Button("Bedienungshilfen öffnen (für Einfügen)") {
-                    if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
-                        NSWorkspace.shared.open(url)
-                    }
-                }
+                PermissionRow(
+                    title: "Bedienungshilfen",
+                    detail: "Nötig zum Einfügen (⌘V) des Texts ins aktive Feld.",
+                    granted: Permissions.accessibilityTrusted,
+                    action: { Permissions.promptAccessibility(); Permissions.openAccessibility() })
+                PermissionRow(
+                    title: "Mikrofon",
+                    detail: "Nötig für die Audioaufnahme.",
+                    granted: Permissions.microphoneStatus == .authorized,
+                    action: { Permissions.requestMicrophone(); Permissions.openMicrophone() })
+                PermissionRow(
+                    title: "Automatisierung (System Events)",
+                    detail: "Nötig, damit STTBar die ⌘V-Eingabe über „System Events“ sendet.",
+                    granted: nil,
+                    action: { Permissions.primeAutomation(); Permissions.openAutomation() })
+                Text("Hinweis: Nach einem App-Update kann macOS die Bedienungshilfen-Freigabe zurücksetzen — dann den Schalter dort einmal aus/an schalten.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)

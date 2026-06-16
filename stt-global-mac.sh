@@ -126,13 +126,21 @@ if is_recording; then
     # Put text on clipboard (always — fallback for manual paste)
     printf '%s' "$text" | pbcopy
 
-    # Paste into whatever field currently has focus.
-    # skhd does not steal focus when triggering scripts, so the target
-    # field is still active. Requires Accessibility permission for skhd.
-    osascript -e 'tell application "System Events" to keystroke "v" using command down'
-
-    set_phase "done"
-    notify "$text"
+    # Paste into whatever field currently has focus. The triggering app
+    # (STTBar / Hammerspoon) does not steal focus, so the target field is
+    # still active. Requires Accessibility permission for the triggering app.
+    #
+    # IMPORTANT: do not let a missing permission abort the script (set -e).
+    # The text is already on the clipboard, so on failure we report a
+    # distinct phase and tell the user to paste manually instead of flashing
+    # a hard error and losing the result.
+    if osascript -e 'tell application "System Events" to keystroke "v" using command down' 2>/dev/null; then
+        set_phase "done"
+        notify "$text"
+    else
+        set_phase "done"
+        notify "Text liegt in der Zwischenablage — mit ⌘V einfügen. (Bedienungshilfen-Berechtigung fehlt)"
+    fi
 else
     # --- START RECORDING ---
     if ! "$SCRIPT_DIR/stt-record.sh" start >/dev/null 2>&1; then
