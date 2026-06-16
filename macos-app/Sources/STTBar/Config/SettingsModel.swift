@@ -17,6 +17,7 @@ final class SettingsModel: ObservableObject {
     @Published var provider: String { didSet { write("STT_POSTPROCESS_PROVIDER", provider) } }
     @Published var hudAnchor: HudAnchor { didSet { AppSettings.shared.hudAnchor = hudAnchor } }
     @Published var hudBackground: Bool { didSet { AppSettings.shared.hudBackground = hudBackground } }
+    @Published var hudBackgroundColor: Color { didSet { AppSettings.shared.hudBackgroundColor = RGBAColor(hudBackgroundColor) } }
 
     /// Common Whisper model presets surfaced in the picker (free text still allowed).
     static let whisperPresets = [
@@ -41,6 +42,7 @@ final class SettingsModel: ObservableObject {
         provider = env.value("STT_POSTPROCESS_PROVIDER") ?? "lmstudio"
         hudAnchor = AppSettings.shared.hudAnchor
         hudBackground = AppSettings.shared.hudBackground
+        hudBackgroundColor = AppSettings.shared.hudBackgroundColor.color
         // Ensure .env points at the mirrored active prompt file.
         write("STT_POSTPROCESS_PROMPT_FILE", prompts.activeFileURL.path)
     }

@@ -29,8 +29,18 @@ final class AppSettings {
         set { d.set(newValue.rawValue, forKey: "hudAnchor") }
     }
     var hudBackground: Bool {
-        get { d.bool(forKey: "hudBackground") }
+        get { d.object(forKey: "hudBackground") == nil ? true : d.bool(forKey: "hudBackground") }
         set { d.set(newValue, forKey: "hudBackground") }
+    }
+    /// HUD backing color incl. alpha. Defaults to a clearly visible light gray
+    /// (more opaque than the original 0.18 so the icons stand out).
+    var hudBackgroundColor: RGBAColor {
+        get {
+            if let data = d.data(forKey: "hudBackgroundColor"),
+               let c = try? JSONDecoder().decode(RGBAColor.self, from: data) { return c }
+            return RGBAColor(r: 0.5, g: 0.5, b: 0.5, a: 0.55)
+        }
+        set { d.set(try? JSONEncoder().encode(newValue), forKey: "hudBackgroundColor") }
     }
     func hotkey(_ mode: SttMode) -> Hotkey {
         if let data = d.data(forKey: "hotkey.\(mode.rawValue)"),

@@ -47,6 +47,7 @@ final class HudOverlay {
         ensurePanel(); reposition()
         view?.state = state
         view?.showBackground = AppSettings.shared.hudBackground
+        view?.backgroundColor = AppSettings.shared.hudBackgroundColor.nsColor
         view?.needsDisplay = true
         panel?.orderFrontRegardless()
         if timer == nil {
@@ -76,6 +77,7 @@ final class HudOverlay {
 final class HudView: NSView {
     var state: SttState = .recording
     var showBackground = false
+    var backgroundColor: NSColor = NSColor(white: 0.5, alpha: 0.55)
     private let reader: AudioLevelReader
     private let runner: SttRunner
     private var levels = [Double](repeating: 0, count: 22)
@@ -90,19 +92,46 @@ final class HudView: NSView {
 
     override var isFlipped: Bool { false }
 
+    // State colors (shared by the left icon and the right animation).
+    private let recColor = NSColor(red: 0.08, green: 0.95, blue: 0.68, alpha: 1)
+    private let whisperColor = NSColor(red: 0.20, green: 0.64, blue: 1.0, alpha: 1)
+    private let llmColor = NSColor(red: 0.78, green: 0.54, blue: 1.0, alpha: 1)
+    // Left icon slot — where the mic used to sit.
+    private let iconRect = NSRect(x: 9, y: 11, width: 24, height: 24)
+
     override func draw(_ dirty: NSRect) {
         phase += 0.11
         if showBackground {
-            NSColor(white: 0.5, alpha: 0.18).setFill()
+            backgroundColor.setFill()
             NSBezierPath(roundedRect: bounds, xRadius: 10, yRadius: 10).fill()
         }
         switch state {
-        case .recording: drawWave()
-        case .whisper: drawSpinner(color: NSColor(red: 0.20, green: 0.64, blue: 1.0, alpha: 1))
-        case .llm: drawSpinner(color: NSColor(red: 0.78, green: 0.54, blue: 1.0, alpha: 1))
-        case .error: drawError()
-        case .idle: break
+        case .recording:
+            drawSymbol("mic.fill", color: recColor, in: iconRect)
+            drawWave()
+        case .whisper:
+            drawSymbol("waveform", color: whisperColor, in: iconRect)
+            drawSpinner(color: whisperColor)
+        case .llm:
+            drawSymbol("sparkles", color: llmColor, in: iconRect)
+            drawSpinner(color: llmColor)
+        case .error:
+            drawError()
+        case .idle:
+            break
         }
+    }
+
+    /// Renders an SF Symbol tinted in `color`, centered in `rect`.
+    private func drawSymbol(_ name: String, color: NSColor, in rect: NSRect) {
+        let cfg = NSImage.SymbolConfiguration(pointSize: rect.height, weight: .semibold)
+            .applying(NSImage.SymbolConfiguration(paletteColors: [color]))
+        guard let img = NSImage(systemSymbolName: name, accessibilityDescription: nil)?
+            .withSymbolConfiguration(cfg) else { return }
+        let size = img.size
+        let dx = rect.minX + (rect.width - size.width) / 2
+        let dy = rect.minY + (rect.height - size.height) / 2
+        img.draw(in: NSRect(x: dx, y: dy, width: size.width, height: size.height))
     }
 
     private func drawWave() {
@@ -112,14 +141,10 @@ final class HudView: NSView {
         for i in 0..<levels.count {
             let h = 3 + levels[i] * 32
             let a = 0.10 + levels[i] * 0.90
-            NSColor(red: 0.08, green: 0.95, blue: 0.68, alpha: a).setFill()
+            recColor.withAlphaComponent(a).setFill()
             let r = NSRect(x: 45 + Double(i) * 6, y: centerY - h / 2, width: 3, height: h)
             NSBezierPath(roundedRect: r, xRadius: 1.5, yRadius: 1.5).fill()
         }
-        // mic glyph
-        NSColor(red: 0.08, green: 0.95, blue: 0.68, alpha: 1).setFill()
-        NSBezierPath(roundedRect: NSRect(x: 14, y: 12, width: 12, height: 21), xRadius: 6, yRadius: 6).fill()
-        NSBezierPath(roundedRect: NSRect(x: 18, y: 6, width: 4, height: 8), xRadius: 2, yRadius: 2).fill()
     }
 
     private func drawSpinner(color: NSColor) {

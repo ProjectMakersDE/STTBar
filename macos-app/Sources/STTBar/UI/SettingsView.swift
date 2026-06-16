@@ -140,8 +140,13 @@ private struct DisplayTab: View {
                     ForEach(HudAnchor.allCases, id: \.self) { Text($0.label).tag($0) }
                 }
             }
-            Section("Sichtbarkeit") {
-                Toggle("Leicht grauer Hintergrund", isOn: $model.hudBackground)
+            Section("Hintergrund") {
+                Toggle("Hintergrund anzeigen", isOn: $model.hudBackground)
+                ColorPicker("Hintergrundfarbe & Transparenz",
+                            selection: $model.hudBackgroundColor, supportsOpacity: true)
+                    .disabled(!model.hudBackground)
+                Text("Tipp: Alpha im Farbwähler bestimmt die Transparenz. Höher = besser sichtbar.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)
