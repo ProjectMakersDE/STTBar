@@ -1,3 +1,9 @@
+## [1.1.1](https://github.com/ProjectMakersDE/STTBar/compare/v1.1.0...v1.1.1) (2026-06-18)
+
+### Bug Fixes
+
+* **release:** sign + notarize releases with Developer ID ([3a04258](https://github.com/ProjectMakersDE/STTBar/commit/3a042584ea6ec425984243cc047b445a17959aa4))
+
 ## [1.1.0](https://github.com/ProjectMakersDE/STTBar/compare/v1.0.0...v1.1.0) (2026-06-18)
 
 ### Features
