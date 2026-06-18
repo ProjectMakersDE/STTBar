@@ -1,3 +1,14 @@
+## [1.1.0](https://github.com/ProjectMakersDE/STTBar/compare/v1.0.0...v1.1.0) (2026-06-18)
+
+### Features
+
+* **macos:** in-app updater + localized settings, language picker, footer & links ([b40a552](https://github.com/ProjectMakersDE/STTBar/commit/b40a5528c4b418abac26d2d43ea5f31ba24a32f3))
+* **macos:** live language switching + single-instance guard ([fa84986](https://github.com/ProjectMakersDE/STTBar/commit/fa84986fc361dfe3d5ef3d6e67ae1d8ce32f1cc6))
+* **macos:** localize menu bar + SttMode labels, add DE/EN submenu ([dc9ca39](https://github.com/ProjectMakersDE/STTBar/commit/dc9ca3910f39698a178354f336344a315d68b5ef))
+* **macos:** localize prompt editor, status window, windows and diagnostics ([9df897f](https://github.com/ProjectMakersDE/STTBar/commit/9df897ffc967b0f6d337f0e9e4eb0680b49ca328))
+* **macos:** parse release assets and track update state ([fd4c1b4](https://github.com/ProjectMakersDE/STTBar/commit/fd4c1b48b806cb3e13623312451f5a64223dc547))
+* **macos:** runtime DE/EN localization core + language coupling ([c28c192](https://github.com/ProjectMakersDE/STTBar/commit/c28c1926c7ed532d225ee39af8155ddab39b42a6))
+
 ## 1.0.0 (2026-06-18)
 
 ### Features
