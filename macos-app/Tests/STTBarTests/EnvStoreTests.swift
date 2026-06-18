@@ -36,4 +36,15 @@ final class EnvStoreTests: XCTestCase {
         let out = try String(contentsOf: url, encoding: .utf8)
         XCTAssertTrue(out.contains("STT_POSTPROCESS_PROMPT_FILE=\"/tmp/p.txt\""))
     }
+
+    func testEscapesShellSensitiveCharacters() throws {
+        let url = temp("")
+        var store = try EnvStore(url: url)
+        store.set("STT_POSTPROCESS_MODEL", "foo\"bar$baz`qux")
+        try store.save()
+        let reloaded = try EnvStore(url: url)
+        XCTAssertEqual(reloaded.value("STT_POSTPROCESS_MODEL"), #"foo"bar$baz`qux"#)
+        let out = try String(contentsOf: url, encoding: .utf8)
+        XCTAssertTrue(out.contains(#"foo\"bar\$baz\`qux"#))
+    }
 }

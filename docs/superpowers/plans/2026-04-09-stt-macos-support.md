@@ -1,5 +1,9 @@
 # STT macOS Support Implementation Plan
 
+> Historical implementation plan: this skhd-based plan has been superseded by
+> the native STTBar path. Keep it as background context only; current work
+> should follow `CLAUDE.md`, `install.sh`, and the STTBar design/spec files.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add macOS support to the STT Terminal Tool alongside the existing Linux/X11 implementation, with a single installer that auto-detects the OS.

@@ -18,8 +18,8 @@ final class SettingsWindow {
             }))
             let w = NSWindow(contentViewController: host)
             w.title = "STTBar – Einstellungen"
-            w.styleMask = [.titled, .closable, .miniaturizable]
-            w.setContentSize(NSSize(width: 540, height: 440))
+            w.styleMask = [.titled, .closable, .miniaturizable, .resizable]
+            w.setContentSize(NSSize(width: 780, height: 620))
             window = w
         }
         NSApp.activate(ignoringOtherApps: true)

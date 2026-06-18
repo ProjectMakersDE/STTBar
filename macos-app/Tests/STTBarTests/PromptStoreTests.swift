@@ -39,4 +39,14 @@ final class PromptStoreTests: XCTestCase {
         let mirrored = try String(contentsOf: d.appendingPathComponent("active-prompt.txt"), encoding: .utf8)
         XCTAssertEqual(mirrored, "A2")
     }
+
+    func testUpdateStoresPreviousPromptVersion() throws {
+        let d = dir()
+        var store = try PromptStore(directory: d, defaultBody: "A")
+        let id = store.activePrompt!.id
+        try store.update(id, title: "Renamed", body: "B", note: "Changed")
+        XCTAssertEqual(store.activePrompt?.versions.count, 1)
+        XCTAssertEqual(store.activePrompt?.versions.first?.body, "A")
+        XCTAssertEqual(store.activePrompt?.versions.first?.note, "Changed")
+    }
 }

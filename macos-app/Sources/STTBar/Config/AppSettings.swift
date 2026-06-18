@@ -54,4 +54,59 @@ final class AppSettings {
     func setHotkey(_ hk: Hotkey, for mode: SttMode) {
         d.set(try? JSONEncoder().encode(hk), forKey: "hotkey.\(mode.rawValue)")
     }
+
+    func resetHotkey(_ mode: SttMode) {
+        d.removeObject(forKey: "hotkey.\(mode.rawValue)")
+    }
+
+    var showHudTimer: Bool {
+        get { d.object(forKey: "showHudTimer") == nil ? true : d.bool(forKey: "showHudTimer") }
+        set { d.set(newValue, forKey: "showHudTimer") }
+    }
+
+    var showHudPhaseLabel: Bool {
+        get { d.object(forKey: "showHudPhaseLabel") == nil ? true : d.bool(forKey: "showHudPhaseLabel") }
+        set { d.set(newValue, forKey: "showHudPhaseLabel") }
+    }
+
+    var lowMicWarningEnabled: Bool {
+        get { d.object(forKey: "lowMicWarningEnabled") == nil ? true : d.bool(forKey: "lowMicWarningEnabled") }
+        set { d.set(newValue, forKey: "lowMicWarningEnabled") }
+    }
+
+    var sensitiveMode: Bool {
+        get { d.bool(forKey: "sensitiveMode") }
+        set { d.set(newValue, forKey: "sensitiveMode") }
+    }
+
+    var historyEnabled: Bool {
+        get { d.bool(forKey: "historyEnabled") }
+        set { d.set(newValue, forKey: "historyEnabled") }
+    }
+
+    var historyRetentionHours: Int {
+        get {
+            let value = d.integer(forKey: "historyRetentionHours")
+            return value == 0 ? 24 : value
+        }
+        set { d.set(max(1, newValue), forKey: "historyRetentionHours") }
+    }
+
+    var maxRecordingSeconds: Int {
+        get {
+            let value = d.integer(forKey: "maxRecordingSeconds")
+            return value == 0 ? 1200 : value
+        }
+        set { d.set(max(30, newValue), forKey: "maxRecordingSeconds") }
+    }
+
+    var prewarmEnabled: Bool {
+        get { d.bool(forKey: "prewarmEnabled") }
+        set { d.set(newValue, forKey: "prewarmEnabled") }
+    }
+
+    var keepModelWarmSeconds: Int {
+        get { d.integer(forKey: "keepModelWarmSeconds") }
+        set { d.set(max(0, newValue), forKey: "keepModelWarmSeconds") }
+    }
 }

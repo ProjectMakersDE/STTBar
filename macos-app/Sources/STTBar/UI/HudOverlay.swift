@@ -11,10 +11,12 @@ final class HudOverlay {
     private var view: HudView?
     private var timer: Timer?
     private var hideWork: DispatchWorkItem?
+    private var stateStartedAt = Date()
 
     init(runner: SttRunner) { self.runner = runner }
 
     func update(_ state: SttState) {
+        if view?.state != state { stateStartedAt = Date() }
         switch state {
         case .idle: hide()
         case .error: show(.error); scheduleHide(after: 1.4)
@@ -37,8 +39,9 @@ final class HudOverlay {
     }
 
     private func reposition() {
-        guard let panel, let screen = NSScreen.main else { return }
-        let origin = AppSettings.shared.hudAnchor.origin(for: panel.frame.size, in: screen.frame)
+        guard let panel else { return }
+        let screen = activeAppScreen() ?? NSScreen.main
+        let origin = AppSettings.shared.hudAnchor.origin(for: panel.frame.size, in: screen?.visibleFrame ?? NSScreen.main?.visibleFrame ?? .zero)
         panel.setFrameOrigin(origin)
     }
 
@@ -48,6 +51,7 @@ final class HudOverlay {
         view?.state = state
         view?.showBackground = AppSettings.shared.hudBackground
         view?.backgroundColor = AppSettings.shared.hudBackgroundColor.nsColor
+        view?.stateStartedAt = stateStartedAt
         view?.needsDisplay = true
         panel?.orderFrontRegardless()
         if timer == nil {
@@ -56,8 +60,24 @@ final class HudOverlay {
                 if let phase = self.runner.currentPhase(), view.state == .whisper || view.state == .llm {
                     view.state = phase
                 }
+                view.stateStartedAt = self.stateStartedAt
                 view.needsDisplay = true
             }
+        }
+    }
+
+    private func activeAppScreen() -> NSScreen? {
+        guard let app = NSWorkspace.shared.frontmostApplication else { return nil }
+        let options: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
+        guard let windows = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] else { return nil }
+        guard let window = windows.first(where: { info in
+            (info[kCGWindowOwnerPID as String] as? Int) == Int(app.processIdentifier) &&
+            (info[kCGWindowLayer as String] as? Int) == 0
+        }), let boundsDict = window[kCGWindowBounds as String] as? [String: CGFloat] else { return nil }
+        let rect = CGRect(x: boundsDict["X"] ?? 0, y: boundsDict["Y"] ?? 0, width: boundsDict["Width"] ?? 0, height: boundsDict["Height"] ?? 0)
+        return NSScreen.screens.max { a, b in
+            a.frame.intersection(rect).width * a.frame.intersection(rect).height <
+                b.frame.intersection(rect).width * b.frame.intersection(rect).height
         }
     }
 
@@ -76,13 +96,14 @@ final class HudOverlay {
 /// Custom drawing; mirrors the Lua canvas shapes closely enough.
 final class HudView: NSView {
     var state: SttState = .recording
+    var stateStartedAt = Date()
     var showBackground = false
     var backgroundColor: NSColor = NSColor(white: 0.5, alpha: 0.55)
     private let reader: AudioLevelReader
     private let runner: SttRunner
     private var levels = [Double](repeating: 0, count: 22)
     private var phase = 0.0
-    private let wav = "/tmp/stt-recording.wav"
+    private let wav = RuntimePaths.recordingFile.path
 
     init(frame: NSRect, reader: AudioLevelReader, runner: SttRunner) {
         self.reader = reader; self.runner = runner
@@ -108,13 +129,16 @@ final class HudView: NSView {
         switch state {
         case .recording:
             drawSymbol("mic.fill", color: recColor, in: iconRect)
-            drawWave()
+            let avg = drawWave()
+            drawFooter(label: "Aufnahme", color: recColor, lowLevel: avg < 0.025)
         case .whisper:
             drawSymbol("waveform", color: whisperColor, in: iconRect)
             drawSpinner(color: whisperColor)
+            drawFooter(label: "Whisper", color: whisperColor, lowLevel: false)
         case .llm:
             drawSymbol("sparkles", color: llmColor, in: iconRect)
             drawSpinner(color: llmColor)
+            drawFooter(label: "LLM", color: llmColor, lowLevel: false)
         case .error:
             drawError()
         case .idle:
@@ -134,17 +158,21 @@ final class HudView: NSView {
         img.draw(in: NSRect(x: dx, y: dy, width: size.width, height: size.height))
     }
 
-    private func drawWave() {
+    @discardableResult
+    private func drawWave() -> Double {
         let target = reader.levels(from: URL(fileURLWithPath: wav))
+        var sum = 0.0
         for i in 0..<levels.count { levels[i] = levels[i] * 0.28 + target[i] * 0.72 }
         let centerY = 23.0
         for i in 0..<levels.count {
+            sum += levels[i]
             let h = 3 + levels[i] * 32
             let a = 0.10 + levels[i] * 0.90
             recColor.withAlphaComponent(a).setFill()
             let r = NSRect(x: 45 + Double(i) * 6, y: centerY - h / 2, width: 3, height: h)
             NSBezierPath(roundedRect: r, xRadius: 1.5, yRadius: 1.5).fill()
         }
+        return sum / Double(max(1, levels.count))
     }
 
     private func drawSpinner(color: NSColor) {
@@ -163,5 +191,27 @@ final class HudView: NSView {
     private func drawError() {
         NSColor(red: 1.0, green: 0.26, blue: 0.24, alpha: 0.95).setFill()
         NSBezierPath(ovalIn: NSRect(x: 84, y: 12, width: 22, height: 22)).fill()
+    }
+
+    private func drawFooter(label: String, color: NSColor, lowLevel: Bool) {
+        guard AppSettings.shared.showHudTimer || AppSettings.shared.showHudPhaseLabel || (lowLevel && AppSettings.shared.lowMicWarningEnabled) else { return }
+        let elapsed = Int(Date().timeIntervalSince(stateStartedAt))
+        let timer = String(format: "%02d:%02d", elapsed / 60, elapsed % 60)
+        let text: String
+        if lowLevel && elapsed > 4 && AppSettings.shared.lowMicWarningEnabled {
+            text = "Pegel niedrig"
+        } else {
+            text = [
+                AppSettings.shared.showHudPhaseLabel ? label : nil,
+                AppSettings.shared.showHudTimer ? timer : nil,
+            ].compactMap { $0 }.joined(separator: " ")
+        }
+        guard !text.isEmpty else { return }
+        let attrs: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: 10, weight: .medium),
+            .foregroundColor: color.withAlphaComponent(0.92),
+        ]
+        let size = text.size(withAttributes: attrs)
+        text.draw(at: NSPoint(x: bounds.maxX - size.width - 10, y: 4), withAttributes: attrs)
     }
 }

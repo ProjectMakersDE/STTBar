@@ -1,7 +1,7 @@
 # STTBar — Native macOS Menu-Bar App (Design)
 
 **Date:** 2026-06-16
-**Status:** Approved-pending-review
+**Status:** Implemented and superseded by the 2026-06-18 comfort/performance rollout
 **Supersedes (front-end only):** `hammerspoon-stt.lua`
 
 ## 1. Summary
@@ -10,9 +10,11 @@ Replace the Hammerspoon-based macOS front-end with a native Swift menu-bar app,
 `STTBar.app`. The app owns the menu-bar icon, the global hotkeys, the recording
 HUD overlay, and a native SwiftUI settings experience. The existing shell-script
 backend (`stt-record.sh`, `stt-transcribe.sh`, `stt-postprocess.sh`,
-`stt-global-mac.sh`) is reused unchanged except for one small additive feature in
-`stt-postprocess.sh` (prompt-from-file). `.env` remains the single source of
-truth for backend configuration.
+`stt-global-mac.sh`, `stt-runtime.sh`) is reused as a stable backend contract.
+The 2026-06-18 rollout adds structured status/events/metrics, native paste,
+Health Center, profiles, vocabulary editing, privacy/history controls, and
+namespaced runtime files. `.env` remains the source of truth for backend
+configuration, edited through an apply/undo flow.
 
 ## 2. Goals
 
@@ -52,16 +54,20 @@ truth for backend configuration.
         stt-global-mac.sh ─► stt-record.sh ─► stt-transcribe.sh        .env
                                             └► stt-postprocess.sh ◄── active-prompt.txt
                                                                        prompts.json
-   Shared state files (already used by the Hammerspoon HUD):
-     /tmp/stt-recording.pid   (is-recording)
-     /tmp/stt-recording.wav   (live audio levels for the waveform)
-     STT_PHASE_FILE           (recording|whisper|llm|done|error)
+   Runtime files:
+     ${TMPDIR:-/tmp}/de.projectmakers.stt/recording.pid
+     ${TMPDIR:-/tmp}/de.projectmakers.stt/recording.wav
+     ${TMPDIR:-/tmp}/de.projectmakers.stt/status.json
+     ${TMPDIR:-/tmp}/de.projectmakers.stt/events.jsonl
+     ${TMPDIR:-/tmp}/de.projectmakers.stt/metrics.jsonl
+     STT_PHASE_FILE (recording|whisper|llm|done|error)
 ```
 
 The app spawns the **same** command Hammerspoon spawns today:
 
 ```
-STT_MODE=<full|raw|english> STT_NOTIFICATIONS=0 STT_PHASE_FILE=<path> \
+STT_MODE=<full|raw|english> STT_NOTIFICATIONS=0 STT_APP_NATIVE_PASTE=1 \
+  STT_RUNTIME_DIR=<runtime-dir> STT_PHASE_FILE=<path> \
   exec <INSTALL_DIR>/stt-global.sh
 ```
 
@@ -74,26 +80,26 @@ watchdog, and phase-file watching.
 
 - **AppDelegate** — lifecycle, wires components, owns the install/script dir.
 - **MenuBarController** — `NSStatusItem`, state-driven icon, dropdown menu
-  (Einstellungen…, Prompt bearbeiten…, Aufnahme-Modi, Beenden).
+  (Status & Diagnose, Aufnahme abbrechen, letzter Fehler, letztes Transkript,
+  Logs, Einstellungen, Prompt bearbeiten, Aufnahme-Modi, Beenden).
 - **HotkeyManager** — registers up to 3 global hotkeys via Carbon
   `RegisterEventHotKey`; re-registers live when bindings change; emits a
   `(mode)` callback.
-- **SttRunner** — owns the `Process` lifecycle, recording-state detection
-  (`/tmp/stt-recording.pid`), the start-watchdog, and error flashes. Mirrors
-  `launchSttToggle` from the Lua.
+- **SttRunner** — owns the `Process` lifecycle, native paste, recording-state
+  detection, stale-recording watchdog, and result handoff.
 - **HudOverlay** — borderless click-through `NSPanel` at overlay window level,
   joins all spaces; a `CALayer`/`Canvas` port of the Lua animation (mic icon →
   live waveform from the wav tail → whisper/llm spinner → result/error icon).
   Reads anchor + background from settings; repositions live.
-- **AudioLevelReader** — reads the tail of `/tmp/stt-recording.wav`, computes
+- **AudioLevelReader** — reads the tail of the runtime `recording.wav`, computes
   per-bucket RMS/peak levels (port of `readAudioLevels`).
 - **EnvStore** — parses `.env` preserving comments and unknown keys; updates
   only managed keys; writes atomically (temp file + rename).
 - **PromptStore** — loads/saves `prompts.json`; tracks the active prompt; writes
   the active body to `active-prompt.txt`; seeds the default agent prompt on first
   run.
-- **SettingsModel (ObservableObject)** — single observable bridging EnvStore,
-  PromptStore, and UserDefaults to the SwiftUI views.
+- **SettingsModel (ObservableObject)** — bridges EnvStore, PromptStore,
+  ProfileStore, ReplacementStore, and UserDefaults to the SwiftUI views.
 - **SettingsWindow / PromptEditorWindow** — SwiftUI hosted in `NSWindow`s.
 
 ## 5. Configuration & Data
@@ -171,7 +177,8 @@ rewrites `active-prompt.txt`.
   2. Assemble `STTBar.app` (Info.plist: `LSUIElement=true`,
      `NSMicrophoneUsageDescription`, bundle id `de.projectmakers.sttbar`), copy
      the release binary into `Contents/MacOS/`.
-  3. Install to `~/Applications/STTBar.app`.
+  3. Install to `/Applications/STTBar.app` when writable; otherwise fall back
+     to `~/Applications/STTBar.app`.
   4. Write the script/install dir into the app config so it can find
      `stt-global.sh` + `.env`.
   5. Register `~/Library/LaunchAgents/de.projectmakers.sttbar.plist`

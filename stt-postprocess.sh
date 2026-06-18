@@ -6,12 +6,16 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=/dev/null
 [[ -f "$SCRIPT_DIR/.env" ]] && source "$SCRIPT_DIR/.env"
+# shellcheck source=/dev/null
+[[ -f "$SCRIPT_DIR/stt-runtime.sh" ]] && source "$SCRIPT_DIR/stt-runtime.sh"
+stt_runtime_init
 
 input="$(cat)"
 replacements_enabled="${STT_REPLACEMENTS_ENABLED:-1}"
 replacements_file="${STT_REPLACEMENTS_FILE:-$SCRIPT_DIR/stt-replacements.tsv}"
 log_enabled="${STT_POSTPROCESS_LOG_ENABLED:-1}"
 log_file="${STT_POSTPROCESS_LOG_FILE:-$SCRIPT_DIR/stt-postprocess.log}"
+postprocess_started_ms="$(stt_now_ms)"
 
 log_event() {
     case "$log_enabled" in
@@ -55,7 +59,14 @@ while (my $line = <$fh>) {
     chomp $line;
     next if $line =~ /^\s*(?:#|$)/;
 
-    my ($from, $to) = split /\t/, $line, 2;
+    my @parts = split /\t/, $line;
+    my ($from, $to);
+    if (@parts >= 3 && $parts[0] =~ /^(?:0|1|true|false|on|off)$/i) {
+        next if $parts[0] =~ /^(?:0|false|off)$/i;
+        ($from, $to) = ($parts[1], $parts[2]);
+    } else {
+        ($from, $to) = @parts[0, 1];
+    }
     next unless defined $from && defined $to;
     next if $from eq q();
 
@@ -84,6 +95,20 @@ fallback() {
     apply_replacements "$input"
 }
 
+fallback_with_status() {
+    local event="$1"
+    local code="$2"
+    local message="$3"
+    local detail="${4:-}"
+    if stt_truthy "${STT_AUTO_RAW_FALLBACK:-1}"; then
+        stt_status_event "$event" "llm" "warning" "$code" "$message" "$detail"
+        fallback
+    else
+        stt_status_event "$event" "error" "error" "$code" "$message" "$detail"
+        return 1
+    fi
+}
+
 if [[ -z "$input" ]]; then
     exit 0
 fi
@@ -105,6 +130,7 @@ provider="${STT_POSTPROCESS_PROVIDER:-lmstudio}"
 url="${STT_POSTPROCESS_URL:-http://localhost:1234/api/v1/chat}"
 model="${STT_POSTPROCESS_MODEL:-qwen/qwen3.5-9b}"
 timeout="${STT_POSTPROCESS_TIMEOUT:-60}"
+warn_seconds="${STT_POSTPROCESS_WARN_SECONDS:-20}"
 temperature="${STT_POSTPROCESS_TEMPERATURE:-0}"
 reasoning="${STT_POSTPROCESS_REASONING:-off}"
 # Optional LM Studio idle-TTL (seconds) sent as the request-body `ttl` field so
@@ -226,6 +252,7 @@ Text: ${input}"
 
 case "$provider" in
     lmstudio)
+        stt_status_event "postprocess_started" "llm" "info" "" "LLM-Nachbearbeitung gestartet." "provider=lmstudio model=$model timeout=${timeout}s"
         log_event "start provider=lmstudio model=$model timeout=${timeout}s ttl=${ttl_json/null/off} input_chars=$input_chars input_words=$input_words"
 
         if ! payload="$(jq -n \
@@ -243,7 +270,7 @@ case "$provider" in
                 temperature: ($temperature | tonumber)
             } + (if $ttl == null then {} else {ttl: $ttl} end)' 2>/dev/null)"; then
             log_event "fallback reason=payload_build_failed provider=lmstudio"
-            fallback
+            fallback_with_status "postprocess_fallback" "payload_build_failed" "LLM-Anfrage konnte nicht erstellt werden." "provider=lmstudio"
             exit 0
         fi
 
@@ -255,7 +282,11 @@ case "$provider" in
             curl_error="$(tr '\n' ' ' < "$curl_error_file" | cut -c 1-300)"
             rm -f "$curl_error_file"
             log_event "fallback reason=curl_failed provider=lmstudio error=\"$curl_error\""
-            fallback
+            if [[ "$curl_error" == *"timed out"* || "$curl_error" == *"Operation timeout"* ]]; then
+                fallback_with_status "postprocess_timeout" "postprocess_timeout" "LLM-Timeout, Rohtext/Ersatzwoerter verwendet." "$curl_error"
+            else
+                fallback_with_status "postprocess_fallback" "postprocess_unreachable" "LLM nicht erreichbar, Rohtext/Ersatzwoerter verwendet." "$curl_error"
+            fi
             exit 0
         fi
         rm -f "$curl_error_file"
@@ -264,6 +295,7 @@ case "$provider" in
         ;;
 
     openai)
+        stt_status_event "postprocess_started" "llm" "info" "" "LLM-Nachbearbeitung gestartet." "provider=openai model=$model timeout=${timeout}s"
         log_event "start provider=openai model=$model timeout=${timeout}s input_chars=$input_chars input_words=$input_words"
 
         if ! payload="$(jq -n \
@@ -281,7 +313,7 @@ case "$provider" in
                 temperature: ($temperature | tonumber)
             }' 2>/dev/null)"; then
             log_event "fallback reason=payload_build_failed provider=openai"
-            fallback
+            fallback_with_status "postprocess_fallback" "payload_build_failed" "LLM-Anfrage konnte nicht erstellt werden." "provider=openai"
             exit 0
         fi
 
@@ -293,7 +325,11 @@ case "$provider" in
             curl_error="$(tr '\n' ' ' < "$curl_error_file" | cut -c 1-300)"
             rm -f "$curl_error_file"
             log_event "fallback reason=curl_failed provider=openai error=\"$curl_error\""
-            fallback
+            if [[ "$curl_error" == *"timed out"* || "$curl_error" == *"Operation timeout"* ]]; then
+                fallback_with_status "postprocess_timeout" "postprocess_timeout" "LLM-Timeout, Rohtext/Ersatzwoerter verwendet." "$curl_error"
+            else
+                fallback_with_status "postprocess_fallback" "postprocess_unreachable" "LLM nicht erreichbar, Rohtext/Ersatzwoerter verwendet." "$curl_error"
+            fi
             exit 0
         fi
         rm -f "$curl_error_file"
@@ -303,19 +339,25 @@ case "$provider" in
 
     *)
         log_event "fallback reason=unknown_provider provider=$provider"
-        fallback
+        fallback_with_status "postprocess_fallback" "unknown_provider" "Unbekannter LLM-Provider, Rohtext/Ersatzwoerter verwendet." "$provider"
         exit 0
         ;;
 esac
 
 if [[ -z "$text" ]]; then
     log_event "fallback reason=empty_model_output provider=$provider"
-    fallback
+    fallback_with_status "postprocess_fallback" "empty_model_output" "LLM lieferte keinen Text, Rohtext/Ersatzwoerter verwendet." "provider=$provider"
     exit 0
 fi
 
 output="$(apply_replacements "$text")"
 output_chars="${#output}"
 output_words="$(printf '%s' "$output" | wc -w | tr -d '[:space:]')"
+postprocess_elapsed_ms=$(( $(stt_now_ms) - postprocess_started_ms ))
 log_event "success provider=$provider model=$model output_chars=$output_chars output_words=$output_words"
+if [[ "$warn_seconds" =~ ^[0-9]+$ ]] && (( warn_seconds > 0 )) && (( postprocess_elapsed_ms > warn_seconds * 1000 )); then
+    stt_status_event "postprocess_slow" "llm" "warning" "postprocess_slow" "LLM langsam, Raw-Modus kann fuer kurze Diktate sinnvoll sein." "duration_ms=$postprocess_elapsed_ms threshold=${warn_seconds}s"
+else
+    stt_status_event "postprocess_success" "done" "info" "" "LLM-Nachbearbeitung abgeschlossen." "duration_ms=$postprocess_elapsed_ms output_chars=$output_chars"
+fi
 printf '%s' "$output"

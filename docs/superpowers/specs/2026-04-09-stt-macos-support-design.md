@@ -1,5 +1,10 @@
 # STT macOS Support — Design
 
+> Historical design note: this document describes the old skhd-based macOS
+> support design from April 2026. Current macOS operation is STTBar-first; use
+> `docs/superpowers/specs/2026-06-16-sttbar-native-macos-app-design.md`,
+> `CLAUDE.md`, and `install.sh` for current behavior.
+
 **Date:** 2026-04-09
 **Status:** Approved (ready for implementation plan)
 **Scope:** Add macOS support to the STT Terminal Tool alongside the existing Linux/X11 implementation. Single installer auto-detects the OS and wires up the right platform backend.

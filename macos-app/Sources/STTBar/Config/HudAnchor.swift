@@ -22,15 +22,17 @@ enum HudAnchor: String, CaseIterable, Codable {
         let centerX = screen.midX - size.width / 2
         let topY = screen.maxY - size.height - margin
         let bottomY = screen.minY + margin
+        let upperY = screen.minY + (screen.height * 0.68) - (size.height / 2)
+        let lowerY = screen.minY + (screen.height * 0.32) - (size.height / 2)
         switch self {
         case .topCenter:    return NSPoint(x: centerX, y: topY)
         case .topRight:     return NSPoint(x: rightX,  y: topY)
         case .bottomRight:  return NSPoint(x: rightX,  y: bottomY)
         case .bottomLeft:   return NSPoint(x: leftX,   y: bottomY)
-        case .leftBottom:   return NSPoint(x: leftX,   y: bottomY)
+        case .leftBottom:   return NSPoint(x: leftX,   y: lowerY)
         case .leftTop:      return NSPoint(x: leftX,   y: topY)
-        case .rightBottom:  return NSPoint(x: rightX,  y: bottomY)
-        case .rightTop:     return NSPoint(x: rightX,  y: topY)
+        case .rightBottom:  return NSPoint(x: rightX,  y: lowerY)
+        case .rightTop:     return NSPoint(x: rightX,  y: upperY)
         }
     }
 }

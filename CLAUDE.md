@@ -74,24 +74,27 @@ On macOS the front-end is a native Swift menu-bar app, **STTBar.app**, that
 (rebindable), the recording HUD overlay (8 anchor positions + optional gray
 background), and a native SwiftUI settings window. The shell backend
 (`stt-record.sh`, `stt-transcribe.sh`, `stt-postprocess.sh`,
-`stt-global-mac.sh`) is unchanged — the app spawns the same `stt-global.sh`
-pipeline Hammerspoon spawned (`STT_MODE`, `STT_NOTIFICATIONS=0`,
-`STT_PHASE_FILE`) and watches `/tmp/stt-recording.{pid,wav}` + the phase file.
+`stt-global-mac.sh`, `stt-runtime.sh`) remains the stable backend contract.
+The app spawns `stt-global.sh` with `STT_MODE`, `STT_NOTIFICATIONS=0`,
+`STT_APP_NATIVE_PASTE=1`, and namespaced runtime paths under
+`${TMPDIR:-/tmp}/de.projectmakers.stt`. The shell writes status/events/metrics
+without raw dictated text, and STTBar performs the final paste natively.
 
 - **Source:** `macos-app/` (SwiftPM, target `STTBar`, macOS 14+).
 - **Build/install:** `install.sh` runs `macos-app/build-app.sh`, installs to
-  `~/Applications/STTBar.app`, and registers a login LaunchAgent
-  (`de.projectmakers.sttbar`) with `STT_INSTALL_DIR` set to the install dir.
-  Rebuild manually with `bash macos-app/build-app.sh`.
-- **Tests:** `swift test` in `macos-app/` (EnvStore, PromptStore, AudioLevelReader).
-- **Settings → `.env`:** the app edits `.env` in place, preserving comments and
-  unknown keys (`STT_SERVER_URL`, `STT_MODEL`, `STT_POSTPROCESS_URL`,
-  `STT_POSTPROCESS_MODEL`, etc.).
+  `/Applications/STTBar.app` when writable and falls back to
+  `~/Applications/STTBar.app`, then registers LaunchAgent
+  `de.projectmakers.sttbar` with `STT_INSTALL_DIR`.
+- **Tests:** `swift test` in `macos-app/` plus the shell tests in `tests/`.
+- **Settings → `.env`:** server/model values are draft-edited, validated, and
+  applied with `.env` backups. Comments and unknown keys are preserved.
 - **Prompts:** stored in `prompts.json` next to the scripts; the active prompt
   body is mirrored to `active-prompt.txt`, and `.env`'s
   `STT_POSTPROCESS_PROMPT_FILE` points at it. Switching/editing the active
   prompt is live — the next STT run picks it up, no restart.
-- **Permissions:** Accessibility (for the paste keystroke) + Microphone.
+- **Status & Diagnose:** STTBar exposes health checks, latest errors,
+  privacy-safe metrics, test buttons, app logs, and a copyable diagnostic report.
+- **Permissions:** Accessibility (native paste) + Microphone.
 - Hammerspoon (`hammerspoon-stt.lua`) stays in the repo as a fallback for when
   the Swift toolchain is unavailable; `install.sh` removes its init.lua block
   when the native app installs.

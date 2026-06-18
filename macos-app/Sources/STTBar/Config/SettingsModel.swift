@@ -1,23 +1,47 @@
+import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
-/// Single source the SwiftUI views bind to. Wraps EnvStore + PromptStore +
-/// AppSettings and writes through on change.
+/// Single source the SwiftUI views bind to. Env values are edited as a draft
+/// and written only when the user applies them; local app-only preferences
+/// remain immediate because they do not risk a half-written `.env`.
 final class SettingsModel: ObservableObject {
     private var env: EnvStore
     @Published var prompts: PromptStore
+    @Published var profiles: ProfileStore
+    @Published var replacements: ReplacementStore
     let installDir: URL
     var onHotkeysChanged: (() -> Void)?
 
-    @Published var whisperURL: String { didSet { write("STT_SERVER_URL", whisperURL) } }
-    @Published var whisperModel: String { didSet { write("STT_MODEL", whisperModel) } }
-    @Published var language: String { didSet { write("STT_LANGUAGE", language) } }
-    @Published var postprocessEnabled: Bool { didSet { write("STT_POSTPROCESS_ENABLED", postprocessEnabled ? "1" : "0") } }
-    @Published var lmStudioURL: String { didSet { write("STT_POSTPROCESS_URL", lmStudioURL) } }
-    @Published var llmModel: String { didSet { write("STT_POSTPROCESS_MODEL", llmModel) } }
-    @Published var provider: String { didSet { write("STT_POSTPROCESS_PROVIDER", provider) } }
+    @Published var whisperURL: String = ""
+    @Published var whisperModel: String = ""
+    @Published var language: String = "de"
+    @Published var transcribeTimeout: String = "30"
+    @Published var postprocessEnabled: Bool = false
+    @Published var lmStudioURL: String = ""
+    @Published var llmModel: String = ""
+    @Published var provider: String = "lmstudio"
+    @Published var postprocessTimeout: String = "60"
+    @Published var postprocessWarnSeconds: String = "20"
+    @Published var autoRawFallback: Bool = true
+    @Published var prewarmEnabled: Bool = false
+    @Published var keepModelWarmSeconds: String = "0"
+    @Published var maxRecordingSeconds: String = "1200"
+    @Published var historyEnabled: Bool = false
+    @Published var historyRetentionHours: String = "24"
+    @Published var sensitiveMode: Bool = false
+
     @Published var hudAnchor: HudAnchor { didSet { AppSettings.shared.hudAnchor = hudAnchor } }
     @Published var hudBackground: Bool { didSet { AppSettings.shared.hudBackground = hudBackground } }
     @Published var hudBackgroundColor: Color { didSet { AppSettings.shared.hudBackgroundColor = RGBAColor(hudBackgroundColor) } }
+    @Published var showHudTimer: Bool { didSet { AppSettings.shared.showHudTimer = showHudTimer } }
+    @Published var showHudPhaseLabel: Bool { didSet { AppSettings.shared.showHudPhaseLabel = showHudPhaseLabel } }
+    @Published var lowMicWarningEnabled: Bool { didSet { AppSettings.shared.lowMicWarningEnabled = lowMicWarningEnabled } }
+
+    @Published var validationMessage: String?
+    @Published var saveMessage: String?
+    @Published var hotkeyStatuses: [HotkeyRegistrationStatus] = []
+    @Published var updateMessage: String?
 
     /// Common Whisper model presets surfaced in the picker (free text still allowed).
     static let whisperPresets = [
@@ -33,36 +57,392 @@ final class SettingsModel: ObservableObject {
         self.env = (try? EnvStore(url: envURL)) ?? (try! EnvStore(url: envURL))
         self.prompts = (try? PromptStore(directory: installDir, defaultBody: DefaultPrompt.body))
             ?? (try! PromptStore(directory: installDir, defaultBody: DefaultPrompt.body))
-        whisperURL = env.value("STT_SERVER_URL") ?? ""
-        whisperModel = env.value("STT_MODEL") ?? "Systran/faster-whisper-large-v3-turbo"
-        language = env.value("STT_LANGUAGE") ?? "de"
-        postprocessEnabled = (env.value("STT_POSTPROCESS_ENABLED") ?? "0") == "1"
-        lmStudioURL = env.value("STT_POSTPROCESS_URL") ?? ""
-        llmModel = env.value("STT_POSTPROCESS_MODEL") ?? ""
-        provider = env.value("STT_POSTPROCESS_PROVIDER") ?? "lmstudio"
-        hudAnchor = AppSettings.shared.hudAnchor
-        hudBackground = AppSettings.shared.hudBackground
-        hudBackgroundColor = AppSettings.shared.hudBackgroundColor.color
-        // Ensure .env points at the mirrored active prompt file.
+        self.profiles = ProfileStore(directory: installDir)
+        self.replacements = ReplacementStore(directory: installDir)
+        self.hudAnchor = AppSettings.shared.hudAnchor
+        self.hudBackground = AppSettings.shared.hudBackground
+        self.hudBackgroundColor = AppSettings.shared.hudBackgroundColor.color
+        self.showHudTimer = AppSettings.shared.showHudTimer
+        self.showHudPhaseLabel = AppSettings.shared.showHudPhaseLabel
+        self.lowMicWarningEnabled = AppSettings.shared.lowMicWarningEnabled
+        loadEnvDraft()
         write("STT_POSTPROCESS_PROMPT_FILE", prompts.activeFileURL.path)
+        try? env.save()
     }
 
-    private func write(_ key: String, _ value: String) { env.set(key, value); try? env.save() }
+    func applyEnvChanges() {
+        guard validateDraft() else { return }
+        backupEnv()
+        write("STT_SERVER_URL", whisperURL)
+        write("STT_MODEL", whisperModel)
+        write("STT_LANGUAGE", language)
+        write("STT_TRANSCRIBE_TIMEOUT", transcribeTimeout)
+        write("STT_POSTPROCESS_ENABLED", postprocessEnabled ? "1" : "0")
+        write("STT_POSTPROCESS_URL", lmStudioURL)
+        write("STT_POSTPROCESS_MODEL", llmModel)
+        write("STT_POSTPROCESS_PROVIDER", provider)
+        write("STT_POSTPROCESS_TIMEOUT", postprocessTimeout)
+        write("STT_POSTPROCESS_WARN_SECONDS", postprocessWarnSeconds)
+        write("STT_AUTO_RAW_FALLBACK", autoRawFallback ? "1" : "0")
+        write("STT_PREWARM_ENABLED", prewarmEnabled ? "1" : "0")
+        write("STT_KEEP_MODEL_WARM_SECONDS", keepModelWarmSeconds)
+        write("STT_MAX_RECORDING_SECONDS", maxRecordingSeconds)
+        write("STT_HISTORY_ENABLED", historyEnabled ? "1" : "0")
+        write("STT_HISTORY_RETENTION_HOURS", historyRetentionHours)
+        write("STT_SENSITIVE_MODE", sensitiveMode ? "1" : "0")
+        do {
+            try env.save()
+            syncAppSettingsFromDraft()
+            validationMessage = nil
+            saveMessage = "Gespeichert"
+        } catch {
+            validationMessage = "Speichern fehlgeschlagen: \(error.localizedDescription)"
+        }
+    }
 
-    // Prompt operations re-publish the store.
+    func revertEnvChanges() {
+        env = (try? EnvStore(url: installDir.appendingPathComponent(".env"))) ?? env
+        loadEnvDraft()
+        saveMessage = "Zurückgesetzt"
+    }
+
+    @discardableResult
+    func validateDraft() -> Bool {
+        func validURL(_ value: String) -> Bool {
+            guard let url = URL(string: value), let scheme = url.scheme else { return false }
+            return ["http", "https"].contains(scheme)
+        }
+        if !validURL(whisperURL) {
+            validationMessage = "Whisper-URL muss mit http:// oder https:// beginnen."
+            return false
+        }
+        if whisperModel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            validationMessage = "Whisper-Modell darf nicht leer sein."
+            return false
+        }
+        if Int(transcribeTimeout).map({ $0 > 0 }) != true {
+            validationMessage = "Whisper-Timeout muss eine positive Zahl sein."
+            return false
+        }
+        if postprocessEnabled {
+            if !validURL(lmStudioURL) {
+                validationMessage = "LLM-URL muss mit http:// oder https:// beginnen."
+                return false
+            }
+            if llmModel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                validationMessage = "LLM-Modell darf nicht leer sein."
+                return false
+            }
+        }
+        if !["lmstudio", "openai"].contains(provider) {
+            validationMessage = "Provider muss lmstudio oder openai sein."
+            return false
+        }
+        for value in [postprocessTimeout, postprocessWarnSeconds, keepModelWarmSeconds, maxRecordingSeconds, historyRetentionHours] {
+            if Int(value).map({ $0 >= 0 }) != true {
+                validationMessage = "Timeouts und Zeitwerte müssen Zahlen sein."
+                return false
+            }
+        }
+        validationMessage = nil
+        return true
+    }
+
+    func currentProfile(name: String, id: String = UUID().uuidString) -> SttProfile {
+        SttProfile(id: id,
+                   name: name,
+                   whisperURL: whisperURL,
+                   whisperModel: whisperModel,
+                   language: language,
+                   transcribeTimeout: transcribeTimeout,
+                   postprocessEnabled: postprocessEnabled,
+                   postprocessURL: lmStudioURL,
+                   postprocessModel: llmModel,
+                   provider: provider,
+                   postprocessTimeout: postprocessTimeout,
+                   autoRawFallback: autoRawFallback)
+    }
+
+    func saveCurrentProfile(name: String, id: String? = nil) {
+        let profile = currentProfile(name: name, id: id ?? UUID().uuidString)
+        do {
+            try profiles.upsert(profile, makeActive: true)
+            objectWillChange.send()
+            saveMessage = "Profil gespeichert"
+        } catch {
+            validationMessage = "Profil konnte nicht gespeichert werden: \(error.localizedDescription)"
+        }
+    }
+
+    func applyProfile(_ profile: SttProfile) {
+        whisperURL = profile.whisperURL
+        whisperModel = profile.whisperModel
+        language = profile.language
+        transcribeTimeout = profile.transcribeTimeout
+        postprocessEnabled = profile.postprocessEnabled
+        lmStudioURL = profile.postprocessURL
+        llmModel = profile.postprocessModel
+        provider = profile.provider
+        postprocessTimeout = profile.postprocessTimeout
+        autoRawFallback = profile.autoRawFallback
+        try? profiles.setActive(profile.id)
+        applyEnvChanges()
+    }
+
+    func removeProfile(_ id: String) {
+        try? profiles.remove(id)
+        objectWillChange.send()
+    }
+
+    func saveReplacements(_ entries: [ReplacementEntry]) {
+        do {
+            try replacements.update(entries)
+            objectWillChange.send()
+            saveMessage = "Wörterbuch gespeichert"
+        } catch {
+            validationMessage = "Wörterbuch konnte nicht gespeichert werden: \(error.localizedDescription)"
+        }
+    }
+
+    func addReplacement() {
+        try? replacements.add()
+        objectWillChange.send()
+    }
+
+    func removeReplacement(_ id: String) {
+        try? replacements.remove(id)
+        objectWillChange.send()
+    }
+
+    func exportBundle() {
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = "sttbar-export.json"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        let bundle = ExportBundle(env: exportEnvValues(), prompts: prompts.prompts, replacements: replacements.entries, profiles: profiles.profiles)
+        if let data = try? JSONEncoder().encode(bundle) {
+            try? data.write(to: url, options: .atomic)
+            saveMessage = "Exportiert"
+        }
+    }
+
+    func importBundle() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.json]
+        panel.allowsMultipleSelection = false
+        guard panel.runModal() == .OK, let url = panel.url,
+              let data = try? Data(contentsOf: url),
+              let bundle = try? JSONDecoder().decode(ExportBundle.self, from: data)
+        else { return }
+        for (key, value) in bundle.env { write(key, value) }
+        try? env.save()
+        for prompt in bundle.prompts {
+            if prompts.prompts.contains(where: { $0.id == prompt.id }) {
+                try? prompts.update(prompt.id, title: prompt.title, body: prompt.body)
+            } else {
+                _ = try? prompts.add(title: prompt.title, body: prompt.body)
+            }
+        }
+        try? replacements.update(bundle.replacements)
+        for profile in bundle.profiles {
+            try? profiles.upsert(profile, makeActive: false)
+        }
+        loadEnvDraft()
+        objectWillChange.send()
+        saveMessage = "Importiert"
+    }
+
+    func checkForUpdates() {
+        let versionFile = installDir.appendingPathComponent("installed-version.txt")
+        guard let values = Self.readKeyValueFile(versionFile),
+              let repo = values["source_repo"], !repo.isEmpty,
+              let current = values["commit"], !current.isEmpty else {
+            updateMessage = "Kein Quell-Repo im installierten Versionsfile."
+            return
+        }
+        DispatchQueue.global().async {
+            let result = Self.runShell("git -C \(Self.shellQuote(repo)) fetch origin master --quiet && git -C \(Self.shellQuote(repo)) rev-parse --short origin/master")
+            DispatchQueue.main.async {
+                guard result.success else {
+                    self.updateMessage = "Update-Check fehlgeschlagen: \(result.output)"
+                    return
+                }
+                let remote = result.output.trimmingCharacters(in: .whitespacesAndNewlines)
+                self.updateMessage = remote == current ? "Aktuell (\(current))" : "Update verfügbar: \(current) -> \(remote)"
+            }
+        }
+    }
+
+    func runPromptEval(promptId: String, input: String, completion: @escaping (String) -> Void) {
+        guard let prompt = prompts.prompts.first(where: { $0.id == promptId }) else { completion(""); return }
+        DispatchQueue.global().async {
+            let process = Process()
+            let inputPipe = Pipe()
+            let outputPipe = Pipe()
+            process.executableURL = URL(fileURLWithPath: "/bin/bash")
+            process.arguments = ["-lc", "exec \(Self.shellQuote(self.installDir.appendingPathComponent("stt-postprocess.sh").path))"]
+            var env = ProcessInfo.processInfo.environment
+            env["STT_POSTPROCESS_PROMPT"] = prompt.body
+            env["STT_POSTPROCESS_ENABLED"] = "1"
+            env["STT_REPLACEMENTS_ENABLED"] = "1"
+            env["STT_POSTPROCESS_LOG_ENABLED"] = "0"
+            process.environment = env
+            process.standardInput = inputPipe
+            process.standardOutput = outputPipe
+            process.standardError = Pipe()
+            do {
+                try process.run()
+                inputPipe.fileHandleForWriting.write(Data(input.utf8))
+                try? inputPipe.fileHandleForWriting.close()
+                process.waitUntilExit()
+                let data = outputPipe.fileHandleForReading.readDataToEndOfFile()
+                let output = String(data: data, encoding: .utf8) ?? ""
+                DispatchQueue.main.async { completion(output) }
+            } catch {
+                DispatchQueue.main.async { completion("Fehler: \(error.localizedDescription)") }
+            }
+        }
+    }
+
     func addPrompt(title: String, body: String) {
-        _ = try? prompts.add(title: title, body: body); objectWillChange.send()
+        _ = try? prompts.add(title: title, body: body)
+        objectWillChange.send()
     }
-    func setActive(_ id: String) { try? prompts.setActive(id); objectWillChange.send() }
-    func updatePrompt(_ id: String, title: String, body: String) {
-        try? prompts.update(id, title: title, body: body); objectWillChange.send()
+
+    func setActive(_ id: String) {
+        try? prompts.setActive(id)
+        write("STT_POSTPROCESS_PROMPT_FILE", prompts.activeFileURL.path)
+        try? env.save()
+        objectWillChange.send()
     }
-    func removePrompt(_ id: String) { try? prompts.remove(id); objectWillChange.send() }
+
+    func updatePrompt(_ id: String, title: String, body: String, note: String = "") {
+        try? prompts.update(id, title: title, body: body, note: note)
+        objectWillChange.send()
+    }
+
+    func removePrompt(_ id: String) {
+        try? prompts.remove(id)
+        objectWillChange.send()
+    }
 
     func hotkey(_ mode: SttMode) -> Hotkey { AppSettings.shared.hotkey(mode) }
+
     func setHotkey(_ hk: Hotkey, for mode: SttMode) {
         AppSettings.shared.setHotkey(hk, for: mode)
         onHotkeysChanged?()
         objectWillChange.send()
+    }
+
+    func resetHotkey(_ mode: SttMode) {
+        AppSettings.shared.resetHotkey(mode)
+        onHotkeysChanged?()
+        objectWillChange.send()
+    }
+
+    func hotkeyWarning(for mode: SttMode) -> String? {
+        let hk = hotkey(mode)
+        if SttMode.allCases.contains(where: { $0 != mode && hotkey($0) == hk }) {
+            return "Doppelt belegt"
+        }
+        return hk.systemWarning
+    }
+
+    func syncHotkeyStatuses(_ statuses: [HotkeyRegistrationStatus]) {
+        hotkeyStatuses = statuses
+    }
+
+    private func loadEnvDraft() {
+        whisperURL = env.value("STT_SERVER_URL") ?? "http://localhost:8082/v1/audio/transcriptions"
+        whisperModel = env.value("STT_MODEL") ?? "Systran/faster-whisper-large-v3-turbo"
+        language = env.value("STT_LANGUAGE") ?? "de"
+        transcribeTimeout = env.value("STT_TRANSCRIBE_TIMEOUT") ?? "30"
+        postprocessEnabled = (env.value("STT_POSTPROCESS_ENABLED") ?? "0") == "1"
+        lmStudioURL = env.value("STT_POSTPROCESS_URL") ?? "http://localhost:1234/api/v1/chat"
+        llmModel = env.value("STT_POSTPROCESS_MODEL") ?? "qwen/qwen3.5-9b"
+        provider = env.value("STT_POSTPROCESS_PROVIDER") ?? "lmstudio"
+        postprocessTimeout = env.value("STT_POSTPROCESS_TIMEOUT") ?? "60"
+        postprocessWarnSeconds = env.value("STT_POSTPROCESS_WARN_SECONDS") ?? "20"
+        autoRawFallback = (env.value("STT_AUTO_RAW_FALLBACK") ?? "1") != "0"
+        prewarmEnabled = (env.value("STT_PREWARM_ENABLED") ?? "0") == "1"
+        keepModelWarmSeconds = env.value("STT_KEEP_MODEL_WARM_SECONDS") ?? "0"
+        maxRecordingSeconds = env.value("STT_MAX_RECORDING_SECONDS") ?? "\(AppSettings.shared.maxRecordingSeconds)"
+        historyEnabled = (env.value("STT_HISTORY_ENABLED") ?? (AppSettings.shared.historyEnabled ? "1" : "0")) == "1"
+        historyRetentionHours = env.value("STT_HISTORY_RETENTION_HOURS") ?? "\(AppSettings.shared.historyRetentionHours)"
+        sensitiveMode = (env.value("STT_SENSITIVE_MODE") ?? (AppSettings.shared.sensitiveMode ? "1" : "0")) == "1"
+        syncAppSettingsFromDraft()
+    }
+
+    private func syncAppSettingsFromDraft() {
+        AppSettings.shared.prewarmEnabled = prewarmEnabled
+        AppSettings.shared.keepModelWarmSeconds = Int(keepModelWarmSeconds) ?? 0
+        AppSettings.shared.maxRecordingSeconds = Int(maxRecordingSeconds) ?? 1200
+        AppSettings.shared.historyEnabled = historyEnabled
+        AppSettings.shared.historyRetentionHours = Int(historyRetentionHours) ?? 24
+        AppSettings.shared.sensitiveMode = sensitiveMode
+    }
+
+    private func write(_ key: String, _ value: String) {
+        env.set(key, value)
+    }
+
+    private func backupEnv() {
+        let source = installDir.appendingPathComponent(".env")
+        guard FileManager.default.fileExists(atPath: source.path) else { return }
+        let stamp = Int(Date().timeIntervalSince1970)
+        let backup = installDir.appendingPathComponent(".env.backup-\(stamp)")
+        try? FileManager.default.copyItem(at: source, to: backup)
+    }
+
+    private func exportEnvValues() -> [String: String] {
+        [
+            "STT_SERVER_URL": whisperURL,
+            "STT_MODEL": whisperModel,
+            "STT_LANGUAGE": language,
+            "STT_TRANSCRIBE_TIMEOUT": transcribeTimeout,
+            "STT_POSTPROCESS_ENABLED": postprocessEnabled ? "1" : "0",
+            "STT_POSTPROCESS_URL": lmStudioURL,
+            "STT_POSTPROCESS_MODEL": llmModel,
+            "STT_POSTPROCESS_PROVIDER": provider,
+            "STT_POSTPROCESS_TIMEOUT": postprocessTimeout,
+            "STT_AUTO_RAW_FALLBACK": autoRawFallback ? "1" : "0",
+        ]
+    }
+
+    private static func shellQuote(_ s: String) -> String {
+        "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'"
+    }
+
+    private static func readKeyValueFile(_ url: URL) -> [String: String]? {
+        guard let text = try? String(contentsOf: url, encoding: .utf8) else { return nil }
+        var result: [String: String] = [:]
+        for line in text.split(separator: "\n") {
+            guard let eq = line.firstIndex(of: "=") else { continue }
+            result[String(line[..<eq])] = String(line[line.index(after: eq)...])
+        }
+        return result
+    }
+
+    private static func runShell(_ command: String) -> (success: Bool, output: String) {
+        let process = Process()
+        let pipe = Pipe()
+        process.executableURL = URL(fileURLWithPath: "/bin/bash")
+        process.arguments = ["-lc", command]
+        process.standardOutput = pipe
+        process.standardError = pipe
+        do {
+            try process.run()
+            process.waitUntilExit()
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            return (process.terminationStatus == 0, String(data: data, encoding: .utf8) ?? "")
+        } catch {
+            return (false, error.localizedDescription)
+        }
+    }
+
+    private struct ExportBundle: Codable {
+        var env: [String: String]
+        var prompts: [Prompt]
+        var replacements: [ReplacementEntry]
+        var profiles: [SttProfile]
     }
 }

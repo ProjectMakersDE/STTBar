@@ -1,10 +1,16 @@
 # STTBar Native macOS App Implementation Plan
 
+> Historical implementation snapshot: the native app has since been extended by
+> the 2026-06-18 comfort/performance rollout. Current code uses
+> `${TMPDIR:-/tmp}/de.projectmakers.stt` runtime files, structured
+> status/events/metrics, Health Center, native paste, profiles, vocabulary
+> editing, and apply/undo settings. Treat code and `CLAUDE.md` as authoritative.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build a native Swift menu-bar app (`STTBar.app`) that replaces the Hammerspoon front-end — menu icon, rebindable global hotkeys, ported HUD overlay, and a native SwiftUI settings window — while reusing the existing shell backend and keeping `.env` as the source of truth.
 
-**Architecture:** A SwiftPM executable (`macos-app/`, LSUIElement) spawns the same `stt-global.sh` pipeline Hammerspoon spawns today and watches `/tmp/stt-recording.{pid,wav}` + the phase file to drive a CALayer HUD. Pure-logic units (`.env` parsing, prompt store, audio levels) are unit-tested; UI/HUD/hotkeys are build-and-verified. One additive backend change lets `stt-postprocess.sh` read the prompt from a file for live prompt switching.
+**Architecture:** Historical baseline: a SwiftPM executable (`macos-app/`, LSUIElement) spawned the same `stt-global.sh` pipeline Hammerspoon spawned and watched global `/tmp/stt-*` files. Current behavior is superseded as noted above.
 
 **Tech Stack:** Swift 6 / SwiftPM, AppKit (NSStatusItem, NSPanel, CALayer), SwiftUI (settings), Carbon (RegisterEventHotKey), bash (backend + installer).
 

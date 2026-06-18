@@ -11,8 +11,9 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("AppIndicator3", "0.1")
 from gi.repository import Gtk, AppIndicator3, GLib
 
-STATE_FILE = "/tmp/stt-state"
-PID_FILE = "/tmp/stt-recording.pid"
+RUNTIME_DIR = os.environ.get("STT_RUNTIME_DIR") or os.path.join(os.environ.get("TMPDIR", "/tmp"), "de.projectmakers.stt")
+STATE_FILE = os.path.join(RUNTIME_DIR, "state")
+PID_FILE = os.path.join(RUNTIME_DIR, "recording.pid")
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 ENV_FILE = os.path.join(SCRIPT_DIR, ".env")
 
@@ -125,6 +126,7 @@ class STTIndicator:
         )
 
     def _ensure_state_file(self):
+        os.makedirs(RUNTIME_DIR, exist_ok=True)
         if not os.path.exists(STATE_FILE):
             with open(STATE_FILE, "w") as f:
                 f.write("idle")

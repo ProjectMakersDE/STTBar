@@ -6,6 +6,8 @@ STT_PLUGIN_DIR="${0:A:h}"
 
 # Load config
 [[ -f "$STT_PLUGIN_DIR/.env" ]] && source "$STT_PLUGIN_DIR/.env"
+[[ -f "$STT_PLUGIN_DIR/stt-runtime.sh" ]] && source "$STT_PLUGIN_DIR/stt-runtime.sh"
+typeset -f stt_runtime_init >/dev/null 2>&1 && stt_runtime_init
 
 # State tracking
 typeset -g _stt_recording=0

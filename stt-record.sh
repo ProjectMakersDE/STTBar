@@ -6,11 +6,12 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=/dev/null
 [[ -f "$SCRIPT_DIR/.env" ]] && source "$SCRIPT_DIR/.env"
+# shellcheck source=/dev/null
+[[ -f "$SCRIPT_DIR/stt-runtime.sh" ]] && source "$SCRIPT_DIR/stt-runtime.sh"
+stt_runtime_init
 
 STT_AUDIO_DEVICE="${STT_AUDIO_DEVICE:-}"
 STT_MACOS_AVOID_BLUETOOTH_PROFILE_SWITCH="${STT_MACOS_AVOID_BLUETOOTH_PROFILE_SWITCH:-1}"
-STT_RECORD_FILE="${STT_RECORD_FILE:-/tmp/stt-recording.wav}"
-STT_PID_FILE="/tmp/stt-recording.pid"
 
 is_truthy() {
     case "${1:-}" in
@@ -114,8 +115,13 @@ resolve_audio_device() {
 start_recording() {
     if [[ -f "$STT_PID_FILE" ]] && kill -0 "$(cat "$STT_PID_FILE")" 2>/dev/null; then
         echo "ERROR: Recording already in progress" >&2
+        stt_status_event "recording_already_running" "recording" "warning" "recording_already_running" "Eine Aufnahme läuft bereits."
         return 1
     fi
+    rm -f "$STT_PID_FILE" "$STT_LOCK_FILE" "$STT_RECORD_FILE" 2>/dev/null || true
+    printf '%s\n' "$$" > "$STT_LOCK_FILE" 2>/dev/null || true
+    stt_new_run_id >/dev/null
+    stt_now_ms > "$STT_RECORDING_STARTED_FILE" 2>/dev/null || true
 
     # Record: 16kHz, mono, 16-bit WAV
     # AUDIODEV can be an ALSA device on Linux or a CoreAudio device name on macOS.
@@ -130,12 +136,14 @@ start_recording() {
     fi
     local rec_pid=$!
     echo "$rec_pid" > "$STT_PID_FILE"
+    stt_status_event "recording_started" "recording" "info" "" "Aufnahme läuft." "device=$audio_device"
     echo "$STT_RECORD_FILE"
 }
 
 stop_recording() {
     if [[ ! -f "$STT_PID_FILE" ]]; then
         echo "ERROR: No recording in progress" >&2
+        stt_status_event "recording_missing" "idle" "warning" "recording_missing" "Keine laufende Aufnahme gefunden."
         return 1
     fi
 
@@ -151,16 +159,36 @@ stop_recording() {
         done
     fi
 
-    rm -f "$STT_PID_FILE"
+    rm -f "$STT_PID_FILE" "$STT_LOCK_FILE"
 
     # Check if file exists and has audio content (> 44 bytes = WAV header only)
     if [[ ! -f "$STT_RECORD_FILE" ]] || [[ "$(wc -c < "$STT_RECORD_FILE" 2>/dev/null || echo 0)" -le 44 ]]; then
         echo "ERROR: Recording is empty" >&2
         rm -f "$STT_RECORD_FILE"
+        stt_status_event "recording_empty" "error" "error" "recording_empty" "Aufnahme war leer." "Prüfe Mikrofon, sox/rec und Eingabegerät."
         return 1
     fi
 
+    stt_status_event "recording_stopped" "whisper" "info" "" "Aufnahme beendet."
     echo "$STT_RECORD_FILE"
+}
+
+cancel_recording() {
+    if [[ -f "$STT_PID_FILE" ]]; then
+        local rec_pid
+        rec_pid="$(cat "$STT_PID_FILE" 2>/dev/null || true)"
+        if [[ -n "$rec_pid" ]] && kill -0 "$rec_pid" 2>/dev/null; then
+            kill -SIGINT "$rec_pid" 2>/dev/null || true
+            local i=0
+            while kill -0 "$rec_pid" 2>/dev/null && (( i++ < 20 )); do
+                sleep 0.1
+            done
+            kill "$rec_pid" 2>/dev/null || true
+        fi
+    fi
+    rm -f "$STT_PID_FILE" "$STT_LOCK_FILE" "$STT_RECORD_FILE" "$STT_RECORDING_STARTED_FILE" 2>/dev/null || true
+    stt_set_phase "idle"
+    stt_status_event "recording_cancelled" "idle" "info" "" "Aufnahme abgebrochen."
 }
 
 get_status() {
@@ -179,11 +207,14 @@ case "${1:-}" in
     stop)
         stop_recording
         ;;
+    cancel|abort)
+        cancel_recording
+        ;;
     status)
         get_status
         ;;
     *)
-        echo "Usage: $0 start|stop|status" >&2
+        echo "Usage: $0 start|stop|cancel|status" >&2
         exit 1
         ;;
 esac

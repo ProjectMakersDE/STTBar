@@ -71,20 +71,26 @@ check_deps_macos() {
         fi
     done
 
-    # Hammerspoon is a GUI .app, not a CLI binary. Check for the bundle.
-    if [[ ! -d "/Applications/Hammerspoon.app" ]]; then
-        missing+=("Hammerspoon.app")
-    fi
-
     if [[ ${#missing[@]} -gt 0 ]]; then
         error "Missing dependencies: ${missing[*]}"
         echo "Install them with:"
         echo "  brew install sox jq"
-        echo "  brew install --cask hammerspoon"
         return 1
     fi
 
-    info "All dependencies found"
+    info "Required STTBar dependencies found"
+
+    if ! command -v swift &>/dev/null && [[ ! -d "$SCRIPT_DIR/macos-app/STTBar.app" ]]; then
+        warn "Swift toolchain not found and no prebuilt STTBar.app bundle is present."
+        echo "  STTBar needs either Xcode/Swift or a prebuilt macos-app/STTBar.app."
+    fi
+
+    if [[ ! -d "/Applications/Hammerspoon.app" ]]; then
+        warn "Hammerspoon.app is not installed; native STTBar is primary, so this is only a fallback dependency."
+        echo "  Optional fallback: brew install --cask hammerspoon"
+    else
+        info "Optional Hammerspoon fallback found"
+    fi
 }
 
 # Append (or replace) the STT hotkey binding in ~/.hammerspoon/init.lua.
@@ -143,19 +149,25 @@ unregister_hammerspoon_binding() {
 # install dir so it finds stt-global.sh + .env). Returns non-zero if the Swift
 # toolchain is unavailable, so the caller can fall back to Hammerspoon.
 install_native_app() {
-    command -v swift >/dev/null 2>&1 || {
-        warn "Swift toolchain not found; keeping the Hammerspoon front-end."
-        return 1
-    }
     # Prefer /Applications (the standard location the macOS file pickers — e.g.
     # the Accessibility "+" dialog — open by default) when it is writable;
     # otherwise fall back to the per-user ~/Applications.
     local app_dest="/Applications"
     [[ -w "$app_dest" ]] || app_dest="$HOME/Applications"
 
-    info "Building STTBar.app (native menu-bar front-end) -> $app_dest …"
-    if ! STT_INSTALL_DIR="$INSTALL_DIR" bash "$SCRIPT_DIR/macos-app/build-app.sh" "$app_dest"; then
-        warn "STTBar.app build failed; keeping the Hammerspoon front-end."
+    if command -v swift >/dev/null 2>&1; then
+        info "Building STTBar.app (native menu-bar front-end) -> $app_dest …"
+        if ! STT_INSTALL_DIR="$INSTALL_DIR" bash "$SCRIPT_DIR/macos-app/build-app.sh" "$app_dest"; then
+            warn "STTBar.app build failed; keeping the Hammerspoon front-end."
+            return 1
+        fi
+    elif [[ -d "$SCRIPT_DIR/macos-app/STTBar.app" ]]; then
+        info "Installing prebuilt STTBar.app -> $app_dest …"
+        mkdir -p "$app_dest"
+        rm -rf "$app_dest/STTBar.app"
+        cp -R "$SCRIPT_DIR/macos-app/STTBar.app" "$app_dest/STTBar.app"
+    else
+        warn "No Swift toolchain or prebuilt STTBar.app found; keeping the Hammerspoon front-end if available."
         return 1
     fi
     local app_path="$app_dest/STTBar.app"
@@ -246,6 +258,7 @@ install_linux() {
 
     # Copy files
     cp "$SCRIPT_DIR/stt.zsh" "$INSTALL_DIR/"
+    cp "$SCRIPT_DIR/stt-runtime.sh" "$INSTALL_DIR/"
     cp "$SCRIPT_DIR/stt-record.sh" "$INSTALL_DIR/"
     cp "$SCRIPT_DIR/stt-transcribe.sh" "$INSTALL_DIR/"
     cp "$SCRIPT_DIR/stt-postprocess.sh" "$INSTALL_DIR/"
@@ -253,6 +266,7 @@ install_linux() {
         cp "$SCRIPT_DIR/stt-replacements.tsv" "$INSTALL_DIR/"
     fi
     chmod +x "$INSTALL_DIR/stt-record.sh"
+    chmod +x "$INSTALL_DIR/stt-runtime.sh"
     chmod +x "$INSTALL_DIR/stt-transcribe.sh"
     chmod +x "$INSTALL_DIR/stt-postprocess.sh"
     cp "$SCRIPT_DIR/stt-global.sh" "$INSTALL_DIR/"
@@ -344,6 +358,7 @@ install_macos() {
 
     # Copy shared files
     cp "$SCRIPT_DIR/stt.zsh"          "$INSTALL_DIR/"
+    cp "$SCRIPT_DIR/stt-runtime.sh"   "$INSTALL_DIR/"
     cp "$SCRIPT_DIR/stt-record.sh"    "$INSTALL_DIR/"
     cp "$SCRIPT_DIR/stt-transcribe.sh" "$INSTALL_DIR/"
     cp "$SCRIPT_DIR/stt-postprocess.sh" "$INSTALL_DIR/"
@@ -351,12 +366,13 @@ install_macos() {
         cp "$SCRIPT_DIR/stt-replacements.tsv" "$INSTALL_DIR/"
     fi
     chmod +x "$INSTALL_DIR/stt-record.sh"
+    chmod +x "$INSTALL_DIR/stt-runtime.sh"
     chmod +x "$INSTALL_DIR/stt-transcribe.sh"
     chmod +x "$INSTALL_DIR/stt-postprocess.sh"
 
     # Copy the macOS global script as stt-global.sh (OS-agnostic name
-    # inside the install dir, so the skhd binding path doesn't depend
-    # on the source filename).
+    # inside the install dir, so front-end bindings do not depend on
+    # the source filename).
     cp "$SCRIPT_DIR/stt-global-mac.sh" "$INSTALL_DIR/stt-global.sh"
     chmod +x "$INSTALL_DIR/stt-global.sh"
     cp "$SCRIPT_DIR/hammerspoon-stt.lua" "$INSTALL_DIR/"
@@ -387,6 +403,14 @@ install_macos() {
     if [[ -f "$SCRIPT_DIR/docker-compose.yml" ]]; then
         cp "$SCRIPT_DIR/docker-compose.yml" "$INSTALL_DIR/"
         info "Copied docker-compose.yml to $INSTALL_DIR"
+    fi
+
+    if command -v git >/dev/null 2>&1 && git -C "$SCRIPT_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+        {
+            printf 'commit=%s\n' "$(git -C "$SCRIPT_DIR" rev-parse --short HEAD 2>/dev/null || true)"
+            printf 'source_repo=%s\n' "$SCRIPT_DIR"
+            printf 'installed_at=%s\n' "$(date '+%Y-%m-%dT%H:%M:%S%z')"
+        } > "$INSTALL_DIR/installed-version.txt" 2>/dev/null || true
     fi
 
     # Front-end: prefer the native STTBar.app (owns icon + hotkeys + HUD).
@@ -501,8 +525,12 @@ install_macos() {
     echo "  In zsh prompt:  Ctrl+T            (start/stop — text inserts"
     echo "                                     at the cursor)"
     echo ""
-    echo "  Auto-start: Hammerspoon launches at login automatically"
-    echo "              (enabled via hs.autoLaunch in your init.lua)."
+    if (( USED_NATIVE_APP == 1 )); then
+        echo "  Auto-start: STTBar starts at login via LaunchAgent de.projectmakers.sttbar."
+    else
+        echo "  Auto-start: Hammerspoon launches at login automatically"
+        echo "              (enabled via hs.autoLaunch in your init.lua)."
+    fi
     echo ""
 }
 

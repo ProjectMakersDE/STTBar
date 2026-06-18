@@ -2,7 +2,7 @@ import AppKit
 import Carbon.HIToolbox
 
 /// A global hotkey binding: a virtual key code plus Carbon modifier flags.
-struct Hotkey: Codable, Equatable {
+struct Hotkey: Codable, Equatable, Hashable {
     var keyCode: UInt32
     var carbonModifiers: UInt32
 
@@ -18,6 +18,17 @@ struct Hotkey: Codable, Equatable {
         if carbonModifiers & UInt32(cmdKey)     != 0 { s += "⌘" }
         s += Self.keyName(keyCode)
         return s
+    }
+
+    var systemWarning: String? {
+        let cmd = carbonModifiers & UInt32(cmdKey) != 0
+        let shift = carbonModifiers & UInt32(shiftKey) != 0
+        let control = carbonModifiers & UInt32(controlKey) != 0
+        if cmd && keyCode == UInt32(kVK_Space) { return "macOS/Spotlight-nahe Kombination" }
+        if cmd && keyCode == UInt32(kVK_Tab) { return "macOS-App-Wechsel" }
+        if control && keyCode == UInt32(kVK_Space) { return "Input-Source-nahe Kombination" }
+        if cmd && shift && ["3", "4", "5"].contains(Self.keyName(keyCode)) { return "macOS-Screenshot-nahe Kombination" }
+        return nil
     }
 
     static func keyName(_ code: UInt32) -> String {

@@ -1,9 +1,34 @@
 import Foundation
 
+struct PromptVersion: Codable, Identifiable, Equatable {
+    var id: String = UUID().uuidString
+    var date: Date = Date()
+    var note: String
+    var body: String
+}
+
 struct Prompt: Codable, Identifiable, Equatable {
     let id: String
     var title: String
     var body: String
+    var versions: [PromptVersion]
+
+    init(id: String, title: String, body: String, versions: [PromptVersion] = []) {
+        self.id = id
+        self.title = title
+        self.body = body
+        self.versions = versions
+    }
+
+    private enum CodingKeys: String, CodingKey { case id, title, body, versions }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        title = try container.decode(String.self, forKey: .title)
+        body = try container.decode(String.self, forKey: .body)
+        versions = (try? container.decode([PromptVersion].self, forKey: .versions)) ?? []
+    }
 }
 
 /// Persists named prompts to `prompts.json` and mirrors the active prompt body
@@ -41,8 +66,13 @@ struct PromptStore {
         prompts.append(p); try persist(); return p.id
     }
 
-    mutating func update(_ id: String, title: String, body: String) throws {
+    mutating func update(_ id: String, title: String, body: String, note: String = "") throws {
         guard let i = prompts.firstIndex(where: { $0.id == id }) else { return }
+        if prompts[i].body != body {
+            let versionNote = note.isEmpty ? "Vorherige Version" : note
+            prompts[i].versions.insert(PromptVersion(note: versionNote, body: prompts[i].body), at: 0)
+            prompts[i].versions = Array(prompts[i].versions.prefix(20))
+        }
         prompts[i].title = title; prompts[i].body = body; try persist()
     }
 

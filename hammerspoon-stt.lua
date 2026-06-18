@@ -3,9 +3,11 @@
 local sourcePath = debug.getinfo(1, "S").source:gsub("^@", "")
 local scriptDir = sourcePath:match("^(.*)/[^/]+$") or (os.getenv("HOME") .. "/.local/share/stt")
 local sttScript = scriptDir .. "/stt-global.sh"
-local sttPidFile = "/tmp/stt-recording.pid"
-local sttAudioFile = "/tmp/stt-recording.wav"
-local phaseFile = "/tmp/stt-overlay-phase"
+local runtimeDir = (os.getenv("STT_RUNTIME_DIR")
+    or ((os.getenv("TMPDIR") or "/tmp") .. "/de.projectmakers.stt")):gsub("/$", "")
+local sttPidFile = runtimeDir .. "/recording.pid"
+local sttAudioFile = runtimeDir .. "/recording.wav"
+local phaseFile = runtimeDir .. "/phase"
 local logFile = scriptDir .. "/stt-overlay.log"
 
 local taskRunning = false

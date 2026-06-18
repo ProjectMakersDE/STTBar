@@ -1,46 +1,65 @@
 import SwiftUI
 
-/// The native settings window content: five tabs bound to `SettingsModel`.
+/// Native settings window content bound to `SettingsModel`.
 struct SettingsView: View {
     @ObservedObject var model: SettingsModel
-    /// Opens the separate titled prompt editor for the given prompt id.
     var openEditor: (String) -> Void
 
     var body: some View {
         TabView {
             ServerTab(model: model).tabItem { Label("Server", systemImage: "server.rack") }
+            ProfilesTab(model: model).tabItem { Label("Profile", systemImage: "switch.2") }
+            VocabularyTab(model: model).tabItem { Label("Wörterbuch", systemImage: "text.book.closed") }
             PromptsTab(model: model, openEditor: openEditor).tabItem { Label("Prompts", systemImage: "text.bubble") }
             ShortcutsTab(model: model).tabItem { Label("Shortcuts", systemImage: "command") }
             DisplayTab(model: model).tabItem { Label("Anzeige", systemImage: "rectangle.on.rectangle") }
+            PrivacyTab(model: model).tabItem { Label("Datenschutz", systemImage: "lock") }
             GeneralTab(model: model).tabItem { Label("Allgemein", systemImage: "gearshape") }
         }
-        .frame(width: 540, height: 440)
+        .frame(width: 780, height: 620)
         .padding()
     }
 }
 
 private struct ServerTab: View {
     @ObservedObject var model: SettingsModel
+
     var body: some View {
         Form {
-            Section("Whisper-Server") {
-                TextField("Whisper-URL / IP", text: $model.whisperURL)
+            Section("Whisper") {
+                TextField("Whisper-URL", text: $model.whisperURL)
                 Picker("Whisper-Modell", selection: $model.whisperModel) {
                     ForEach(SettingsModel.whisperPresets, id: \.self) { Text($0).tag($0) }
                     if !SettingsModel.whisperPresets.contains(model.whisperModel) {
                         Text(model.whisperModel).tag(model.whisperModel)
                     }
                 }
-                TextField("Whisper-Modell (frei)", text: $model.whisperModel)
-                TextField("Sprache (de / en / auto)", text: $model.language)
+                TextField("Whisper-Modell", text: $model.whisperModel)
+                TextField("Sprache", text: $model.language)
+                TextField("Whisper-Timeout (s)", text: $model.transcribeTimeout)
             }
-            Section("Nachbearbeitung (LM Studio)") {
-                Toggle("LLM-Nachbearbeitung aktiv", isOn: $model.postprocessEnabled)
-                TextField("LM-Studio-URL / IP", text: $model.lmStudioURL)
-                TextField("LLM-ID (z. B. qwen/qwen3.5-9b)", text: $model.llmModel)
+            Section("Nachbearbeitung") {
+                Toggle("LLM aktiv", isOn: $model.postprocessEnabled)
                 Picker("Provider", selection: $model.provider) {
                     Text("LM Studio").tag("lmstudio")
                     Text("OpenAI-kompatibel").tag("openai")
+                }
+                TextField("LLM-URL", text: $model.lmStudioURL)
+                TextField("LLM-Modell", text: $model.llmModel)
+                TextField("LLM-Timeout (s)", text: $model.postprocessTimeout)
+                TextField("Warnschwelle (s)", text: $model.postprocessWarnSeconds)
+                Toggle("Raw-Fallback bei LLM-Fehler", isOn: $model.autoRawFallback)
+            }
+            Section {
+                HStack {
+                    Button("Anwenden") { model.applyEnvChanges() }
+                        .keyboardShortcut("s")
+                    Button("Rückgängig") { model.revertEnvChanges() }
+                    Spacer()
+                    if let message = model.validationMessage ?? model.saveMessage {
+                        Text(message).font(.caption)
+                            .foregroundStyle(model.validationMessage == nil ? Color.secondary : Color.red)
+                    }
                 }
             }
         }
@@ -48,28 +67,122 @@ private struct ServerTab: View {
     }
 }
 
+private struct ProfilesTab: View {
+    @ObservedObject var model: SettingsModel
+    @State private var selected: String?
+    @State private var profileName = ""
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                TextField("Profilname", text: $profileName)
+                Button("Aktuelles Profil speichern") {
+                    model.saveCurrentProfile(name: profileName.isEmpty ? "Neues Profil" : profileName)
+                    selected = model.profiles.activeId
+                }
+            }
+            List(selection: $selected) {
+                ForEach(model.profiles.profiles) { profile in
+                    VStack(alignment: .leading) {
+                        Text(profile.name)
+                        Text("\(profile.whisperModel) · \(profile.postprocessEnabled ? profile.postprocessModel : "Raw")")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                    .tag(profile.id)
+                }
+            }
+            HStack {
+                Button("Aktivieren") {
+                    if let id = selected, let p = model.profiles.profiles.first(where: { $0.id == id }) {
+                        model.applyProfile(p)
+                    }
+                }
+                .disabled(selected == nil)
+                Button("Profil testen") { model.applyEnvChanges() }
+                    .disabled(selected == nil)
+                Button("Löschen", role: .destructive) { if let id = selected { model.removeProfile(id); selected = nil } }
+                    .disabled(selected == nil)
+            }
+        }
+        .padding(.top, 4)
+        .onAppear { selected = model.profiles.activeId }
+    }
+}
+
+private struct VocabularyTab: View {
+    @ObservedObject var model: SettingsModel
+    @State private var entries: [ReplacementEntry] = []
+    @State private var previewInput = ""
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Button("Eintrag hinzufügen") { entries.append(ReplacementEntry(from: "", to: "")) }
+                Button("Speichern") { model.saveReplacements(entries) }
+                Button("Neu laden") { entries = model.replacements.entries }
+                Spacer()
+                Text(model.replacements.url.path).font(.caption).foregroundStyle(.secondary)
+            }
+            List {
+                ForEach($entries) { $entry in
+                    HStack {
+                        Toggle("", isOn: $entry.enabled).labelsHidden()
+                        TextField("von", text: $entry.from)
+                        Image(systemName: "arrow.right")
+                        TextField("nach", text: $entry.to)
+                        TextField("Kategorie", text: $entry.category)
+                        TextField("Kommentar", text: $entry.comment)
+                        Button {
+                            entries.removeAll { $0.id == entry.id }
+                        } label: {
+                            Image(systemName: "trash")
+                        }
+                        .buttonStyle(.borderless)
+                    }
+                }
+            }
+            HStack {
+                TextField("Vorschau-Text", text: $previewInput)
+                Text(preview(entries, input: previewInput)).foregroundStyle(.secondary)
+            }
+        }
+        .onAppear { entries = model.replacements.entries }
+    }
+
+    private func preview(_ entries: [ReplacementEntry], input: String) -> String {
+        var output = input
+        for entry in entries where entry.enabled && !entry.from.isEmpty {
+            output = output.replacingOccurrences(of: entry.from, with: entry.to, options: [.caseInsensitive, .diacriticInsensitive])
+        }
+        return output
+    }
+}
+
 private struct PromptsTab: View {
     @ObservedObject var model: SettingsModel
     var openEditor: (String) -> Void
     @State private var selection: String?
+    @State private var evalInput = "also ich glaub wir sollten mal den endpoint prüfen"
+    @State private var evalOutput = ""
 
     var body: some View {
-        VStack(alignment: .leading) {
-            Text("Aktiver Prompt wird live verwendet (kein Neustart nötig).")
-                .font(.caption).foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 10) {
             List(selection: $selection) {
                 ForEach(model.prompts.prompts) { p in
                     HStack {
                         Image(systemName: p.id == model.prompts.activeId ? "checkmark.circle.fill" : "circle")
                             .foregroundStyle(p.id == model.prompts.activeId ? Color.accentColor : .secondary)
-                        Text(p.title)
+                        VStack(alignment: .leading) {
+                            Text(p.title)
+                            Text("\(p.versions.count) Versionen").font(.caption).foregroundStyle(.secondary)
+                        }
                         Spacer()
                     }
                     .contentShape(Rectangle())
                     .tag(p.id)
                 }
             }
-            .frame(minHeight: 180)
+            .frame(minHeight: 170)
             HStack {
                 Button("Aktiv setzen") { if let id = selection { model.setActive(id) } }
                     .disabled(selection == nil)
@@ -86,6 +199,18 @@ private struct PromptsTab: View {
                 Button("Löschen", role: .destructive) { if let id = selection { model.removePrompt(id) } }
                     .disabled(selection == nil || model.prompts.prompts.count <= 1)
             }
+            Divider()
+            TextField("Mini-Eval Rohtext", text: $evalInput)
+            HStack {
+                Button("Prompt testen") {
+                    if let id = selection ?? model.prompts.activePrompt?.id {
+                        model.runPromptEval(promptId: id, input: evalInput) { evalOutput = $0 }
+                    }
+                }
+                Text(evalOutput.isEmpty ? "Noch kein Ergebnis" : evalOutput)
+                    .font(.caption).foregroundStyle(.secondary)
+                    .lineLimit(3)
+            }
         }
         .onAppear { selection = model.prompts.activeId }
         .padding(.top, 4)
@@ -94,18 +219,29 @@ private struct PromptsTab: View {
 
 private struct ShortcutsTab: View {
     @ObservedObject var model: SettingsModel
+
     var body: some View {
         Form {
             ForEach(SttMode.allCases, id: \.self) { mode in
                 Section(mode.label) {
                     Text(mode.detail).font(.caption).foregroundStyle(.secondary)
-                    HotkeyRecorder(
-                        hotkey: Binding(
-                            get: { model.hotkey(mode) },
-                            set: { model.setHotkey($0, for: mode) }),
-                        onChange: {}
-                    )
-                    .frame(width: 180, height: 26)
+                    HStack {
+                        HotkeyRecorder(
+                            hotkey: Binding(
+                                get: { model.hotkey(mode) },
+                                set: { model.setHotkey($0, for: mode) }),
+                            onChange: {}
+                        )
+                        .frame(width: 180, height: 26)
+                        Button("Standard") { model.resetHotkey(mode) }
+                    }
+                    if let status = model.hotkeyStatuses.first(where: { $0.mode == mode }) {
+                        Label(status.message, systemImage: status.state == .registered ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                            .foregroundStyle(status.state == .registered ? .green : .orange)
+                    }
+                    if let warning = model.hotkeyWarning(for: mode) {
+                        Label(warning, systemImage: "exclamationmark.triangle").foregroundStyle(.orange)
+                    }
                 }
             }
         }
@@ -115,56 +251,61 @@ private struct ShortcutsTab: View {
 
 private struct DisplayTab: View {
     @ObservedObject var model: SettingsModel
-    // 3x3 grid; center is empty. Maps grid cells to the 8 anchors.
-    private let grid: [[HudAnchor?]] = [
-        [.leftTop,    .topCenter, .rightTop],
-        [nil,         nil,        nil],
-        [.bottomLeft, nil,        .bottomRight],
-    ]
-    // The remaining four "edge" anchors offered as a secondary row.
-    private let edges: [HudAnchor] = [.leftBottom, .rightBottom, .topRight, .bottomLeft]
+    private let anchors = HudAnchor.allCases
 
     var body: some View {
         Form {
-            Section("Position der Aufnahme-Animation") {
-                VStack(spacing: 6) {
-                    ForEach(0..<3, id: \.self) { r in
-                        HStack(spacing: 6) {
-                            ForEach(0..<3, id: \.self) { c in
-                                anchorCell(grid[r][c])
-                            }
+            Section("HUD") {
+                LazyVGrid(columns: Array(repeating: GridItem(.fixed(130)), count: 2), alignment: .leading) {
+                    ForEach(anchors, id: \.self) { anchor in
+                        Button {
+                            model.hudAnchor = anchor
+                        } label: {
+                            Label(anchor.label, systemImage: model.hudAnchor == anchor ? "largecircle.fill.circle" : "circle")
+                                .frame(maxWidth: .infinity, alignment: .leading)
                         }
                     }
                 }
-                Picker("Weitere Position", selection: $model.hudAnchor) {
-                    ForEach(HudAnchor.allCases, id: \.self) { Text($0.label).tag($0) }
-                }
+                Toggle("Timer anzeigen", isOn: $model.showHudTimer)
+                Toggle("Phasenlabel anzeigen", isOn: $model.showHudPhaseLabel)
+                Toggle("Warnung bei niedrigem Pegel", isOn: $model.lowMicWarningEnabled)
             }
             Section("Hintergrund") {
                 Toggle("Hintergrund anzeigen", isOn: $model.hudBackground)
                 ColorPicker("Hintergrundfarbe & Transparenz",
                             selection: $model.hudBackgroundColor, supportsOpacity: true)
                     .disabled(!model.hudBackground)
-                Text("Tipp: Alpha im Farbwähler bestimmt die Transparenz. Höher = besser sichtbar.")
-                    .font(.caption).foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)
     }
+}
 
-    @ViewBuilder private func anchorCell(_ anchor: HudAnchor?) -> some View {
-        if let anchor {
-            Button {
-                model.hudAnchor = anchor
-            } label: {
-                Image(systemName: model.hudAnchor == anchor ? "largecircle.fill.circle" : "circle")
-                    .frame(width: 40, height: 28)
+private struct PrivacyTab: View {
+    @ObservedObject var model: SettingsModel
+
+    var body: some View {
+        Form {
+            Section("Verlauf") {
+                Toggle("Sensitive Mode", isOn: $model.sensitiveMode)
+                Toggle("Transkriptverlauf speichern", isOn: $model.historyEnabled)
+                    .disabled(model.sensitiveMode)
+                TextField("Auto-Löschen nach Stunden", text: $model.historyRetentionHours)
+                    .disabled(model.sensitiveMode || !model.historyEnabled)
             }
-            .buttonStyle(.bordered)
-            .help(anchor.label)
-        } else {
-            Color.clear.frame(width: 40, height: 28)
+            Section("Laufzeit") {
+                TextField("Maximale Aufnahmedauer (s)", text: $model.maxRecordingSeconds)
+                Toggle("Server warm halten", isOn: $model.prewarmEnabled)
+                TextField("Warmhalte-Intervall (s)", text: $model.keepModelWarmSeconds)
+            }
+            Section {
+                HStack {
+                    Button("Anwenden") { model.applyEnvChanges() }
+                    Button("Rückgängig") { model.revertEnvChanges() }
+                }
+            }
         }
+        .formStyle(.grouped)
     }
 }
 
@@ -173,7 +314,6 @@ private struct DisplayTab: View {
 private struct PermissionRow: View {
     let title: String
     let detail: String
-    /// nil = status cannot be queried reliably (e.g. Automation).
     let granted: Bool?
     let action: () -> Void
 
@@ -199,6 +339,7 @@ private struct GeneralTab: View {
     @State private var autostart = LaunchAgent.isEnabled
 
     var body: some View {
+        let version = VersionInfo.load(installDir: model.installDir)
         Form {
             Section("Start") {
                 Toggle("Beim Login automatisch starten", isOn: $autostart)
@@ -207,14 +348,10 @@ private struct GeneralTab: View {
                         LaunchAgent.setEnabled(on, appPath: appPath, installDir: model.installDir.path)
                     }
             }
-            Section("Hammerspoon") {
-                Text("STTBar übernimmt Menü-Icon, Hotkeys und HUD. Der Hammerspoon-STT-Block kann entfernt werden (siehe install.sh).")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
             Section("Berechtigungen") {
                 PermissionRow(
                     title: "Bedienungshilfen",
-                    detail: "Nötig zum Einfügen (⌘V) des Texts ins aktive Feld.",
+                    detail: "Nötig zum Einfügen des Texts ins aktive Feld.",
                     granted: Permissions.accessibilityTrusted,
                     action: { Permissions.promptAccessibility(); Permissions.openAccessibility() })
                 PermissionRow(
@@ -223,12 +360,27 @@ private struct GeneralTab: View {
                     granted: Permissions.microphoneStatus == .authorized,
                     action: { Permissions.requestMicrophone(); Permissions.openMicrophone() })
                 PermissionRow(
-                    title: "Automatisierung (System Events)",
-                    detail: "Nötig, damit STTBar die ⌘V-Eingabe über „System Events“ sendet.",
+                    title: "Automatisierung",
+                    detail: "Nur für den AppleScript-Fallback relevant.",
                     granted: nil,
                     action: { Permissions.primeAutomation(); Permissions.openAutomation() })
-                Text("Hinweis: Nach einem App-Update kann macOS die Bedienungshilfen-Freigabe zurücksetzen — dann den Schalter dort einmal aus/an schalten.")
-                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Section("Import/Export") {
+                HStack {
+                    Button("Exportieren") { model.exportBundle() }
+                    Button("Importieren") { model.importBundle() }
+                }
+            }
+            Section("Version") {
+                Text("App: \(version.appCommit)")
+                Text("Scripts: \(version.scriptCommit)")
+                Text("Installiert: \(version.installedAt)")
+                HStack {
+                    Button("Nach Updates suchen") { model.checkForUpdates() }
+                    if let message = model.updateMessage {
+                        Text(message).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
             }
         }
         .formStyle(.grouped)

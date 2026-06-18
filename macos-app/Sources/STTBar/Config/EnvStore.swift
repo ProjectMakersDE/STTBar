@@ -22,8 +22,41 @@ struct EnvStore {
         var val = String(trimmed[trimmed.index(after: eq)...]).trimmingCharacters(in: .whitespaces)
         if val.count >= 2, val.hasPrefix("\""), val.hasSuffix("\"") {
             val = String(val.dropFirst().dropLast())
+            val = Self.unescape(val)
         }
         return (key, val)
+    }
+
+    private static func unescape(_ value: String) -> String {
+        var out = ""
+        var escaping = false
+        for ch in value {
+            if escaping {
+                out.append(ch)
+                escaping = false
+            } else if ch == "\\" {
+                escaping = true
+            } else {
+                out.append(ch)
+            }
+        }
+        if escaping { out.append("\\") }
+        return out
+    }
+
+    private static func quote(_ value: String) -> String {
+        var out = "\""
+        for ch in value {
+            switch ch {
+            case "\\", "\"", "$", "`":
+                out.append("\\")
+                out.append(ch)
+            default:
+                out.append(ch)
+            }
+        }
+        out.append("\"")
+        return out
     }
 
     func value(_ key: String) -> String? {
@@ -32,7 +65,7 @@ struct EnvStore {
     }
 
     mutating func set(_ key: String, _ value: String) {
-        let rendered = "\(key)=\"\(value)\""
+        let rendered = "\(key)=\(Self.quote(value))"
         for i in lines.indices {
             if let p = Self.parse(lines[i]), p.key == key { lines[i] = rendered; return }
         }
@@ -41,6 +74,8 @@ struct EnvStore {
     }
 
     func save() throws {
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(),
+                                                withIntermediateDirectories: true)
         let text = lines.joined(separator: "\n")
         let tmp = url.appendingPathExtension("tmp")
         try text.write(to: tmp, atomically: true, encoding: .utf8)
