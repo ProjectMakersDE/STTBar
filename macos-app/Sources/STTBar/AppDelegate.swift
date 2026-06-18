@@ -1,6 +1,8 @@
 import AppKit
+import Combine
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    private var cancellables = Set<AnyCancellable>()
     private var menu: MenuBarController!
     private var hotkeys: HotkeyManager!
     private var runner: SttRunner!
@@ -17,6 +19,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let installDir = InstallPaths.resolve()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Single-instance guard: if another STTBar is already running (e.g. a
+        // relaunch race during an in-app update), yield to it.
+        let me = NSRunningApplication.current
+        let dupes = NSRunningApplication.runningApplications(withBundleIdentifier: me.bundleIdentifier ?? "de.projectmakers.sttbar")
+            .filter { $0.processIdentifier != me.processIdentifier }
+        if !dupes.isEmpty {
+            NSApp.terminate(nil)
+            return
+        }
         RuntimePaths.ensureDirectory()
         runner = SttRunner(scriptPath: installDir.appendingPathComponent("stt-global.sh").path)
         hud = HudOverlay(runner: runner)
@@ -56,6 +67,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.onCopyLastTranscript = { [weak self] in self?.copyLastTranscript() }
         menu.onReinsertLastTranscript = { [weak self] in self?.reinsertLastTranscript() }
         menu.onOpenLogs = { Self.openLogs() }
+        menu.onSetLanguage = { [weak self] lang in self?.model.setAppLanguage(lang) }
+        Localization.shared.$language
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.menu.rebuild() }
+            .store(in: &cancellables)
         hotkeys.onTrigger = trigger
         hotkeys.onStatusesChanged = { [weak self] statuses in self?.model.syncHotkeyStatuses(statuses) }
         hotkeys.install()
