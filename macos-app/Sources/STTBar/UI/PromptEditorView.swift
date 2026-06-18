@@ -8,8 +8,9 @@ struct PromptEditorView: View {
     @State private var title: String = ""
     @State private var body_: String = ""
     @State private var note: String = ""
-    @State private var evalInput: String = "kannst du mal prüfen ob die url h t t p doppelpunkt slash slash localhost slash api erreichbar ist"
+    @State private var evalInput: String = DefaultPrompt.evalInput
     @State private var evalOutput: String = ""
+    @State private var evalRunning = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -31,15 +32,37 @@ struct PromptEditorView: View {
                     .keyboardShortcut("s")
             }
             Divider()
-            HStack {
-                TextField("Mini-Eval Rohtext", text: $evalInput)
-                Button("Testen") {
-                    model.runPromptEval(promptId: promptId, input: evalInput) { evalOutput = $0 }
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Mini-Eval").font(.headline)
+                TextEditor(text: $evalInput)
+                    .font(.system(.body, design: .monospaced))
+                    .frame(height: 58)
+                    .border(Color(NSColor.separatorColor))
+                HStack {
+                    Button(evalRunning ? "Teste…" : "Prompt testen") {
+                        evalRunning = true
+                        evalOutput = ""
+                        model.runPromptEval(promptId: promptId, input: evalInput) {
+                            evalOutput = $0.trimmingCharacters(in: .whitespacesAndNewlines)
+                            evalRunning = false
+                        }
+                    }
+                    .disabled(evalRunning || evalInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    Spacer()
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Ausgabe").font(.caption).foregroundStyle(.secondary)
+                    Text(evalRunning ? "Prompt wird getestet…" : (evalOutput.isEmpty ? "Noch nicht getestet." : evalOutput))
+                        .font(.system(.body, design: .rounded))
+                        .foregroundStyle(evalOutput.isEmpty ? .secondary : .primary)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, minHeight: 54, alignment: .topLeading)
+                        .padding(8)
+                        .background(Color(NSColor.textBackgroundColor))
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color(NSColor.separatorColor)))
                 }
             }
-            Text(evalOutput.isEmpty ? "Noch kein Ergebnis" : evalOutput)
-                .font(.caption).foregroundStyle(.secondary)
-                .lineLimit(3)
             if let p = model.prompts.prompts.first(where: { $0.id == promptId }), !p.versions.isEmpty {
                 List(p.versions.prefix(5)) { version in
                     VStack(alignment: .leading) {

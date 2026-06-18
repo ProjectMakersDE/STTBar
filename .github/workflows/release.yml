@@ -1,0 +1,42 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  release:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.14.0
+          cache: npm
+
+      - name: Install release tooling
+        run: npm ci
+
+      - name: Test Swift package
+        run: swift test
+        working-directory: macos-app
+
+      - name: Test shell scripts
+        run: |
+          bash -n stt-record.sh stt-global-mac.sh stt-runtime.sh stt-transcribe.sh stt-postprocess.sh
+          for t in tests/*.sh; do bash "$t"; done
+
+      - name: Semantic release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run release

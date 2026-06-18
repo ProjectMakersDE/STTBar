@@ -1,0 +1,23 @@
+{
+  "name": "sttbar",
+  "version": "0.0.0-development",
+  "private": true,
+  "description": "Native macOS menu-bar speech-to-text tool with Whisper and optional LLM cleanup.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ProjectMakersDE/STTBar.git"
+  },
+  "scripts": {
+    "release": "semantic-release"
+  },
+  "devDependencies": {
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/commit-analyzer": "^13.0.1",
+    "@semantic-release/exec": "^7.1.0",
+    "@semantic-release/git": "^10.0.1",
+    "@semantic-release/github": "^11.0.0",
+    "@semantic-release/release-notes-generator": "^14.0.3",
+    "conventional-changelog-conventionalcommits": "^9.1.0",
+    "semantic-release": "^25.0.5"
+  }
+}

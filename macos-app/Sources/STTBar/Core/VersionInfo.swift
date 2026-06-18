@@ -1,16 +1,24 @@
 import Foundation
 
 struct VersionInfo {
+    let appVersion: String
+    let appBuild: String
     let appCommit: String
     let scriptCommit: String
     let installedAt: String
 
     static func load(installDir: URL) -> VersionInfo {
+        let appVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+            ?? "unknown"
+        let appBuild = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String
+            ?? "unknown"
         let appCommit = Bundle.main.object(forInfoDictionaryKey: "STTGitCommit") as? String
             ?? readBundleResource("version.txt")["commit"]
             ?? "unknown"
         let scriptValues = readKeyValueFile(installDir.appendingPathComponent("installed-version.txt"))
-        return VersionInfo(appCommit: appCommit,
+        return VersionInfo(appVersion: appVersion,
+                           appBuild: appBuild,
+                           appCommit: appCommit,
                            scriptCommit: scriptValues["commit"] ?? "unknown",
                            installedAt: scriptValues["installed_at"] ?? "unknown")
     }

@@ -1,4 +1,7 @@
 .env
+.DS_Store
 *.wav
 /tmp/
+/dist/
+/node_modules/
 __pycache__/

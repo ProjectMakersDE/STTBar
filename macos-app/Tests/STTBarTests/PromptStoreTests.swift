@@ -49,4 +49,37 @@ final class PromptStoreTests: XCTestCase {
         XCTAssertEqual(store.activePrompt?.versions.first?.body, "A")
         XCTAssertEqual(store.activePrompt?.versions.first?.note, "Changed")
     }
+
+    func testSeedsMultipleBuiltInPrompts() throws {
+        let d = dir()
+        let store = try PromptStore(directory: d, defaultPrompts: [
+            PromptSeed(title: "DE", body: "A"),
+            PromptSeed(title: "EN", body: "B"),
+        ])
+
+        XCTAssertEqual(store.prompts.map(\.title), ["DE", "EN"])
+        XCTAssertEqual(store.activePrompt?.title, "DE")
+    }
+
+    func testMigratesLegacyBuiltInPromptAndKeepsVersion() throws {
+        let d = dir()
+        var old = try PromptStore(directory: d, defaultPrompts: [
+            PromptSeed(title: "Agent-Standard (DE)", body: "old body with endpoint marker"),
+        ])
+        let id = old.activePrompt!.id
+        try old.update(id, title: "Agent-Standard (DE)", body: "legacy body with endpoint marker")
+
+        let migrated = try PromptStore(directory: d, defaultPrompts: [
+            PromptSeed(title: "Agent V4 (DE)",
+                       body: "new body",
+                       legacyTitles: ["Agent-Standard (DE)"],
+                       legacyBodyMarkers: ["endpoint marker"]),
+            PromptSeed(title: "Agent V4 (EN output)", body: "english body"),
+        ])
+
+        XCTAssertEqual(migrated.prompts.first(where: { $0.id == id })?.title, "Agent V4 (DE)")
+        XCTAssertEqual(migrated.prompts.first(where: { $0.id == id })?.body, "new body")
+        XCTAssertEqual(migrated.prompts.first(where: { $0.id == id })?.versions.first?.body, "legacy body with endpoint marker")
+        XCTAssertTrue(migrated.prompts.contains { $0.title == "Agent V4 (EN output)" })
+    }
 }

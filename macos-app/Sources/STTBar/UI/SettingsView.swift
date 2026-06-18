@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// Native settings window content bound to `SettingsModel`.
@@ -162,8 +163,9 @@ private struct PromptsTab: View {
     @ObservedObject var model: SettingsModel
     var openEditor: (String) -> Void
     @State private var selection: String?
-    @State private var evalInput = "also ich glaub wir sollten mal den endpoint prüfen"
+    @State private var evalInput = DefaultPrompt.evalInput
     @State private var evalOutput = ""
+    @State private var evalRunning = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -200,16 +202,38 @@ private struct PromptsTab: View {
                     .disabled(selection == nil || model.prompts.prompts.count <= 1)
             }
             Divider()
-            TextField("Mini-Eval Rohtext", text: $evalInput)
-            HStack {
-                Button("Prompt testen") {
-                    if let id = selection ?? model.prompts.activePrompt?.id {
-                        model.runPromptEval(promptId: id, input: evalInput) { evalOutput = $0 }
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Mini-Eval").font(.headline)
+                TextEditor(text: $evalInput)
+                    .font(.system(.body, design: .monospaced))
+                    .frame(height: 58)
+                    .border(Color(NSColor.separatorColor))
+                HStack {
+                    Button(evalRunning ? "Teste…" : "Prompt testen") {
+                        if let id = selection ?? model.prompts.activePrompt?.id {
+                            evalRunning = true
+                            evalOutput = ""
+                            model.runPromptEval(promptId: id, input: evalInput) {
+                                evalOutput = $0.trimmingCharacters(in: .whitespacesAndNewlines)
+                                evalRunning = false
+                            }
+                        }
                     }
+                    .disabled(evalRunning || evalInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    Spacer()
                 }
-                Text(evalOutput.isEmpty ? "Noch kein Ergebnis" : evalOutput)
-                    .font(.caption).foregroundStyle(.secondary)
-                    .lineLimit(3)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Ausgabe").font(.caption).foregroundStyle(.secondary)
+                    Text(evalRunning ? "Prompt wird getestet…" : (evalOutput.isEmpty ? "Noch nicht getestet." : evalOutput))
+                        .font(.system(.body, design: .rounded))
+                        .foregroundStyle(evalOutput.isEmpty ? .secondary : .primary)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, minHeight: 54, alignment: .topLeading)
+                        .padding(8)
+                        .background(Color(NSColor.textBackgroundColor))
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color(NSColor.separatorColor)))
+                }
             }
         }
         .onAppear { selection = model.prompts.activeId }
@@ -370,11 +394,17 @@ private struct GeneralTab: View {
                 }
             }
             Section("Version") {
-                Text("App: \(version.appCommit)")
-                Text("Scripts: \(version.scriptCommit)")
+                Text("App: v\(version.appVersion) (Build \(version.appBuild))")
+                Text("App-Commit: \(version.appCommit)")
+                Text("Scripts-Commit: \(version.scriptCommit)")
                 Text("Installiert: \(version.installedAt)")
-                HStack {
-                    Button("Nach Updates suchen") { model.checkForUpdates() }
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Button("Nach Updates suchen") { model.checkForUpdates() }
+                        if let url = model.updateURL {
+                            Button("Release öffnen") { NSWorkspace.shared.open(url) }
+                        }
+                    }
                     if let message = model.updateMessage {
                         Text(message).font(.caption).foregroundStyle(.secondary)
                     }

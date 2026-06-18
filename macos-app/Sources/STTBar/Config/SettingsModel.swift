@@ -40,6 +40,9 @@ final class SettingsModel: ObservableObject {
     @Published var saveMessage: String?
     @Published var hotkeyStatuses: [HotkeyRegistrationStatus] = []
     @Published var updateMessage: String?
+    @Published var updateURL: URL?
+
+    static let defaultUpdateRepository = "ProjectMakersDE/STTBar"
 
     /// Common Whisper model presets surfaced in the picker (free text still allowed).
     static let whisperPresets = [
@@ -53,8 +56,8 @@ final class SettingsModel: ObservableObject {
         self.installDir = installDir
         let envURL = installDir.appendingPathComponent(".env")
         self.env = (try? EnvStore(url: envURL)) ?? (try! EnvStore(url: envURL))
-        self.prompts = (try? PromptStore(directory: installDir, defaultBody: DefaultPrompt.body))
-            ?? (try! PromptStore(directory: installDir, defaultBody: DefaultPrompt.body))
+        self.prompts = (try? PromptStore(directory: installDir, defaultPrompts: DefaultPrompt.seeds))
+            ?? (try! PromptStore(directory: installDir, defaultPrompts: DefaultPrompt.seeds))
         self.profiles = ProfileStore(directory: installDir)
         self.replacements = ReplacementStore(directory: installDir)
         self.hudAnchor = AppSettings.shared.hudAnchor
@@ -62,6 +65,9 @@ final class SettingsModel: ObservableObject {
         self.hudBackgroundColor = AppSettings.shared.hudBackgroundColor.color
         self.showHudTimer = AppSettings.shared.showHudTimer
         loadEnvDraft()
+        if env.value("STTBAR_UPDATE_REPOSITORY") == nil {
+            write("STTBAR_UPDATE_REPOSITORY", Self.defaultUpdateRepository)
+        }
         write("STT_POSTPROCESS_PROMPT_FILE", prompts.activeFileURL.path)
         try? env.save()
     }
@@ -248,23 +254,86 @@ final class SettingsModel: ObservableObject {
     }
 
     func checkForUpdates() {
-        let versionFile = installDir.appendingPathComponent("installed-version.txt")
-        guard let values = Self.readKeyValueFile(versionFile),
-              let repo = values["source_repo"], !repo.isEmpty,
-              let current = values["commit"], !current.isEmpty else {
-            updateMessage = "Kein Quell-Repo im installierten Versionsfile."
+        let version = VersionInfo.load(installDir: installDir)
+        let repository = env.value("STTBAR_UPDATE_REPOSITORY") ?? Self.defaultUpdateRepository
+        guard let url = URL(string: "https://api.github.com/repos/\(repository)/releases/latest") else {
+            updateMessage = "Update-URL ist ungültig."
             return
         }
-        DispatchQueue.global().async {
-            let result = Self.runShell("git -C \(Self.shellQuote(repo)) fetch origin master --quiet && git -C \(Self.shellQuote(repo)) rev-parse --short origin/master")
-            DispatchQueue.main.async {
-                guard result.success else {
-                    self.updateMessage = "Update-Check fehlgeschlagen: \(result.output)"
-                    return
+        updateMessage = "Suche Releases auf GitHub…"
+        updateURL = nil
+        var request = URLRequest(url: url)
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        request.setValue("STTBar/\(version.appVersion)", forHTTPHeaderField: "User-Agent")
+
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            let message: String
+            var releaseURL: URL?
+            defer {
+                DispatchQueue.main.async {
+                    self.updateMessage = message
+                    self.updateURL = releaseURL
                 }
-                let remote = result.output.trimmingCharacters(in: .whitespacesAndNewlines)
-                self.updateMessage = remote == current ? "Aktuell (\(current))" : "Update verfügbar: \(current) -> \(remote)"
             }
+
+            if let error {
+                message = "Update-Check fehlgeschlagen: \(error.localizedDescription)"
+                return
+            }
+            if let http = response as? HTTPURLResponse, http.statusCode == 404 {
+                message = "Noch kein public Release gefunden."
+                return
+            }
+            guard let data,
+                  let release = try? JSONDecoder().decode(GitHubRelease.self, from: data) else {
+                message = "GitHub-Release konnte nicht gelesen werden."
+                return
+            }
+            let latest = Self.normalizedVersion(release.tagName)
+            let current = Self.normalizedVersion(version.appVersion)
+            releaseURL = URL(string: release.htmlURL)
+            switch Self.compareVersions(latest, current) {
+            case .orderedDescending:
+                message = "Update verfügbar: v\(latest) (installiert v\(current))"
+            case .orderedSame:
+                message = "Aktuell: v\(current)"
+            case .orderedAscending:
+                message = "Installiert: v\(current), neuestes Release: v\(latest)"
+            }
+        }.resume()
+    }
+
+    private struct GitHubRelease: Decodable {
+        let tagName: String
+        let htmlURL: String
+
+        enum CodingKeys: String, CodingKey {
+            case tagName = "tag_name"
+            case htmlURL = "html_url"
+        }
+    }
+
+    private static func normalizedVersion(_ raw: String) -> String {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.lowercased().hasPrefix("v") ? String(trimmed.dropFirst()) : trimmed
+    }
+
+    private static func compareVersions(_ left: String, _ right: String) -> ComparisonResult {
+        let a = versionParts(left)
+        let b = versionParts(right)
+        for i in 0..<max(a.count, b.count) {
+            let av = i < a.count ? a[i] : 0
+            let bv = i < b.count ? b[i] : 0
+            if av > bv { return .orderedDescending }
+            if av < bv { return .orderedAscending }
+        }
+        return .orderedSame
+    }
+
+    private static func versionParts(_ version: String) -> [Int] {
+        version.split(separator: ".").map { part in
+            let digits = part.prefix { $0.isNumber }
+            return Int(digits) ?? 0
         }
     }
 
@@ -406,33 +475,6 @@ final class SettingsModel: ObservableObject {
 
     private static func shellQuote(_ s: String) -> String {
         "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'"
-    }
-
-    private static func readKeyValueFile(_ url: URL) -> [String: String]? {
-        guard let text = try? String(contentsOf: url, encoding: .utf8) else { return nil }
-        var result: [String: String] = [:]
-        for line in text.split(separator: "\n") {
-            guard let eq = line.firstIndex(of: "=") else { continue }
-            result[String(line[..<eq])] = String(line[line.index(after: eq)...])
-        }
-        return result
-    }
-
-    private static func runShell(_ command: String) -> (success: Bool, output: String) {
-        let process = Process()
-        let pipe = Pipe()
-        process.executableURL = URL(fileURLWithPath: "/bin/bash")
-        process.arguments = ["-lc", command]
-        process.standardOutput = pipe
-        process.standardError = pipe
-        do {
-            try process.run()
-            process.waitUntilExit()
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            return (process.terminationStatus == 0, String(data: data, encoding: .utf8) ?? "")
-        } catch {
-            return (false, error.localizedDescription)
-        }
     }
 
     private struct ExportBundle: Codable {

@@ -18,7 +18,13 @@ COMMIT="unknown"
 if command -v git >/dev/null 2>&1 && git -C "$HERE/.." rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     COMMIT="$(git -C "$HERE/.." rev-parse --short HEAD 2>/dev/null || echo unknown)"
 fi
-printf 'commit=%s\nbuilt_at=%s\n' "$COMMIT" "$(date '+%Y-%m-%dT%H:%M:%S%z')" > "$APP/Contents/Resources/version.txt"
+VERSION="unknown"
+BUILD="unknown"
+if command -v /usr/libexec/PlistBuddy >/dev/null 2>&1; then
+    VERSION="$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP/Contents/Info.plist" 2>/dev/null || echo unknown)"
+    BUILD="$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$APP/Contents/Info.plist" 2>/dev/null || echo unknown)"
+fi
+printf 'version=%s\nbuild=%s\ncommit=%s\nbuilt_at=%s\n' "$VERSION" "$BUILD" "$COMMIT" "$(date '+%Y-%m-%dT%H:%M:%S%z')" > "$APP/Contents/Resources/version.txt"
 if command -v /usr/libexec/PlistBuddy >/dev/null 2>&1; then
     /usr/libexec/PlistBuddy -c "Delete :STTGitCommit" "$APP/Contents/Info.plist" >/dev/null 2>&1 || true
     /usr/libexec/PlistBuddy -c "Add :STTGitCommit string $COMMIT" "$APP/Contents/Info.plist" >/dev/null 2>&1 || true

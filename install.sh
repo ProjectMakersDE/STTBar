@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# install.sh — Install/uninstall STT Terminal Tool
+# install.sh — Install/uninstall STTBar
 set -euo pipefail
 
 INSTALL_DIR="${STT_INSTALL_DIR:-$HOME/.local/share/stt}"
@@ -101,8 +101,8 @@ register_hammerspoon_binding() {
     local hammerspoon_script="$INSTALL_DIR/hammerspoon-stt.lua"
     local hammerspoon_script_escaped="${hammerspoon_script//\\/\\\\}"
     hammerspoon_script_escaped="${hammerspoon_script_escaped//\"/\\\"}"
-    local start_marker="-- STT Speech to Text - START"
-    local end_marker="-- STT Speech to Text - END"
+    local start_marker="-- STTBar - START"
+    local end_marker="-- STTBar - END"
 
     mkdir -p "$(dirname "$init_lua")"
     touch "$init_lua"
@@ -135,8 +135,8 @@ unregister_hammerspoon_binding() {
     local init_lua="$HOME/.hammerspoon/init.lua"
     [[ -f "$init_lua" ]] || return 0
 
-    local start_marker="-- STT Speech to Text - START"
-    local end_marker="-- STT Speech to Text - END"
+    local start_marker="-- STTBar - START"
+    local end_marker="-- STTBar - END"
 
     # Delete everything between (and including) the markers. BSD sed.
     sed -i '' "/$start_marker/,/$end_marker/d" "$init_lua" 2>/dev/null || true
@@ -218,7 +218,7 @@ register_gnome_shortcut() {
         gsettings set org.gnome.settings-daemon.plugins.media-keys custom-keybindings "$new_list"
     fi
 
-    gsettings set "org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:$shortcut_path" name 'STT Speech to Text'
+    gsettings set "org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:$shortcut_path" name 'STTBar'
     gsettings set "org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:$shortcut_path" command "$INSTALL_DIR/stt-global.sh"
     gsettings set "org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:$shortcut_path" binding "$shortcut_key"
 
@@ -247,7 +247,7 @@ unregister_gnome_shortcut() {
 }
 
 install_linux() {
-    echo "=== STT Terminal Tool Installer ==="
+    echo "=== STTBar Installer ==="
     echo ""
 
     # Check dependencies
@@ -287,7 +287,7 @@ install_linux() {
     # Add source line to .zshrc
     if ! grep -qF "$SOURCE_LINE" "$ZSHRC" 2>/dev/null; then
         echo "" >> "$ZSHRC"
-        echo "# STT Terminal Tool - Speech to Text via Ctrl+T" >> "$ZSHRC"
+        echo "# STTBar - Speech to Text via Ctrl+T" >> "$ZSHRC"
         echo "$SOURCE_LINE" >> "$ZSHRC"
         info "Added source line to $ZSHRC"
     else
@@ -325,12 +325,12 @@ install_linux() {
 }
 
 uninstall_linux() {
-    echo "=== STT Terminal Tool Uninstaller ==="
+    echo "=== STTBar Uninstaller ==="
 
     # Remove source line from .zshrc
     if [[ -f "$ZSHRC" ]]; then
         sed -i "\|$SOURCE_LINE|d" "$ZSHRC"
-        sed -i '/# STT Terminal Tool/d' "$ZSHRC"
+        sed -i '/# STTBar/d' "$ZSHRC"
         info "Removed source line from $ZSHRC"
     fi
 
@@ -348,7 +348,7 @@ uninstall_linux() {
 }
 
 install_macos() {
-    echo "=== STT Terminal Tool Installer (macOS) ==="
+    echo "=== STTBar Installer (macOS) ==="
     echo ""
 
     check_deps_macos || exit 1
@@ -392,7 +392,7 @@ install_macos() {
     # Add source line to .zshrc
     if ! grep -qF "$SOURCE_LINE" "$ZSHRC" 2>/dev/null; then
         echo "" >> "$ZSHRC"
-        echo "# STT Terminal Tool - Speech to Text" >> "$ZSHRC"
+        echo "# STTBar - Speech to Text" >> "$ZSHRC"
         echo "$SOURCE_LINE" >> "$ZSHRC"
         info "Added source line to $ZSHRC"
     else
@@ -535,12 +535,12 @@ install_macos() {
 }
 
 uninstall_macos() {
-    echo "=== STT Terminal Tool Uninstaller (macOS) ==="
+    echo "=== STTBar Uninstaller (macOS) ==="
 
     # Remove source line from .zshrc (BSD sed needs '' after -i)
     if [[ -f "$ZSHRC" ]]; then
         sed -i '' "\|$SOURCE_LINE|d" "$ZSHRC" 2>/dev/null || true
-        sed -i '' '/# STT Terminal Tool/d' "$ZSHRC" 2>/dev/null || true
+        sed -i '' '/# STTBar/d' "$ZSHRC" 2>/dev/null || true
         info "Removed source line from $ZSHRC"
     fi
 
@@ -599,8 +599,8 @@ case "${1:-}" in
     --help|-h)
         echo "Usage: $0 [--uninstall]"
         echo ""
-        echo "  (no args)    Install STT Terminal Tool"
-        echo "  --uninstall  Remove STT Terminal Tool"
+        echo "  (no args)    Install STTBar"
+        echo "  --uninstall  Remove STTBar"
         ;;
     *)
         install
