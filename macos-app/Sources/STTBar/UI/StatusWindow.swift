@@ -13,7 +13,7 @@ final class StatusWindow {
         if window == nil {
             let host = NSHostingController(rootView: StatusView(model: model))
             let w = NSWindow(contentViewController: host)
-            w.title = "STTBar - Status & Diagnose"
+            w.title = L("STTBar - Status & Diagnose", "STTBar - Status & diagnostics")
             w.styleMask = [.titled, .closable, .miniaturizable, .resizable]
             w.setContentSize(NSSize(width: 760, height: 560))
             window = w
@@ -27,19 +27,20 @@ final class StatusWindow {
 
 struct StatusView: View {
     @ObservedObject var model: HealthCenterModel
+    @ObservedObject private var loc = Localization.shared
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Button("Aktualisieren") { model.refresh() }
-                Button("Whisper testen") { model.testWhisper() }
-                Button("LM Studio testen") { model.testLMStudio() }
-                Button("Mikrofon-Test") { model.microphoneTest() }
-                Button("Testaufnahme 3s") { model.testRecording() }
-                Button("Testtext einfügen") { model.clipboardTest() }
-                Button("Server vorwärmen") { model.prewarmServers() }
+                Button(L("Aktualisieren", "Refresh")) { model.refresh() }
+                Button(L("Whisper testen", "Test Whisper")) { model.testWhisper() }
+                Button(L("LM Studio testen", "Test LM Studio")) { model.testLMStudio() }
+                Button(L("Mikrofon-Test", "Microphone test")) { model.microphoneTest() }
+                Button(L("Testaufnahme 3s", "Test recording 3s")) { model.testRecording() }
+                Button(L("Testtext einfügen", "Insert test text")) { model.clipboardTest() }
+                Button(L("Server vorwärmen", "Warm up servers")) { model.prewarmServers() }
                 Spacer()
-                Button("Bericht kopieren") { model.copyReport() }
+                Button(L("Bericht kopieren", "Copy report")) { model.copyReport() }
             }
             if let message = model.actionMessage {
                 Text(message).font(.caption).foregroundStyle(.secondary)
@@ -58,12 +59,12 @@ struct StatusView: View {
             .frame(minHeight: 260)
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Letztes Problem").font(.headline)
+                    Text(L("Letztes Problem", "Last problem")).font(.headline)
                     Text(problemText).font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Letzte Läufe").font(.headline)
+                    Text(L("Letzte Läufe", "Recent runs")).font(.headline)
                     ForEach(model.metrics.prefix(5)) { metric in
                         Text(metricLine(metric)).font(.caption).foregroundStyle(.secondary)
                     }
@@ -74,7 +75,7 @@ struct StatusView: View {
     }
 
     private var problemText: String {
-        guard let p = model.lastProblem else { return "Kein Fehler protokolliert" }
+        guard let p = model.lastProblem else { return L("Kein Fehler protokolliert", "No error logged") }
         return "\(p.severity.uppercased()) \(p.event): \(p.message) \(p.detail ?? "")"
     }
 

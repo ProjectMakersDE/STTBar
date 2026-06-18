@@ -3,6 +3,7 @@ import SwiftUI
 /// Editor for a single prompt: title + multi-line body, saved back to the store.
 struct PromptEditorView: View {
     @ObservedObject var model: SettingsModel
+    @ObservedObject private var loc = Localization.shared
     let promptId: String
 
     @State private var title: String = ""
@@ -14,32 +15,32 @@ struct PromptEditorView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            TextField("Titel", text: $title)
+            TextField(L("Titel", "Title"), text: $title)
                 .textFieldStyle(.roundedBorder)
             TextEditor(text: $body_)
                 .font(.system(.body, design: .monospaced))
                 .border(Color(NSColor.separatorColor))
-            TextField("Versionsnotiz", text: $note)
+            TextField(L("Versionsnotiz", "Version note"), text: $note)
                 .textFieldStyle(.roundedBorder)
             HStack {
                 if promptId == model.prompts.activeId {
-                    Label("Aktiver Prompt – wird live verwendet", systemImage: "checkmark.circle.fill")
+                    Label(L("Aktiver Prompt – wird live verwendet", "Active prompt – used live"), systemImage: "checkmark.circle.fill")
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()
-                Button("Auf Standard zurücksetzen") { body_ = DefaultPrompt.body }
-                Button("Speichern") { model.updatePrompt(promptId, title: title, body: body_, note: note); note = "" }
+                Button(L("Auf Standard zurücksetzen", "Reset to default")) { body_ = DefaultPrompt.body }
+                Button(L("Speichern", "Save")) { model.updatePrompt(promptId, title: title, body: body_, note: note); note = "" }
                     .keyboardShortcut("s")
             }
             Divider()
             VStack(alignment: .leading, spacing: 8) {
-                Text("Mini-Eval").font(.headline)
+                Text(L("Mini-Eval", "Mini eval")).font(.headline)
                 TextEditor(text: $evalInput)
                     .font(.system(.body, design: .monospaced))
                     .frame(height: 58)
                     .border(Color(NSColor.separatorColor))
                 HStack {
-                    Button(evalRunning ? "Teste…" : "Prompt testen") {
+                    Button(evalRunning ? L("Teste…", "Testing…") : L("Prompt testen", "Test prompt")) {
                         evalRunning = true
                         evalOutput = ""
                         model.runPromptEval(promptId: promptId, input: evalInput) {
@@ -51,8 +52,8 @@ struct PromptEditorView: View {
                     Spacer()
                 }
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Ausgabe").font(.caption).foregroundStyle(.secondary)
-                    Text(evalRunning ? "Prompt wird getestet…" : (evalOutput.isEmpty ? "Noch nicht getestet." : evalOutput))
+                    Text(L("Ausgabe", "Output")).font(.caption).foregroundStyle(.secondary)
+                    Text(evalRunning ? L("Prompt wird getestet…", "Testing prompt…") : (evalOutput.isEmpty ? L("Noch nicht getestet.", "Not tested yet.") : evalOutput))
                         .font(.system(.body, design: .rounded))
                         .foregroundStyle(evalOutput.isEmpty ? .secondary : .primary)
                         .textSelection(.enabled)

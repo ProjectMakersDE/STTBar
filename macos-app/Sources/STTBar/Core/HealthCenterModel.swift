@@ -32,30 +32,30 @@ final class HealthCenterModel: ObservableObject {
         lastProblem = StatusStore.latestProblem()
         metrics = StatusStore.readMetrics(limit: 20)
         var next: [HealthCheckItem] = []
-        next.append(item("STTBar", true, "App läuft"))
+        next.append(item("STTBar", true, L("App läuft", "App running")))
         next.append(launchAgentCheck())
         next.append(scriptCheck())
         next.append(toolCheck(["sox", "rec", "curl", "jq"]))
-        next.append(item("Mikrofon", Permissions.microphoneStatus == .authorized, "Berechtigung"))
-        next.append(item("Bedienungshilfen", Permissions.accessibilityTrusted, "Paste-Berechtigung"))
-        next.append(HealthCheckItem(title: "Automation/System Events", detail: "Bei nativer Paste nicht erforderlich; Fallback kann sie nutzen.", level: .unknown))
-        next.append(urlCheck(title: "Whisper-URL", urlString: settings.whisperURL, required: true))
+        next.append(item(L("Mikrofon", "Microphone"), Permissions.microphoneStatus == .authorized, L("Berechtigung", "Permission")))
+        next.append(item(L("Bedienungshilfen", "Accessibility"), Permissions.accessibilityTrusted, L("Paste-Berechtigung", "Paste permission")))
+        next.append(HealthCheckItem(title: "Automation/System Events", detail: L("Bei nativer Paste nicht erforderlich; Fallback kann sie nutzen.", "Not required for native paste; the fallback may use it."), level: .unknown))
+        next.append(urlCheck(title: L("Whisper-URL", "Whisper URL"), urlString: settings.whisperURL, required: true))
         if settings.postprocessEnabled {
-            next.append(urlCheck(title: "LM-Studio-URL", urlString: settings.lmStudioURL, required: true))
+            next.append(urlCheck(title: L("LM-Studio-URL", "LM Studio URL"), urlString: settings.lmStudioURL, required: true))
         } else {
-            next.append(HealthCheckItem(title: "LM Studio", detail: "Postprocessing deaktiviert", level: .ok))
+            next.append(HealthCheckItem(title: "LM Studio", detail: L("Postprocessing deaktiviert", "Post-processing disabled"), level: .ok))
         }
-        next.append(item("Whisper-Modell", !settings.whisperModel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, settings.whisperModel))
-        next.append(item("LLM-Modell", !settings.postprocessEnabled || !settings.llmModel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, settings.postprocessEnabled ? settings.llmModel : "deaktiviert"))
-        next.append(item("Aktiver Prompt", FileManager.default.isReadableFile(atPath: settings.prompts.activeFileURL.path), settings.prompts.activeFileURL.path))
-        next.append(item("Wörterbuch", FileManager.default.isReadableFile(atPath: settings.replacements.url.path), settings.replacements.url.path))
+        next.append(item(L("Whisper-Modell", "Whisper model"), !settings.whisperModel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, settings.whisperModel))
+        next.append(item(L("LLM-Modell", "LLM model"), !settings.postprocessEnabled || !settings.llmModel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, settings.postprocessEnabled ? settings.llmModel : L("deaktiviert", "disabled")))
+        next.append(item(L("Aktiver Prompt", "Active prompt"), FileManager.default.isReadableFile(atPath: settings.prompts.activeFileURL.path), settings.prompts.activeFileURL.path))
+        next.append(item(L("Wörterbuch", "Vocabulary"), FileManager.default.isReadableFile(atPath: settings.replacements.url.path), settings.replacements.url.path))
         let watch = runner.watchdog(maxDuration: TimeInterval(AppSettings.shared.maxRecordingSeconds))
         if watch.stalePidRemoved {
-            next.append(HealthCheckItem(title: "Stale-Aufnahme", detail: "Veraltete PID wurde entfernt", level: .warning))
+            next.append(HealthCheckItem(title: L("Stale-Aufnahme", "Stale recording"), detail: L("Veraltete PID wurde entfernt", "Stale PID removed"), level: .warning))
         } else if watch.isRecording {
-            next.append(HealthCheckItem(title: "Aufnahme", detail: "\(Int(watch.duration))s läuft", level: watch.exceededLimit ? .warning : .ok))
+            next.append(HealthCheckItem(title: L("Aufnahme", "Recording"), detail: "\(Int(watch.duration))s " + L("läuft", "running"), level: watch.exceededLimit ? .warning : .ok))
         } else {
-            next.append(HealthCheckItem(title: "Aufnahme", detail: "Keine hängende Aufnahme", level: .ok))
+            next.append(HealthCheckItem(title: L("Aufnahme", "Recording"), detail: L("Keine hängende Aufnahme", "No stuck recording"), level: .ok))
         }
         checks = next
     }
@@ -65,7 +65,7 @@ final class HealthCenterModel: ObservableObject {
         let report = diagnosticReport()
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(report, forType: .string)
-        actionMessage = "Diagnosebericht kopiert"
+        actionMessage = L("Diagnosebericht kopiert", "Diagnostic report copied")
     }
 
     func testWhisper() { testURL(settings.whisperURL, label: "Whisper") }
@@ -73,14 +73,14 @@ final class HealthCenterModel: ObservableObject {
 
     func microphoneTest() {
         Permissions.requestMicrophone()
-        actionMessage = "Mikrofonstatus: \(Permissions.microphoneStatus.rawValue)"
+        actionMessage = L("Mikrofonstatus: ", "Microphone status: ") + "\(Permissions.microphoneStatus.rawValue)"
         refresh()
     }
 
     func clipboardTest() {
         let result = NativePaste.copyAndPaste("STTBar Test")
         switch result {
-        case .pasted: actionMessage = "Testtext eingefügt"
+        case .pasted: actionMessage = L("Testtext eingefügt", "Test text inserted")
         case .clipboardOnly(let reason): actionMessage = reason
         }
         refresh()
@@ -93,7 +93,7 @@ final class HealthCenterModel: ObservableObject {
             Thread.sleep(forTimeInterval: 3)
             let result = Self.run("STT_RUNTIME_DIR=\(Self.shellQuote(RuntimePaths.directory.path)) \(Self.shellQuote(script)) stop 2>&1")
             DispatchQueue.main.async {
-                self.actionMessage = result.success ? "Testaufnahme erstellt" : "Testaufnahme fehlgeschlagen: \(result.output)"
+                self.actionMessage = result.success ? L("Testaufnahme erstellt", "Test recording created") : L("Testaufnahme fehlgeschlagen: ", "Test recording failed: ") + result.output
                 self.refresh()
             }
         }
@@ -132,27 +132,27 @@ final class HealthCenterModel: ObservableObject {
     private func launchAgentCheck() -> HealthCheckItem {
         let plist = LaunchAgent.plistURL
         guard FileManager.default.fileExists(atPath: plist.path) else {
-            return HealthCheckItem(title: "LaunchAgent", detail: "Nicht installiert", level: .warning)
+            return HealthCheckItem(title: "LaunchAgent", detail: L("Nicht installiert", "Not installed"), level: .warning)
         }
         let text = (try? String(contentsOf: plist, encoding: .utf8)) ?? ""
         let ok = text.contains(settings.installDir.path)
-        return HealthCheckItem(title: "LaunchAgent", detail: ok ? "Pfad korrekt" : "Pfad prüfen", level: ok ? .ok : .warning)
+        return HealthCheckItem(title: "LaunchAgent", detail: ok ? L("Pfad korrekt", "Path correct") : L("Pfad prüfen", "Check path"), level: ok ? .ok : .warning)
     }
 
     private func scriptCheck() -> HealthCheckItem {
         let scripts = ["stt-global.sh", "stt-record.sh", "stt-transcribe.sh", "stt-postprocess.sh", "stt-runtime.sh"]
         let missing = scripts.filter { !FileManager.default.isExecutableFile(atPath: settings.installDir.appendingPathComponent($0).path) }
-        return HealthCheckItem(title: "Scripts", detail: missing.isEmpty ? "Vorhanden und ausführbar" : "Fehlt/nicht ausführbar: \(missing.joined(separator: ", "))", level: missing.isEmpty ? .ok : .error)
+        return HealthCheckItem(title: "Scripts", detail: missing.isEmpty ? L("Vorhanden und ausführbar", "Present and executable") : L("Fehlt/nicht ausführbar: ", "Missing/not executable: ") + missing.joined(separator: ", "), level: missing.isEmpty ? .ok : .error)
     }
 
     private func toolCheck(_ tools: [String]) -> HealthCheckItem {
         let missing = tools.filter { !Self.run("command -v \($0) >/dev/null 2>&1").success }
-        return HealthCheckItem(title: "CLI-Tools", detail: missing.isEmpty ? tools.joined(separator: ", ") : "Fehlt: \(missing.joined(separator: ", "))", level: missing.isEmpty ? .ok : .error)
+        return HealthCheckItem(title: "CLI-Tools", detail: missing.isEmpty ? tools.joined(separator: ", ") : L("Fehlt: ", "Missing: ") + missing.joined(separator: ", "), level: missing.isEmpty ? .ok : .error)
     }
 
     private func urlCheck(title: String, urlString: String, required: Bool) -> HealthCheckItem {
         guard let url = URL(string: urlString), let scheme = url.scheme, ["http", "https"].contains(scheme) else {
-            return HealthCheckItem(title: title, detail: "Ungültige URL", level: required ? .error : .warning)
+            return HealthCheckItem(title: title, detail: L("Ungültige URL", "Invalid URL"), level: required ? .error : .warning)
         }
         return HealthCheckItem(title: title, detail: url.absoluteString, level: .unknown)
     }
@@ -161,7 +161,7 @@ final class HealthCenterModel: ObservableObject {
         DispatchQueue.global().async {
             let result = Self.run("curl -sS --max-time 3 -o /dev/null -w '%{http_code}' \(Self.shellQuote(url))")
             DispatchQueue.main.async {
-                self.actionMessage = "\(label): \(result.success ? result.output : "nicht erreichbar")"
+                self.actionMessage = "\(label): \(result.success ? result.output : L("nicht erreichbar", "unreachable"))"
                 self.refresh()
             }
         }

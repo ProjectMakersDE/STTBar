@@ -32,7 +32,7 @@ final class RecorderButton: NSButton {
 
     @objc private func begin() {
         recording = true
-        title = "Taste drücken…"
+        title = L("Taste drücken…", "Press a key…")
         window?.makeFirstResponder(self)
     }
     override var acceptsFirstResponder: Bool { true }

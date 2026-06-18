@@ -21,7 +21,7 @@ final class PromptEditorWindow {
         if window == nil {
             let host = NSHostingController(rootView: PromptEditorView(model: model, promptId: id))
             let w = NSWindow(contentViewController: host)
-            w.title = "Prompt bearbeiten – \(title)"
+            w.title = L("Prompt bearbeiten – ", "Edit prompt – ") + title
             w.styleMask = [.titled, .closable, .resizable, .miniaturizable]
             w.setContentSize(NSSize(width: 600, height: 480))
             window = w

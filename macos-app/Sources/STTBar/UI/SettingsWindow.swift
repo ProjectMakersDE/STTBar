@@ -17,7 +17,7 @@ final class SettingsWindow {
                 self?.openEditor(id)
             }))
             let w = NSWindow(contentViewController: host)
-            w.title = "STTBar – Einstellungen"
+            w.title = L("STTBar – Einstellungen", "STTBar – Settings")
             w.styleMask = [.titled, .closable, .miniaturizable, .resizable]
             w.setContentSize(NSSize(width: 780, height: 620))
             window = w
