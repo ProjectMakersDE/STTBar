@@ -13,6 +13,24 @@ DIST="$ROOT/dist"
 rm -rf "$DIST"
 mkdir -p "$DIST"
 bash "$ROOT/macos-app/build-app.sh" "$DIST"
+
+# Notarize + staple when App Store Connect API credentials are present (CI).
+# Stapling must happen before the release zip is created so the ticket ships
+# inside the bundle. Without credentials this is skipped (self-signed/ad-hoc dev
+# build). A rejected notarization fails the release on purpose.
+if [[ -n "${MACOS_NOTARY_KEY_P8_BASE64:-}" && -n "${MACOS_NOTARY_KEY_ID:-}" && -n "${MACOS_NOTARY_ISSUER_ID:-}" ]]; then
+    printf '%s' "$MACOS_NOTARY_KEY_P8_BASE64" | base64 --decode > "$DIST/notary.p8"
+    ditto -c -k --keepParent "$DIST/STTBar.app" "$DIST/notarize.zip"
+    xcrun notarytool submit "$DIST/notarize.zip" \
+        --key "$DIST/notary.p8" --key-id "$MACOS_NOTARY_KEY_ID" --issuer "$MACOS_NOTARY_ISSUER_ID" \
+        --wait
+    xcrun stapler staple "$DIST/STTBar.app"
+    rm -f "$DIST/notary.p8" "$DIST/notarize.zip"
+    echo "Notarized + stapled STTBar.app"
+else
+    echo "Notary credentials absent — skipping notarization (dev build)."
+fi
+
 ditto -c -k --sequesterRsrc --keepParent "$DIST/STTBar.app" "$DIST/STTBar.app.zip"
 shasum -a 256 "$DIST/STTBar.app.zip" | awk '{print $1}' > "$DIST/STTBar.app.zip.sha256"
 

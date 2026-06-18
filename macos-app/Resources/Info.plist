@@ -20,5 +20,7 @@
 	<true/>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>STTBar records audio for speech-to-text transcription.</string>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>STTBar uses System Events to paste the transcribed text into the focused app.</string>
 </dict>
 </plist>
