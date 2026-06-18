@@ -1,15 +1,13 @@
 #!/usr/bin/env bash
 # stt-global-mac.sh — System-wide STT toggle for macOS
-# Triggered by Hammerspoon / skhd global hotkey. First call starts
-# recording, second call stops + transcribes + pastes into the focused
-# text field.
+# Triggered by STTBar.app or the shell fallback. First call starts recording,
+# second call stops + transcribes + pastes into the focused text field.
 set -euo pipefail
 
-# Hammerspoon launched from launchd (e.g. after a reboot) has a minimal
-# PATH that does NOT include Homebrew, so `rec`, `sox`, `jq` etc. won't
-# be found and the background `rec` dies immediately — which makes the
-# toggle never reach the "stop" branch. Prepend the common Homebrew
-# locations so the script works regardless of how Hammerspoon started.
+# Launch agents can have a minimal PATH that does NOT include Homebrew, so
+# `rec`, `sox`, `jq` etc. won't be found and the background `rec` dies
+# immediately — which makes the toggle never reach the "stop" branch. Prepend
+# the common Homebrew locations so the script works regardless of launch path.
 export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/local/sbin:${PATH:-/usr/bin:/bin:/usr/sbin:/sbin}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -209,9 +207,9 @@ if is_recording; then
     # Put text on clipboard (always — fallback for manual paste)
     printf '%s' "$text" | pbcopy
 
-    # Paste into whatever field currently has focus. The triggering app
-    # (STTBar / Hammerspoon) does not steal focus, so the target field is
-    # still active. Requires Accessibility permission for the triggering app.
+    # Paste into whatever field currently has focus. STTBar does not steal
+    # focus, so the target field is still active. Requires Accessibility
+    # permission for the triggering app.
     #
     # IMPORTANT: do not let a missing permission abort the script (set -e).
     # The text is already on the clipboard, so on failure we report a

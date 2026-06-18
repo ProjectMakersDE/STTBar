@@ -1,9 +1,8 @@
 import AppKit
 
-/// Borderless click-through overlay panel that mirrors the Hammerspoon HUD:
-/// a mic + live waveform while recording, a spinner during whisper/llm, and a
-/// red dot on error. Positioned at the configured 8-anchor point with an
-/// optional light-gray backing.
+/// Borderless click-through overlay panel: a mic + live waveform while
+/// recording, a spinner during whisper/llm, and a red dot on error. Positioned
+/// at the configured 8-anchor point with an optional light-gray backing.
 final class HudOverlay {
     private let runner: SttRunner
     private let reader = AudioLevelReader(bucketCount: 34)
