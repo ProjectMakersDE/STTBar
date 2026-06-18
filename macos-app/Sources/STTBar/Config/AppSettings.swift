@@ -64,16 +64,6 @@ final class AppSettings {
         set { d.set(newValue, forKey: "showHudTimer") }
     }
 
-    var showHudPhaseLabel: Bool {
-        get { d.object(forKey: "showHudPhaseLabel") == nil ? true : d.bool(forKey: "showHudPhaseLabel") }
-        set { d.set(newValue, forKey: "showHudPhaseLabel") }
-    }
-
-    var lowMicWarningEnabled: Bool {
-        get { d.object(forKey: "lowMicWarningEnabled") == nil ? true : d.bool(forKey: "lowMicWarningEnabled") }
-        set { d.set(newValue, forKey: "lowMicWarningEnabled") }
-    }
-
     var sensitiveMode: Bool {
         get { d.bool(forKey: "sensitiveMode") }
         set { d.set(newValue, forKey: "sensitiveMode") }

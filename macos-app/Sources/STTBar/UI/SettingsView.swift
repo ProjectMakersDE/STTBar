@@ -267,8 +267,6 @@ private struct DisplayTab: View {
                     }
                 }
                 Toggle("Timer anzeigen", isOn: $model.showHudTimer)
-                Toggle("Phasenlabel anzeigen", isOn: $model.showHudPhaseLabel)
-                Toggle("Warnung bei niedrigem Pegel", isOn: $model.lowMicWarningEnabled)
             }
             Section("Hintergrund") {
                 Toggle("Hintergrund anzeigen", isOn: $model.hudBackground)

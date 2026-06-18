@@ -152,12 +152,13 @@ start_recording() {
     # AUDIODEV can be an ALSA device on Linux or a CoreAudio device name on macOS.
     local audio_device
     audio_device="$(resolve_audio_device)"
+    local record_buffer_bytes="${STT_RECORD_BUFFER_BYTES:-1024}"
     if [[ -n "$audio_device" ]] && [[ "$audio_device" != "default" ]] && [[ "$(uname -s)" == "Darwin" ]]; then
-        sox -q -t coreaudio "$audio_device" -r 16000 -c 1 -b 16 "$STT_RECORD_FILE" &
+        sox -q --buffer "$record_buffer_bytes" -t coreaudio "$audio_device" -r 16000 -c 1 -b 16 "$STT_RECORD_FILE" &
     elif [[ -n "$audio_device" ]]; then
-        AUDIODEV="$audio_device" rec -q -r 16000 -c 1 -b 16 "$STT_RECORD_FILE" &
+        AUDIODEV="$audio_device" rec -q --buffer "$record_buffer_bytes" -r 16000 -c 1 -b 16 "$STT_RECORD_FILE" &
     else
-        rec -q -r 16000 -c 1 -b 16 "$STT_RECORD_FILE" &
+        rec -q --buffer "$record_buffer_bytes" -r 16000 -c 1 -b 16 "$STT_RECORD_FILE" &
     fi
     local rec_pid=$!
     echo "$rec_pid" > "$STT_PID_FILE"

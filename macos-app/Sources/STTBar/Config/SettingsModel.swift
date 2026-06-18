@@ -35,8 +35,6 @@ final class SettingsModel: ObservableObject {
     @Published var hudBackground: Bool { didSet { AppSettings.shared.hudBackground = hudBackground } }
     @Published var hudBackgroundColor: Color { didSet { AppSettings.shared.hudBackgroundColor = RGBAColor(hudBackgroundColor) } }
     @Published var showHudTimer: Bool { didSet { AppSettings.shared.showHudTimer = showHudTimer } }
-    @Published var showHudPhaseLabel: Bool { didSet { AppSettings.shared.showHudPhaseLabel = showHudPhaseLabel } }
-    @Published var lowMicWarningEnabled: Bool { didSet { AppSettings.shared.lowMicWarningEnabled = lowMicWarningEnabled } }
 
     @Published var validationMessage: String?
     @Published var saveMessage: String?
@@ -63,8 +61,6 @@ final class SettingsModel: ObservableObject {
         self.hudBackground = AppSettings.shared.hudBackground
         self.hudBackgroundColor = AppSettings.shared.hudBackgroundColor.color
         self.showHudTimer = AppSettings.shared.showHudTimer
-        self.showHudPhaseLabel = AppSettings.shared.showHudPhaseLabel
-        self.lowMicWarningEnabled = AppSettings.shared.lowMicWarningEnabled
         loadEnvDraft()
         write("STT_POSTPROCESS_PROMPT_FILE", prompts.activeFileURL.path)
         try? env.save()
