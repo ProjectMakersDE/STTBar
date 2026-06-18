@@ -24,11 +24,11 @@ fi
 
 if [[ ! -f "$audio_file" ]]; then
     echo "ERROR: File not found: $audio_file" >&2
-    stt_status_event "recording_file_missing" "error" "error" "recording_file_missing" "Audiodatei fehlt." "$audio_file"
+    stt_status_event "recording_file_missing" "error" "error" "recording_file_missing" "Audio file missing." "$audio_file"
     exit 1
 fi
 
-stt_status_event "whisper_request_started" "whisper" "info" "" "Whisper-Anfrage gestartet." "timeout=${STT_TRANSCRIBE_TIMEOUT}s model=$STT_MODEL"
+stt_status_event "whisper_request_started" "whisper" "info" "" "Whisper request started." "timeout=${STT_TRANSCRIBE_TIMEOUT}s model=$STT_MODEL"
 
 # Build curl args — omit language for auto-detection
 curl_args=(
@@ -50,7 +50,7 @@ curl_error_file="$(mktemp)"
 if ! response="$(curl "${curl_args[@]}" 2>"$curl_error_file")"; then
     curl_error="$(tr '\n' ' ' < "$curl_error_file" | cut -c 1-300)"
     rm -f "$curl_error_file"
-    stt_status_event "whisper_unreachable" "error" "error" "whisper_unreachable" "Whisper-Server nicht erreichbar." "$curl_error"
+    stt_status_event "whisper_unreachable" "error" "error" "whisper_unreachable" "Whisper server unreachable." "$curl_error"
     echo "ERROR: Could not connect to server at $STT_SERVER_URL" >&2
     echo "$curl_error" >&2
     exit 1
@@ -61,14 +61,14 @@ http_code="$(echo "$response" | tail -n1)"
 body="$(echo "$response" | sed '$d')"
 
 if [[ "$http_code" == "000" ]]; then
-    stt_status_event "whisper_unreachable" "error" "error" "whisper_unreachable" "Whisper-Server nicht erreichbar." "$STT_SERVER_URL"
+    stt_status_event "whisper_unreachable" "error" "error" "whisper_unreachable" "Whisper server unreachable." "$STT_SERVER_URL"
     echo "ERROR: Could not connect to server at $STT_SERVER_URL" >&2
     echo "Is the whisper server running? Try: docker compose up -d" >&2
     exit 1
 fi
 
 if [[ "$http_code" -ne 200 ]]; then
-    stt_status_event "whisper_http_error" "error" "error" "whisper_http_error" "Whisper meldet HTTP $http_code." "$(printf '%s' "$body" | cut -c 1-300)"
+    stt_status_event "whisper_http_error" "error" "error" "whisper_http_error" "Whisper returned HTTP $http_code." "$(printf '%s' "$body" | cut -c 1-300)"
     echo "ERROR: Server returned HTTP $http_code" >&2
     echo "$body" >&2
     exit 1
@@ -78,10 +78,10 @@ fi
 text="$(echo "$body" | jq -r '.text // empty')"
 
 if [[ -z "$text" ]]; then
-    stt_status_event "whisper_empty_text" "error" "error" "whisper_empty_text" "Whisper lieferte keinen Text."
+    stt_status_event "whisper_empty_text" "error" "error" "whisper_empty_text" "Whisper returned no text."
     echo "ERROR: Empty transcription result" >&2
     exit 1
 fi
 
-stt_status_event "whisper_success" "llm" "info" "" "Whisper-Transkript empfangen." "chars=${#text}"
+stt_status_event "whisper_success" "llm" "info" "" "Whisper transcript received." "chars=${#text}"
 echo "$text"

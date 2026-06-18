@@ -241,7 +241,7 @@ Text: ${input}"
 
 case "$provider" in
     lmstudio)
-        stt_status_event "postprocess_started" "llm" "info" "" "LLM-Nachbearbeitung gestartet." "provider=lmstudio model=$model timeout=${timeout}s"
+        stt_status_event "postprocess_started" "llm" "info" "" "LLM post-processing started." "provider=lmstudio model=$model timeout=${timeout}s"
         log_event "start provider=lmstudio model=$model timeout=${timeout}s ttl=${ttl_json/null/off} input_chars=$input_chars input_words=$input_words"
 
         if ! payload="$(jq -n \
@@ -284,7 +284,7 @@ case "$provider" in
         ;;
 
     openai)
-        stt_status_event "postprocess_started" "llm" "info" "" "LLM-Nachbearbeitung gestartet." "provider=openai model=$model timeout=${timeout}s"
+        stt_status_event "postprocess_started" "llm" "info" "" "LLM post-processing started." "provider=openai model=$model timeout=${timeout}s"
         log_event "start provider=openai model=$model timeout=${timeout}s input_chars=$input_chars input_words=$input_words"
 
         if ! payload="$(jq -n \
@@ -345,8 +345,8 @@ output_words="$(printf '%s' "$output" | wc -w | tr -d '[:space:]')"
 postprocess_elapsed_ms=$(( $(stt_now_ms) - postprocess_started_ms ))
 log_event "success provider=$provider model=$model output_chars=$output_chars output_words=$output_words"
 if [[ "$warn_seconds" =~ ^[0-9]+$ ]] && (( warn_seconds > 0 )) && (( postprocess_elapsed_ms > warn_seconds * 1000 )); then
-    stt_status_event "postprocess_slow" "llm" "warning" "postprocess_slow" "LLM langsam, Raw-Modus kann fuer kurze Diktate sinnvoll sein." "duration_ms=$postprocess_elapsed_ms threshold=${warn_seconds}s"
+    stt_status_event "postprocess_slow" "llm" "warning" "postprocess_slow" "LLM slow; raw mode may help for short dictations." "duration_ms=$postprocess_elapsed_ms threshold=${warn_seconds}s"
 else
-    stt_status_event "postprocess_success" "done" "info" "" "LLM-Nachbearbeitung abgeschlossen." "duration_ms=$postprocess_elapsed_ms output_chars=$output_chars"
+    stt_status_event "postprocess_success" "done" "info" "" "LLM post-processing finished." "duration_ms=$postprocess_elapsed_ms output_chars=$output_chars"
 fi
 printf '%s' "$output"

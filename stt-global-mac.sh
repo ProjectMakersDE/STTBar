@@ -120,13 +120,13 @@ append_run_metrics() {
 if is_recording; then
     # --- STOP RECORDING & TRANSCRIBE & PASTE ---
     set_phase "whisper"
-    stt_status_event "recording_stop_requested" "whisper" "info" "" "Aufnahme wird gestoppt und transkribiert."
+    stt_status_event "recording_stop_requested" "whisper" "info" "" "Stopping recording and transcribing."
     notify "Transcribing..."
 
     audio_file="$("$SCRIPT_DIR/stt-record.sh" stop 2>/dev/null)" || true
     if [[ -z "$audio_file" ]]; then
         set_phase "error"
-        stt_status_event "recording_empty" "error" "error" "recording_empty" "Aufnahme konnte nicht gestartet oder gestoppt werden." "Pruefe Mikrofon/sox."
+        stt_status_event "recording_empty" "error" "error" "recording_empty" "Recording could not be started or stopped." "Check microphone/sox."
         notify "Recording failed or was empty."
         exit 1
     fi
@@ -146,7 +146,7 @@ if is_recording; then
 
     if [[ $rc -ne 0 ]] || [[ -z "$text" ]]; then
         set_phase "error"
-        stt_status_event "whisper_failed" "error" "error" "whisper_failed" "Transkription fehlgeschlagen." "$transcribe_error"
+        stt_status_event "whisper_failed" "error" "error" "whisper_failed" "Transcription failed." "$transcribe_error"
         notify "Transcription failed. Is the whisper server running?"
         exit 1
     fi
@@ -184,10 +184,10 @@ if is_recording; then
             text="$processed"
         else
             if stt_truthy "${STT_AUTO_RAW_FALLBACK:-1}"; then
-                stt_status_event "postprocess_fallback" "llm" "warning" "postprocess_failed" "Nachbearbeitung fehlgeschlagen, Rohtext/Ersatzwoerter verwendet."
+                stt_status_event "postprocess_fallback" "llm" "warning" "postprocess_failed" "Post-processing failed, used raw text/replacements."
             else
                 set_phase "error"
-                stt_status_event "postprocess_failed" "error" "error" "postprocess_failed" "Nachbearbeitung fehlgeschlagen und Raw-Fallback ist deaktiviert."
+                stt_status_event "postprocess_failed" "error" "error" "postprocess_failed" "Post-processing failed and raw fallback is disabled."
                 notify "LLM cleanup failed and Raw fallback is disabled."
                 exit 1
             fi
@@ -199,7 +199,7 @@ if is_recording; then
         printf '%s' "$text" > "$STT_RESULT_FILE"
         append_run_metrics "$stt_mode" "$wav_bytes" "$recording_ms" "$whisper_ms" "$whisper_chars" "$postprocess_ms" "${#text}" "native_pending"
         set_phase "done"
-        stt_status_event "paste_native_pending" "done" "info" "" "Transkript fuer STTBar bereit." "output_chars=${#text}"
+        stt_status_event "paste_native_pending" "done" "info" "" "Transcript ready for STTBar." "output_chars=${#text}"
         rm -f "$STT_RECORDING_STARTED_FILE" "$STT_RUN_ID_FILE" 2>/dev/null || true
         exit 0
     fi
@@ -218,20 +218,20 @@ if is_recording; then
     if osascript -e 'tell application "System Events" to keystroke "v" using command down' 2>/dev/null; then
         set_phase "done"
         append_run_metrics "$stt_mode" "$wav_bytes" "$recording_ms" "$whisper_ms" "$whisper_chars" "$postprocess_ms" "${#text}" "osascript_ok"
-        stt_status_event "done" "done" "info" "" "Transkript eingefuegt." "output_chars=${#text}"
+        stt_status_event "done" "done" "info" "" "Transcript inserted." "output_chars=${#text}"
         notify "$text"
     else
         set_phase "done"
         append_run_metrics "$stt_mode" "$wav_bytes" "$recording_ms" "$whisper_ms" "$whisper_chars" "$postprocess_ms" "${#text}" "clipboard_only"
-        stt_status_event "paste_failed_clipboard_ok" "done" "warning" "paste_permission_missing" "Text liegt in der Zwischenablage, Einfuegen per Cmd+V oder Accessibility aktivieren."
-        notify "Text liegt in der Zwischenablage — mit ⌘V einfügen. (Bedienungshilfen-Berechtigung fehlt)"
+        stt_status_event "paste_failed_clipboard_ok" "done" "warning" "paste_permission_missing" "Text is on the clipboard; paste with Cmd+V or enable Accessibility."
+        notify "Text is on the clipboard — paste with ⌘V. (Accessibility permission missing)"
     fi
     rm -f "$STT_RECORDING_STARTED_FILE" "$STT_RUN_ID_FILE" 2>/dev/null || true
 else
     # --- START RECORDING ---
     if ! "$SCRIPT_DIR/stt-record.sh" start >/dev/null 2>&1; then
         set_phase "error"
-        stt_status_event "recording_start_failed" "error" "error" "recording_start_failed" "Aufnahme konnte nicht gestartet werden, pruefe Mikrofon/sox."
+        stt_status_event "recording_start_failed" "error" "error" "recording_start_failed" "Recording could not be started; check microphone/sox."
         notify "Could not start recording. Is sox installed?"
         exit 1
     fi

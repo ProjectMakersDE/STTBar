@@ -130,17 +130,17 @@ first_legacy_recording_pid() {
 start_recording() {
     if [[ -f "$STT_PID_FILE" ]] && kill -0 "$(cat "$STT_PID_FILE")" 2>/dev/null; then
         echo "ERROR: Recording already in progress" >&2
-        stt_status_event "recording_already_running" "recording" "warning" "recording_already_running" "Eine Aufnahme läuft bereits."
+        stt_status_event "recording_already_running" "recording" "warning" "recording_already_running" "A recording is already running."
         return 1
     fi
     if [[ "$STT_LEGACY_PID_FILE" != "$STT_PID_FILE" ]] && [[ -f "$STT_LEGACY_PID_FILE" ]] && kill -0 "$(cat "$STT_LEGACY_PID_FILE")" 2>/dev/null; then
         echo "ERROR: Legacy recording already in progress" >&2
-        stt_status_event "legacy_recording_running" "recording" "warning" "legacy_recording_running" "Eine alte /tmp-Aufnahme läuft bereits." "$STT_LEGACY_PID_FILE"
+        stt_status_event "legacy_recording_running" "recording" "warning" "legacy_recording_running" "A stale /tmp recording is already running." "$STT_LEGACY_PID_FILE"
         return 1
     fi
     if [[ -n "$(first_legacy_recording_pid)" ]]; then
         echo "ERROR: Legacy orphan recording already in progress" >&2
-        stt_status_event "legacy_recording_running" "recording" "warning" "legacy_recording_running" "Eine alte /tmp-Aufnahme ohne PID-Datei läuft bereits." "$STT_LEGACY_RECORD_FILE"
+        stt_status_event "legacy_recording_running" "recording" "warning" "legacy_recording_running" "A stale /tmp recording without a PID file is already running." "$STT_LEGACY_RECORD_FILE"
         return 1
     fi
     rm -f "$STT_PID_FILE" "$STT_LOCK_FILE" "$STT_RECORD_FILE" 2>/dev/null || true
@@ -162,7 +162,7 @@ start_recording() {
     fi
     local rec_pid=$!
     echo "$rec_pid" > "$STT_PID_FILE"
-    stt_status_event "recording_started" "recording" "info" "" "Aufnahme läuft." "device=$audio_device"
+    stt_status_event "recording_started" "recording" "info" "" "Recording." "device=$audio_device"
     echo "$STT_RECORD_FILE"
 }
 
@@ -172,7 +172,7 @@ stop_recording() {
     if [[ ! -f "$pid_file" ]] && [[ "$STT_LEGACY_PID_FILE" != "$STT_PID_FILE" ]] && [[ -f "$STT_LEGACY_PID_FILE" ]] && kill -0 "$(cat "$STT_LEGACY_PID_FILE")" 2>/dev/null; then
         pid_file="$STT_LEGACY_PID_FILE"
         record_file="$STT_LEGACY_RECORD_FILE"
-        stt_status_event "legacy_recording_stop_requested" "whisper" "warning" "legacy_recording" "Alte /tmp-Aufnahme wird gestoppt." "$STT_LEGACY_PID_FILE"
+        stt_status_event "legacy_recording_stop_requested" "whisper" "warning" "legacy_recording" "Stopping stale /tmp recording." "$STT_LEGACY_PID_FILE"
     fi
 
     local rec_pid
@@ -182,13 +182,13 @@ stop_recording() {
         rec_pid="$(first_legacy_recording_pid)"
         if [[ -n "$rec_pid" ]]; then
             record_file="$STT_LEGACY_RECORD_FILE"
-            stt_status_event "legacy_recording_stop_requested" "whisper" "warning" "legacy_recording" "Alte /tmp-Aufnahme ohne PID-Datei wird gestoppt." "$STT_LEGACY_RECORD_FILE"
+            stt_status_event "legacy_recording_stop_requested" "whisper" "warning" "legacy_recording" "Stopping stale /tmp recording without a PID file." "$STT_LEGACY_RECORD_FILE"
         fi
     fi
 
     if [[ -z "${rec_pid:-}" ]]; then
         echo "ERROR: No recording in progress" >&2
-        stt_status_event "recording_missing" "idle" "warning" "recording_missing" "Keine laufende Aufnahme gefunden."
+        stt_status_event "recording_missing" "idle" "warning" "recording_missing" "No active recording found."
         return 1
     fi
 
@@ -207,11 +207,11 @@ stop_recording() {
     if [[ ! -f "$record_file" ]] || [[ "$(wc -c < "$record_file" 2>/dev/null || echo 0)" -le 44 ]]; then
         echo "ERROR: Recording is empty" >&2
         rm -f "$record_file"
-        stt_status_event "recording_empty" "error" "error" "recording_empty" "Aufnahme war leer." "Prüfe Mikrofon, sox/rec und Eingabegerät."
+        stt_status_event "recording_empty" "error" "error" "recording_empty" "Recording was empty." "Check microphone, sox/rec and input device."
         return 1
     fi
 
-    stt_status_event "recording_stopped" "whisper" "info" "" "Aufnahme beendet."
+    stt_status_event "recording_stopped" "whisper" "info" "" "Recording stopped."
     echo "$record_file"
 }
 
@@ -242,7 +242,7 @@ cancel_recording() {
     done < <(legacy_recording_pids)
     rm -f "$STT_PID_FILE" "$STT_LEGACY_PID_FILE" "$STT_LOCK_FILE" "$STT_RECORD_FILE" "$STT_LEGACY_RECORD_FILE" "$STT_RECORDING_STARTED_FILE" 2>/dev/null || true
     stt_set_phase "idle"
-    stt_status_event "recording_cancelled" "idle" "info" "" "Aufnahme abgebrochen."
+    stt_status_event "recording_cancelled" "idle" "info" "" "Recording cancelled."
 }
 
 get_status() {
