@@ -4,17 +4,20 @@ enum SttMode: String, CaseIterable {
     case full, raw, english
     var label: String {
         switch self {
-        case .full: return "Bereinigt (LLM)"
-        case .raw: return "Roh (ohne LLM)"
-        case .english: return "Englisch (übersetzt)"
+        case .full: return L("Bereinigt (LLM)", "Cleaned (LLM)")
+        case .raw: return L("Roh (ohne LLM)", "Raw (no LLM)")
+        case .english: return L("Englisch (übersetzt)", "English (translated)")
         }
     }
     /// One-line description of what the mode does, shown in the Shortcuts tab.
     var detail: String {
         switch self {
-        case .full: return "Transkript mit LLM-Bereinigung in der Quellsprache."
-        case .raw: return "Reines Transkript ohne LLM (Textersetzungen greifen weiter)."
-        case .english: return "LLM-Bereinigung, Ausgabe ins Englische übersetzt."
+        case .full: return L("Transkript mit LLM-Bereinigung in der Quellsprache.",
+                             "Transcript with LLM cleanup in the source language.")
+        case .raw: return L("Reines Transkript ohne LLM (Textersetzungen greifen weiter).",
+                            "Raw transcript without LLM (text replacements still apply).")
+        case .english: return L("LLM-Bereinigung, Ausgabe ins Englische übersetzt.",
+                                "LLM cleanup, output translated to English.")
         }
     }
 }

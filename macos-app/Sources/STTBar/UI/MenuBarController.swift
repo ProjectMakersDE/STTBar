@@ -12,6 +12,7 @@ final class MenuBarController {
     var onCopyLastTranscript: (() -> Void)?
     var onReinsertLastTranscript: (() -> Void)?
     var onOpenLogs: (() -> Void)?
+    var onSetLanguage: ((AppLanguage) -> Void)?
 
     private var state: SttState = .idle
     private var lastProblem: SttStatus?
@@ -52,14 +53,20 @@ final class MenuBarController {
         buildMenu()
     }
 
+    /// Rebuild the menu + tooltip (e.g. after a language change).
+    func rebuild() {
+        item.button?.toolTip = tooltip
+        buildMenu()
+    }
+
     private var tooltip: String {
         let stateText: String
         switch state {
-        case .idle: stateText = "Bereit"
-        case .recording: stateText = "Aufnahme"
+        case .idle: stateText = L("Bereit", "Ready")
+        case .recording: stateText = L("Aufnahme", "Recording")
         case .whisper: stateText = "Whisper"
         case .llm: stateText = "LLM"
-        case .error: stateText = "Fehler"
+        case .error: stateText = L("Fehler", "Error")
         }
         return ["STTBar", stateText, lastRunSummary].filter { !$0.isEmpty }.joined(separator: " - ")
     }
@@ -67,34 +74,49 @@ final class MenuBarController {
     private func buildMenu() {
         let menu = NSMenu()
         for mode in SttMode.allCases {
-            let title = state == .recording ? "Stoppen: \(mode.label)" : "Aufnahme: \(mode.label)"
+            let title = state == .recording
+                ? "\(L("Stoppen", "Stop")): \(mode.label)"
+                : "\(L("Aufnahme", "Record")): \(mode.label)"
             let mi = NSMenuItem(title: title, action: #selector(triggerMode(_:)), keyEquivalent: "")
             mi.target = self; mi.representedObject = mode.rawValue; menu.addItem(mi)
         }
-        let cancel = NSMenuItem(title: "Aufnahme abbrechen", action: #selector(cancelRecording), keyEquivalent: "")
+        let cancel = NSMenuItem(title: L("Aufnahme abbrechen", "Cancel recording"), action: #selector(cancelRecording), keyEquivalent: "")
         cancel.target = self; cancel.isEnabled = state == .recording
         menu.addItem(cancel)
         menu.addItem(.separator())
-        let reinsert = NSMenuItem(title: "Letztes Transkript erneut einfügen", action: #selector(reinsertLastTranscript), keyEquivalent: "")
+        let reinsert = NSMenuItem(title: L("Letztes Transkript erneut einfügen", "Re-insert last transcript"), action: #selector(reinsertLastTranscript), keyEquivalent: "")
         reinsert.target = self; reinsert.isEnabled = hasLastTranscript
         menu.addItem(reinsert)
-        let copy = NSMenuItem(title: "Letztes Transkript kopieren", action: #selector(copyLastTranscript), keyEquivalent: "")
+        let copy = NSMenuItem(title: L("Letztes Transkript kopieren", "Copy last transcript"), action: #selector(copyLastTranscript), keyEquivalent: "")
         copy.target = self; copy.isEnabled = hasLastTranscript
         menu.addItem(copy)
-        let error = NSMenuItem(title: "Letzten Fehler anzeigen", action: #selector(showLastError), keyEquivalent: "")
+        let error = NSMenuItem(title: L("Letzten Fehler anzeigen", "Show last error"), action: #selector(showLastError), keyEquivalent: "")
         error.target = self; error.isEnabled = lastProblem != nil
         menu.addItem(error)
-        let logs = NSMenuItem(title: "Logs öffnen", action: #selector(openLogs), keyEquivalent: "")
+        let logs = NSMenuItem(title: L("Logs öffnen", "Open logs"), action: #selector(openLogs), keyEquivalent: "")
         logs.target = self; menu.addItem(logs)
         menu.addItem(.separator())
-        let status = NSMenuItem(title: "Status & Diagnose…", action: #selector(openStatus), keyEquivalent: "")
+        let status = NSMenuItem(title: L("Status & Diagnose…", "Status & diagnostics…"), action: #selector(openStatus), keyEquivalent: "")
         status.target = self; menu.addItem(status)
-        let settings = NSMenuItem(title: "Einstellungen…", action: #selector(openSettings), keyEquivalent: ",")
+        let settings = NSMenuItem(title: L("Einstellungen…", "Settings…"), action: #selector(openSettings), keyEquivalent: ",")
         settings.target = self; menu.addItem(settings)
-        let edit = NSMenuItem(title: "Prompt bearbeiten…", action: #selector(editPrompt), keyEquivalent: "")
+        let edit = NSMenuItem(title: L("Prompt bearbeiten…", "Edit prompt…"), action: #selector(editPrompt), keyEquivalent: "")
         edit.target = self; menu.addItem(edit)
         menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: "STTBar beenden", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+        let langItem = NSMenuItem(title: L("Sprache", "Language"), action: nil, keyEquivalent: "")
+        let langMenu = NSMenu()
+        for lang in AppLanguage.allCases {
+            let name = lang == .de ? "Deutsch" : "English"
+            let li = NSMenuItem(title: name, action: #selector(selectLanguage(_:)), keyEquivalent: "")
+            li.target = self
+            li.representedObject = lang.rawValue
+            li.state = (Localization.shared.language == lang) ? .on : .off
+            langMenu.addItem(li)
+        }
+        langItem.submenu = langMenu
+        menu.addItem(langItem)
+        menu.addItem(.separator())
+        menu.addItem(NSMenuItem(title: L("STTBar beenden", "Quit STTBar"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         item.menu = menu
     }
 
@@ -109,4 +131,9 @@ final class MenuBarController {
     @objc private func copyLastTranscript() { onCopyLastTranscript?() }
     @objc private func reinsertLastTranscript() { onReinsertLastTranscript?() }
     @objc private func openLogs() { onOpenLogs?() }
+    @objc private func selectLanguage(_ sender: NSMenuItem) {
+        if let raw = sender.representedObject as? String, let lang = AppLanguage(rawValue: raw) {
+            onSetLanguage?(lang)
+        }
+    }
 }
