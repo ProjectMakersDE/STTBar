@@ -13,6 +13,9 @@ focused app.
 - Works with local or remote Whisper-compatible servers.
 - Optional LLM cleanup via LM Studio or OpenAI-compatible chat endpoints.
 - Built-in Agent V4 prompts for German and English-output workflows.
+- DE/EN app-language switch (interface, Whisper language, and active prompt),
+  available in the menu bar and in Settings.
+- One-click in-app updater that downloads the latest release and self-installs.
 
 ## Install
 
@@ -28,7 +31,9 @@ LaunchAgent.
 
 ## Configure
 
-Open the menu-bar microphone icon and choose `Einstellungen...`.
+Open the menu-bar microphone icon and choose `Settings…` (`Einstellungen…`).
+Use the `Language` / `Sprache` switch (menu bar or General tab) to run the whole
+app in German or English.
 
 Key settings:
 
@@ -52,9 +57,11 @@ Set `STT_DOCKER_PORT` and `STT_MODEL` in `.env` if needed.
 
 ## Updates
 
-`Einstellungen -> Allgemein -> Nach Updates suchen` checks the latest GitHub
-Release in `ProjectMakersDE/STTBar`. Release builds attach `STTBar.app.zip` and
-a SHA256 file.
+`Settings → General → Check for updates` checks the latest GitHub Release in
+`ProjectMakersDE/STTBar`. When a newer version is found, `Update` downloads the
+release, swaps the running app in place, refreshes the backend scripts (without
+touching your config), and relaunches. Release builds attach `STTBar.app.zip`,
+`stt-scripts.zip`, and matching SHA256 files.
 
 ## Development
 

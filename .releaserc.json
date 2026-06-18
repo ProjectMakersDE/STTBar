@@ -44,6 +44,14 @@
           {
             "path": "dist/STTBar.app.zip.sha256",
             "label": "STTBar.app SHA256"
+          },
+          {
+            "path": "dist/stt-scripts.zip",
+            "label": "STTBar backend scripts"
+          },
+          {
+            "path": "dist/stt-scripts.zip.sha256",
+            "label": "STTBar scripts SHA256"
           }
         ]
       }
