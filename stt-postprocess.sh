@@ -107,6 +107,19 @@ model="${STT_POSTPROCESS_MODEL:-qwen/qwen3.5-9b}"
 timeout="${STT_POSTPROCESS_TIMEOUT:-60}"
 temperature="${STT_POSTPROCESS_TEMPERATURE:-0}"
 reasoning="${STT_POSTPROCESS_REASONING:-off}"
+# Optional LM Studio idle-TTL (seconds) sent as the request-body `ttl` field so
+# a JIT-loaded model auto-unloads after inactivity. DEFAULT OFF (empty): it only
+# works on LM Studio's OpenAI chat/completions-style endpoints. The Responses-
+# style /api/v1/chat endpoint rejects unknown keys ("unrecognized keys in
+# object: ttl") and the request fails. Prefer setting the idle TTL in LM Studio
+# itself (`lms load <model> --ttl 3600`, or the Developer-tab JIT default). Only
+# set this to a positive integer if your endpoint is known to accept it.
+ttl="${STT_POSTPROCESS_TTL:-}"
+if [[ "$ttl" =~ ^[0-9]+$ ]] && (( ttl > 0 )); then
+    ttl_json="$ttl"
+else
+    ttl_json="null"
+fi
 input_chars="${#input}"
 input_words="$(printf '%s' "$input" | wc -w | tr -d '[:space:]')"
 
@@ -213,13 +226,14 @@ Text: ${input}"
 
 case "$provider" in
     lmstudio)
-        log_event "start provider=lmstudio model=$model timeout=${timeout}s input_chars=$input_chars input_words=$input_words"
+        log_event "start provider=lmstudio model=$model timeout=${timeout}s ttl=${ttl_json/null/off} input_chars=$input_chars input_words=$input_words"
 
         if ! payload="$(jq -n \
             --arg model "$model" \
             --arg input "$prompt_input" \
             --arg reasoning "$reasoning" \
             --arg temperature "$temperature" \
+            --argjson ttl "$ttl_json" \
             '{
                 model: $model,
                 input: $input,
@@ -227,7 +241,7 @@ case "$provider" in
                 stream: false,
                 reasoning: $reasoning,
                 temperature: ($temperature | tonumber)
-            }' 2>/dev/null)"; then
+            } + (if $ttl == null then {} else {ttl: $ttl} end)' 2>/dev/null)"; then
             log_event "fallback reason=payload_build_failed provider=lmstudio"
             fallback
             exit 0

@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>STT Post-Processing — Faktentreue-Test</title>
+<style>
+  :root{
+    --bg:#0f1419; --panel:#161b22; --panel2:#1c2330; --border:#2a3340;
+    --text:#e6edf3; --muted:#8b97a6; --accent:#4aa3ff; --accent2:#7c5cff;
+    --ok:#3fb950; --bad:#f85149; --warn:#d29922;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  header{padding:22px 26px;border-bottom:1px solid var(--border);background:linear-gradient(180deg,#141b26,#0f1419)}
+  h1{margin:0 0 4px;font-size:20px}
+  .sub{color:var(--muted);font-size:13px}
+  .wrap{max-width:1180px;margin:0 auto;padding:22px 26px 80px}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;margin:18px 0;overflow:hidden}
+  .card > .head{display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--panel2);border-bottom:1px solid var(--border);cursor:pointer}
+  .card > .head h2{margin:0;font-size:15px;flex:1}
+  .card .body{padding:16px}
+  .badge{font-size:11px;padding:2px 8px;border-radius:20px;border:1px solid var(--border);color:var(--muted);white-space:nowrap}
+  .badge.ok{color:var(--ok);border-color:#234d2c;background:#11261688}
+  .badge.bad{color:var(--bad);border-color:#5a2522;background:#2a141388}
+  .badge.warn{color:var(--warn);border-color:#5a4a1a;background:#2a230f88}
+  .badge.run{color:var(--accent);border-color:#1f4a73;background:#0e253a88}
+  label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px;text-transform:uppercase;letter-spacing:.4px}
+  textarea,input,select{width:100%;background:#0b0f14;color:var(--text);border:1px solid var(--border);border-radius:8px;padding:10px;font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;resize:vertical}
+  textarea{min-height:140px}
+  textarea.prompt{min-height:220px}
+  .row{display:flex;gap:14px;flex-wrap:wrap}
+  .row > div{flex:1;min-width:170px}
+  button{background:var(--accent);color:#04121f;border:0;border-radius:8px;padding:9px 16px;font-weight:600;font-size:13px;cursor:pointer}
+  button:hover{filter:brightness(1.08)}
+  button.sec{background:#222b38;color:var(--text);border:1px solid var(--border)}
+  button.sm{padding:6px 11px;font-size:12px}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:8px 0 4px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:880px){.grid2{grid-template-columns:1fr}}
+  .out{white-space:pre-wrap;background:#0b0f14;border:1px solid var(--border);border-radius:8px;padding:12px;min-height:80px;font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace}
+  .facts{list-style:none;padding:0;margin:8px 0 0}
+  .facts li{display:flex;gap:8px;align-items:flex-start;padding:4px 0;font-size:13px;border-bottom:1px dashed #1f2733}
+  .facts .mk{flex:0 0 18px;font-weight:700}
+  .facts .ok{color:var(--ok)} .facts .bad{color:var(--bad)} .facts .warn{color:var(--warn)}
+  .facts .tag{color:var(--muted);font-size:11px}
+  .ratebox{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:6px}
+  .ratebox input[type=number]{width:90px}
+  table.summary{width:100%;border-collapse:collapse;font-size:13px}
+  table.summary th,table.summary td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--border)}
+  table.summary th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase}
+  .pill{font:12px ui-monospace,monospace;color:var(--muted)}
+  .pill.warn{color:var(--warn)}
+  .note{font-size:12px;color:var(--muted);margin-top:6px}
+  .err{color:var(--bad);font-size:12px;margin-top:6px;white-space:pre-wrap}
+  .chip{display:inline-block;font:11px ui-monospace,monospace;background:#0b0f14;border:1px solid var(--border);border-radius:6px;padding:1px 6px;color:var(--muted)}
+</style>
+</head>
+<body>
+<header>
+  <h1>STT Post-Processing — Faktentreue-Test</h1>
+  <div class="sub">Fokus: <b>Fakten müssen korrekt erhalten bleiben</b> — besonders bei <b>Selbstkorrekturen</b> („mach das in Dev … ah nein, Live"). Der <b>richtige</b> (finale) Wert muss drin bleiben; der falsche darf raus (besser), darf aber auch stehen bleiben — nur der richtige darf NIE gelöscht werden. Context-Budget: 8192 Token.</div>
+</header>
+
+<div class="wrap">
+
+  <!-- ============ KONFIG ============ -->
+  <div class="card">
+    <div class="head" onclick="toggle(this)"><h2>1 · Modell &amp; Endpoint</h2><span class="badge" id="connBadge">nicht getestet</span></div>
+    <div class="body">
+      <div class="row">
+        <div><label>Provider</label>
+          <select id="cfgProvider">
+            <option value="lmstudio" selected>lmstudio (/api/v1/chat)</option>
+            <option value="openai">openai (/v1/chat/completions)</option>
+          </select>
+        </div>
+        <div><label>Endpoint-URL</label><input id="cfgUrl" value="http://127.0.0.1:1235/api/v1/chat"></div>
+      </div>
+      <div class="row">
+        <div><label>Modell</label><input id="cfgModel" value="qwen/qwen3.6-35b-a3b"></div>
+        <div><label>Temperature</label><input id="cfgTemp" value="0.2"></div>
+        <div><label>Reasoning</label>
+          <select id="cfgReasoning"><option value="off" selected>off</option><option value="low">low</option><option value="medium">medium</option><option value="high">high</option></select>
+        </div>
+        <div><label>Timeout (s)</label><input id="cfgTimeout" value="180"></div>
+      </div>
+      <div class="toolbar">
+        <button class="sec sm" onclick="testConnection()">Verbindung testen</button>
+        <button class="sec sm" onclick="useSameOrigin()">Same-Origin</button>
+        <button class="sec sm" onclick="useDirect()">Direkt an LM Studio</button>
+      </div>
+      <div class="note">Seite über <span class="chip">http://127.0.0.1:1235/</span> öffnen (<span class="chip">python3 stt-eval-proxy.py</span>).</div>
+      <div class="err" id="connErr"></div>
+    </div>
+  </div>
+
+  <!-- ============ PROMPT ============ -->
+  <div class="card">
+    <div class="head" onclick="toggle(this)"><h2>2 · Aktiver Prompt (v3)</h2><span class="badge" id="promptTok">~? Token</span></div>
+    <div class="body">
+      <label>System-Prompt — gesendet als <span class="chip">prompt + "\n\nText: " + input</span></label>
+      <textarea id="prompt" class="prompt" oninput="persist('prompt',this.value);updateAllTokens()"></textarea>
+      <div class="toolbar"><button class="sec sm" onclick="resetOne('prompt');updateAllTokens()">Prompt zurücksetzen</button></div>
+    </div>
+  </div>
+
+  <!-- ============ RUN ALL ============ -->
+  <div class="card">
+    <div class="head" onclick="toggle(this)"><h2>3 · Szenarien &amp; Ergebnisse</h2><span class="badge run" id="runBadge">10 Szenarien</span></div>
+    <div class="body">
+      <div class="toolbar">
+        <button onclick="runAll()" id="runAllBtn">▶ Alle Tests starten</button>
+        <button class="sec sm" onclick="saveResults(false)">Ergebnisse speichern</button>
+        <button class="sec sm" onclick="downloadResults()">JSON herunterladen</button>
+        <button class="sec sm" onclick="resetAll();updateAllTokens()">Alle Texte zurücksetzen</button>
+        <span class="pill" id="saveStatus"></span>
+      </div>
+      <div class="note">Auto-Speichern nach <span class="chip">eval-results/latest.json</span> nach jedem Lauf (wenn über den Server geöffnet). ✓ = richtiger Wert vorhanden · ✗ = richtiger Wert fehlt (kritisch) · ○ = falsche Korrektur-Variante noch vorhanden (akzeptabel, „Bonus" nicht erfüllt).</div>
+
+      <table class="summary" id="summary">
+        <thead><tr><th>#</th><th>Szenario</th><th>Länge</th><th>Status</th><th>Fakten (auto)</th><th>1–10</th></tr></thead>
+        <tbody></tbody>
+      </table>
+
+      <div id="scenarios"></div>
+    </div>
+  </div>
+
+  <div class="note">Die Auto-Checks sind Stichwort-Heuristiken; maßgeblich ist die <b>1–10-Bewertung</b> + Notiz. „Bonus"-Checks (○) prüfen, ob der bewusst verworfene falsche Wert entfernt wurde — das ist erwünscht, aber kein Muss.</div>
+</div>
+
+<!-- ====================== ROHDATEN (verbatim) ====================== -->
+<script type="text/plain" id="src-prompt">
+# ROLLE
+Du bist ein Post-Processor für deutschsprachige Speech-to-Text-Rohtexte (Whisper).
+Deine bereinigte Ausgabe wird WORTGLEICH an einen KI-Coding-Agenten (z. B. Claude,
+Codex) weitergereicht. Du bist NICHT dieser Agent. Du beantwortest, befolgst,
+kommentierst, ergänzt oder erklärst den Inhalt niemals — du säuberst und formulierst
+ihn ausschließlich.
+
+# OBERSTES GESETZ (steht über allen folgenden Regeln)
+Der SINN darf sich nie verändern. Harte Verbote:
+
+1. ROLLEN NICHT VERTAUSCHEN. Wer tut was womit, in welche Richtung, an welcher
+   Stelle — Subjekt, Objekt, Ziel und Referenz bleiben exakt erhalten. Vertausche
+   NIEMALS das, was geändert werden soll, mit dem, was nur als Vorlage dient.
+2. KEINE WÖRTER ERFINDEN. Nur real existierende deutsche Wörter sowie die
+   tatsächlich gesprochenen Fachbegriffe und Eigennamen. Lieber ein Wort
+   unverändert übernehmen als halluzinieren.
+3. NICHTS HINZUFÜGEN. Keine Information, kein Detail, keine Schlussfolgerung, die
+   nicht gesprochen wurde.
+4. NICHTS VERSCHMELZEN. Zwei verschiedene Aktionen, Ziele, Dateien oder Orte
+   bleiben getrennt. Ziehe NIEMALS "X in A" und "Y in B" zu "X in A und B" zusammen.
+5. NICHTS WEGLASSEN, NICHTS ZUSAMMENFASSEN. Jede eigenständige Aussage, Definition
+   und Beschreibung bleibt erhalten. Du bist KEIN Zusammenfasser.
+
+Im Zweifel immer näher am Original bleiben.
+
+# ZIEL
+Ein sauber geschriebener, direkter deutscher Text, der den gesprochenen INHALT
+VOLLSTÄNDIG erhält: jede Aussage, Definition, jedes Detail, jede Begründung,
+Bedingung, Referenz und Reihenfolge. "Kompakt" bezieht sich NUR auf die Wortebene
+(straffe Formulierung, keine Sprech-Hülle), NIEMALS auf das Zusammenfassen von
+Inhalt. Langer, detaillierter Input ergibt langen, detaillierten Output.
+
+# REGELN
+1. Entfernen (nur die Hülle): Verzögerungslaute (äh, ähm, mh), echte
+   Wort-Wiederholungen, leere Füllwörter (halt, quasi, sozusagen, irgendwie, ne,
+   also, ja), Abschwächungen ("ich glaube", "vielleicht sollten wir"),
+   Höflichkeitshülle ("kannst du mal", "bitte"). Begründungen ("weil …", "damit …")
+   und Bedingungen ("falls …") bleiben IMMER erhalten.
+
+2. SELBSTKORREKTUREN (zentral!): Korrigiert sich die Sprecherin ("mach X, nein
+   lieber Y" / "in der Dev-Umgebung, ah nein, in der Live-Umgebung" / "app.ts, äh
+   ich meine main.ts" / "Port 8080, nein 8081"), dann ist der ZULETZT genannte
+   Wert (Y) der gültige. Der gültige Wert MUSS erhalten bleiben. Das verworfene X
+   darf entfallen — aber NUR wenn völlig eindeutig ist, was verworfen wurde. Im
+   Zweifel beide nennen und den gültigen klar als gültig kennzeichnen. Lösche
+   NIEMALS den korrigierten, gültigen Wert. Vertausche NIEMALS gültig und verworfen.
+
+3. Fachbegriffe & Fremdwörter korrekt schreiben (useState, GitHub, JSON, Docker).
+   Code-Bezeichner, Klassennamen, Variablen, Dateipfade, Befehle, Eigennamen,
+   Zahlen, Ports und URLs EXAKT übernehmen. Dateinamen mit Endung exakt
+   (auth.service.ts, .env, CLAUDE.md). Ist ein gehörter Begriff nicht eindeutig,
+   übernimm die gesprochene Form unverändert.
+
+4. Scope- und Mengen-Qualifizierer erhalten ("es reicht (wenn)", "nur",
+   "lediglich", "mindestens", "höchstens", "maximal") — sie tragen Bedeutung.
+   "es reicht, wenn X" NICHT zu "X muss" verschärfen.
+
+5. Referenzen & Richtungen schützen: "mach X so wie Y", "von A nach B", "X statt Y"
+   — Vorlage/Quelle und Ziel und Richtung bleiben exakt erhalten.
+
+6. Sprache & Form: korrekte Grammatik, Zeichensetzung, Groß-/Kleinschreibung.
+   Bitten -> direkter Imperativ. Abgeschwächte Aussagen -> direkte Aussage. Echte
+   Wissensfragen an den Agenten bleiben Fragen und werden NICHT beantwortet.
+
+7. Struktur: Gliederung des Inputs übernehmen. Nummerierte Liste nur, wenn die
+   Sprecherin selbst klar aufzählt oder eine klare Schrittfolge nennt.
+
+8. Gesprochene URLs/Pfade: "HTTP doppelpunkt slash slash" -> http:// ;
+   "punkt" in Domains/Dateinamen -> . ; "slash" -> / ; "at" -> @ ;
+   gesprochene Endungen ("punkt ts" -> .ts).
+
+9. Ausgabe: NUR der finale, bereinigte Text. Keine Einleitung, keine Erklärung,
+   keine Anführungszeichen, keine Code-Fences, kein Kommentar.
+
+# BEISPIELE
+Roh: also ähm ich glaub wir sollten mal die funktion use effect refactoren weil die viel zu lang ist
+Bereinigt: Die Funktion useEffect refactoren, weil sie zu lang ist.
+
+Roh: deploy das erstmal auf dev äh nein quatsch auf live der dev stand ist eh durch
+Bereinigt: Deploy das auf Live (Produktion); der Dev-Stand ist bereits durch.
+
+Roh: die methode heißt validateUser ne quatsch verifyUser und liegt in auth punkt service punkt ts
+Bereinigt: Die Methode heißt verifyUser und liegt in auth.service.ts.
+</script>
+
+<script type="text/plain" id="src-s1">
+so jetzt wird es ein bisschen größer pass auf wir müssen die neue deployment pipeline für den zahlungs service fertig machen und da sind ein paar sachen die ich dir genau so durchgeben will wie ich sie im kopf hab … also als erstes der service soll erstmal nur auf die dev umgebung deployt werden damit wir das testen können ähm nein warte quatsch nicht auf dev der ist auf dev schon längst durch der soll jetzt auf die live umgebung also auf produktion deployt werden das ist der punkt … verdammt ich verhasple mich gerade also nochmal das deployment geht auf live nicht auf dev dev ist erledigt … das deployment selbst läuft über den github actions workflow der heißt deploy punkt yml ne moment der heißt eigentlich release punkt yml die deploy punkt yml ist die alte die nutzen wir nicht mehr also release punkt yml ist die richtige … in dem workflow brauchen wir drei stages einmal build dann test und dann deploy und der deploy step soll nur laufen wenn der branch main ist bei feature branches soll nur build und test laufen aber nicht deployen … die secrets für die live umgebung also der stripe live key und das datenbank passwort kommen aus den github environment secrets unter dem environment namens production nicht aus den normalen repo secrets das ist wichtig weil die normalen repo secrets noch die dev werte haben … dann der health check nach dem deployment soll den endpunkt slash health anpingen und wenn der nicht innerhalb von 30 sekunden ein 200 zurückgibt dann soll automatisch ein rollback auf die vorherige version gemacht werden … und ganz wichtig die benachrichtigung wenn das deployment durch ist soll eine nachricht in den slack channel deployments gepostet werden und wenn es fehlschlägt in den channel alerts also erfolg nach deployments fehler nach alerts nicht verwechseln … achso und die node version im workflow muss auf 20 stehen wir hatten da mal 18 drin aber das gibt probleme mit einer der dependencies also node 20 … so das ist erstmal die pipeline mach das sauber
+</script>
+
+<script type="text/plain" id="src-s2">
+ok kurze sache zur daten migration ähm die migration die die user tabelle umbaut also die neue spalte last login hinzufügt soll erstmal auf der staging datenbank laufen … nein moment nicht staging die soll direkt auf der produktions datenbank laufen weil staging haben wir diese woche eh nicht mehr angefasst und die daten da sind veraltet also produktions datenbank … und ganz wichtig vorher ein backup ziehen und die migration muss in einer transaktion laufen damit wenn was schief geht alles zurückgerollt wird … und die migration nur in einem wartungsfenster fahren nicht während die user online sind
+</script>
+
+<script type="text/plain" id="src-s3">
+also jetzt das caching thema das ist ein bisschen verwirrend ich versuch es mal sauber … wir wollen die produkt detail seiten cachen weil die datenbank da unter last ächzt … ich dachte erst wir nehmen redis dafür ähm aber nein wir haben uns für memcached entschieden ne quatsch andersrum wir bleiben bei redis memcached war der alte vorschlag den haben wir verworfen also redis ist es … der redis läuft auf dem cache server unter port 6379 das ist der standard … die produkt seiten werden für 15 minuten gecacht ne lieber 10 minuten 15 war mir zu lang weil sich die preise öfter ändern also 10 minuten ttl … und wichtig wenn ein produkt im backend geändert wird dann muss der cache für genau dieses produkt invalidiert werden nicht der ganze cache nur der eine key für das produkt … das cachen machen wir aber erstmal nur in der live umgebung nicht in der dev ne warte das ist falschrum in der dev umgebung erstmal zum testen und wenn das läuft dann in live also zuerst dev dann live nicht direkt auf live … und der cache soll einen fallback haben falls redis mal nicht erreichbar ist soll die seite trotzdem laden einfach direkt aus der datenbank ohne cache nicht dass die ganze seite abschmiert nur weil der cache weg ist
+</script>
+
+<script type="text/plain" id="src-s4">
+mach mal schnell das datums formatieren im frontend nimm dafür moment js ne nimm lieber day js moment js ist deprecated und viel zu groß also day js für die datums formatierung im dashboard
+</script>
+
+<script type="text/plain" id="src-s5">
+ähm ich brauch deine hilfe bei der config wir müssen die environment config angleichen … kopier mal die datenbank pool einstellungen von der prod config in die dev config … nein moment andersrum nicht von prod nach dev sondern von dev nach prod die dev hat nämlich die neuen pool werte die getestet sind und prod hat noch die alten also dev ist die quelle prod ist das ziel … aber achtung nur die pool einstellungen also pool size und timeout nicht die ganze config bloß nicht die credentials oder die urls überschreiben nur diese zwei pool werte
+</script>
+
+<script type="text/plain" id="src-s6">
+so jetzt ein größeres ding das benachrichtigungs system für die bestellungen ich erklär dir das mal so wie es mir gerade einfällt ist ein bisschen wirr aber du kriegst das hin … wenn eine bestellung eingeht soll der kunde eine bestätigungs mail kriegen und zusätzlich soll im internen system eine benachrichtigung aufpoppen für das fulfillment team … ich dachte erst wir bauen das im monolithen ein aber nein wir haben ja jetzt den notification service dafür also das gehört in den notification service nicht in den monolithen der monolith schickt nur ein event raus und der notification service hört drauf … so jetzt zur umgebung das ganze soll erstmal in der live umgebung scharf geschaltet werden ach scheiße nein natürlich nicht erst in live das wär ja wahnsinn erst in der dev umgebung testen mit einem test postfach und erst wenn das sauber durchläuft dann auf live also dev zuerst dann live … die mail vorlage liegt als template in dem ordner templates slash emails und heißt order confirmation punkt html ne das stimmt nicht ganz die heißt order underscore confirmation punkt html mit unterstrich … und wichtig die mail muss in der sprache des kunden rausgehen wir haben die templates in deutsch und englisch welche sprache steht im kunden profil unter dem feld locale … dann die interne benachrichtigung für das fulfillment team läuft über web sockets damit die in echtzeit aufpoppt ohne dass die seite neu geladen werden muss … und falls der mail versand fehlschlägt soll das in eine retry queue und nach drei fehlversuchen soll ein mensch informiert werden also ein alert ans support team nicht einfach still verschlucken … so das ist das benachrichtigungs system das ist mir wichtig dass das robust ist
+</script>
+
+<script type="text/plain" id="src-s7">
+die validierung beim login die methode heißt validateUser ne quatsch die heißt verifyUser also verify nicht validate und die liegt nicht in user punkt service punkt ts sondern in auth punkt service punkt ts das verwechsel ich immer
+</script>
+
+<script type="text/plain" id="src-s8">
+stell das rate limiting für die öffentliche api ein ich dachte erst 100 requests pro minute aber nee das ist zu viel mach 60 requests pro minute pro ip und wer drüber geht kriegt einen 429 und der zähler resettet sich jede minute
+</script>
+
+<script type="text/plain" id="src-s9">
+ok das such feature für den produkt katalog wird interessant … wir wollen eine voll text suche ich dachte erst wir machen das mit elastic search aber das ist überdimensioniert für unsere datenmenge … ähm wir nehmen erstmal die postgres voll text suche die reicht ne warte lass mich kurz nachdenken … doch okay wir bleiben bei postgres full text search elastic search heben wir uns für später auf wenn die datenmenge wächst also jetzt postgres … die suche soll über den produkt namen die beschreibung und die tags gehen aber nicht über interne felder wie die einkaufs preise das darf nicht durchsuchbar sein … die ergebnisse sollen nach relevanz sortiert werden und wenn zwei gleich relevant sind dann nach verkaufs zahl absteigend … die suche soll auch tippfehler tolerant sein also fuzzy matching ein bisschen aber nicht zu aggressiv sonst kommt müll … und ein autocomplete soll es geben das vorschläge zeigt ne moment nicht nach jedem getippten buchstaben das feuert zu viele requests sondern mit einem debounce von sagen wir 300 millisekunden … die suche selbst bauen wir als eigenen endpunkt slash api slash search der nimmt einen query parameter q … und ganz wichtig das soll erstmal nur auf der dev umgebung laufen zum ausprobieren auf live kommt das erst wenn die qa das abgenommen hat also auf keinen fall direkt auf live schalten … achso und die suche ist öffentlich da braucht man kein login die produkt daten sind eh public
+</script>
+
+<script type="text/plain" id="src-s10">
+so letzter brocken für heute und der hat es in sich also konzentrier dich … es geht um die zahlungs abstimmung also reconciliation wir haben das problem dass manchmal zahlungen bei stripe durchgehen aber in unserem system nicht als bezahlt markiert werden weil der webhook verloren geht … was wir brauchen ist ein abgleich job der einmal am tag läuft … der job zieht sich von stripe alle erfolgreichen zahlungen der letzten 24 stunden und gleicht die mit unseren bestellungen ab … wo bei uns eine bestellung noch auf offen steht aber bei stripe schon bezahlt ist da setzen wir den status nach … aber andersrum auch wenn bei uns was als bezahlt steht aber bei stripe storniert wurde dann müssen wir das flaggen für manuelle prüfung nicht automatisch stornieren das ist mir zu heikel nur flaggen … so jetzt der wichtige teil ich will dass du das erstmal in der demo umgebung baust und testest mit den stripe test daten ähm nein moment streich das nicht demo der ganze sinn ist ja dass wir die echten verlorenen zahlungen finden das muss gegen die live umgebung laufen mit den echten stripe live daten sonst bringt der abgleich nichts also live umgebung nicht demo … verdammt aber bitte mega vorsichtig der job darf unter keinen umständen doppelte buchungen erzeugen also bevor er einen status nachsetzt muss er prüfen ob nicht schon ein anderer prozess das gerade gemacht hat … der job läuft nachts um drei uhr wenn wenig los ist und wenn er fertig ist soll er einen report erzeugen wie viele diskrepanzen gefunden und wie viele automatisch korrigiert wurden und der report geht per mail an die buchhaltung … und wenn er mehr als sagen wir 50 diskrepanzen findet dann stimmt grundsätzlich was nicht dann soll er nicht alle automatisch korrigieren sondern stoppen und alarm schlagen weil das auf ein größeres problem hindeutet
+</script>
+
+<script>
+/* ============================ Daten ============================ */
+const SC = [
+  {id:'s1',  len:'lang',   title:'Deployment-Pipeline · Korrektur Dev→Live, deploy.yml→release.yml, Node 18→20'},
+  {id:'s2',  len:'mittel', title:'DB-Migration · Korrektur Staging→Produktion'},
+  {id:'s3',  len:'lang',   title:'Caching · Korrekturen memcached→Redis, 15→10 Min, Live→Dev-zuerst'},
+  {id:'s4',  len:'kurz',   title:'Datumslib · Korrektur moment.js→day.js'},
+  {id:'s5',  len:'mittel', title:'Config-Sync · Richtungs-Korrektur prod→dev → dev→prod'},
+  {id:'s6',  len:'lang',   title:'Benachrichtigungen · Monolith→Service, Live→Dev-zuerst, Dateiname-Korrektur'},
+  {id:'s7',  len:'kurz',   title:'Login-Check · validateUser→verifyUser, user.service.ts→auth.service.ts'},
+  {id:'s8',  len:'kurz',   title:'Rate-Limit · Korrektur 100→60 req/min'},
+  {id:'s9',  len:'lang',   title:'Suche · Elasticsearch→Postgres, „jeder Buchstabe"→Debounce 300ms, Dev-zuerst'},
+  {id:'s10', len:'lang',   title:'Reconciliation · Korrektur Demo→Live (kritisch), 50er-Schwelle'},
+];
+
+// any: muss vorhanden sein (✓/✗, zählt). gone: verworfener falscher Wert sollte WEG sein (Bonus ○, zählt nicht).
+const FACTS = {
+  s1:[
+    {l:'Deploy-Ziel Live/Produktion (korrigiert von Dev)', any:['live','produktion','prod']},
+    {l:'Workflow-Datei release.yml (korrigiert von deploy.yml)', any:['release.yml','release punkt yml']},
+    {l:'deploy.yml als alt/unbenutzt entfernt', gone:['deploy.yml','deploy punkt yml']},
+    {l:'Drei Stages: build, test, deploy', any:['build']},
+    {l:'Deploy nur auf branch main; Feature-Branches nur build+test', any:['main']},
+    {l:'Live-Secrets aus GitHub Environment „production" (nicht repo secrets)', any:['production','environment secret','environment-secret']},
+    {l:'Health-Check /health, 200 in 30s sonst Rollback', any:['/health','health']},
+    {l:'Rollback auf vorherige Version', any:['rollback','zurückgerollt','vorherige version']},
+    {l:'Slack: Erfolg→#deployments', any:['deployments']},
+    {l:'Slack: Fehler→#alerts', any:['alerts']},
+    {l:'Node-Version 20 (korrigiert von 18)', any:['node 20','version 20','auf 20','node-version: 20','node-version 20']},
+    {l:'Node 18 entfernt', gone:['18']},
+  ],
+  s2:[
+    {l:'Ziel Produktions-Datenbank (korrigiert von Staging)', any:['produktion','prod']},
+    {l:'Staging als Ziel entfernt', gone:['staging']},
+    {l:'Vorher Backup ziehen', any:['backup']},
+    {l:'Migration in Transaktion (Rollback bei Fehler)', any:['transaktion']},
+    {l:'Rollback bei Fehler', any:['zurückgeroll','rollback','zurück']},
+    {l:'Nur im Wartungsfenster, nicht während User online', any:['wartungsfenster']},
+    {l:'Neue Spalte last_login', any:['last login','last_login','last-login']},
+  ],
+  s3:[
+    {l:'Cache-Technologie Redis (final; memcached verworfen)', any:['redis']},
+    {l:'memcached als verworfen entfernt', gone:['memcached']},
+    {l:'Port 6379', any:['6379']},
+    {l:'TTL 10 Minuten (korrigiert von 15)', any:['10 minuten','10-minuten','zehn minuten']},
+    {l:'15 Minuten entfernt', gone:['15 minuten','15-minuten']},
+    {l:'Gezielte Invalidierung nur des einen Produkt-Keys (nicht ganzer Cache)', any:['invalidier']},
+    {l:'Reihenfolge: zuerst Dev, dann Live (korrigiert von „nur Live")', any:['dev']},
+    {l:'Live als späteres Ziel genannt', any:['live']},
+    {l:'Fallback direkt aus DB wenn Redis weg', any:['fallback']},
+  ],
+  s4:[
+    {l:'Datumslib day.js (korrigiert von moment.js)', any:['day.js','dayjs','day js']},
+    {l:'moment.js als verworfen entfernt', gone:['moment']},
+    {l:'Für Datumsformatierung im Dashboard', any:['dashboard']},
+  ],
+  s5:[
+    {l:'Richtung Dev → Prod (korrigiert; Dev=Quelle)', any:['dev']},
+    {l:'Prod als Ziel', any:['prod']},
+    {l:'Nur pool size + timeout (nicht ganze Config)', any:['pool size','poolsize','pool-size']},
+    {l:'timeout erwähnt', any:['timeout']},
+    {l:'Nicht Credentials/URLs überschreiben', any:['credential','url']},
+  ],
+  s6:[
+    {l:'Gehört in den Notification-Service (nicht Monolith)', any:['notification']},
+    {l:'Monolith nur als Event-Emitter / nicht Einbauort', any:['event']},
+    {l:'Umgebung: zuerst Dev (Test-Postfach), dann Live (korrigiert von „erst Live")', any:['dev']},
+    {l:'Live als späteres Ziel', any:['live']},
+    {l:'Template-Datei order_confirmation.html mit Unterstrich (korrigiert)', any:['order_confirmation.html','order_confirmation','order underscore confirmation']},
+    {l:'Ordner templates/emails', any:['templates/emails','templates slash emails']},
+    {l:'Mail in Kundensprache (de/en) via Profilfeld locale', any:['locale']},
+    {l:'Interne Benachrichtigung via WebSockets (Echtzeit)', any:['websocket','web socket']},
+    {l:'Bei Mail-Fehler: Retry-Queue, nach 3 Versuchen Alert ans Support-Team', any:['retry']},
+    {l:'Nach 3 Fehlversuchen Mensch/Support informieren', any:['support','drei','3']},
+  ],
+  s7:[
+    {l:'Funktion verifyUser (korrigiert von validateUser)', any:['verifyuser']},
+    {l:'validateUser entfernt', gone:['validateuser']},
+    {l:'Datei auth.service.ts (korrigiert von user.service.ts)', any:['auth.service.ts','auth punkt service']},
+    {l:'user.service.ts entfernt', gone:['user.service.ts','user punkt service']},
+  ],
+  s8:[
+    {l:'Limit 60 requests/min (korrigiert von 100)', any:['60']},
+    {l:'100 entfernt', gone:['100']},
+    {l:'Pro IP', any:['ip']},
+    {l:'429 bei Überschreitung', any:['429']},
+    {l:'Zähler resettet jede Minute', any:['jede minute','pro minute','minute']},
+  ],
+  s9:[
+    {l:'Postgres Full Text Search (final; Elasticsearch erst später)', any:['postgres']},
+    {l:'Elasticsearch nur „für später" (nicht jetzt)', any:['später','elastic']},
+    {l:'Durchsucht Name, Beschreibung, Tags', any:['tags']},
+    {l:'Interne Felder/Einkaufspreise NICHT durchsuchbar', any:['einkauf','nicht durchsuchbar','interne felder']},
+    {l:'Sortierung nach Relevanz, Tie-break Verkaufszahl absteigend', any:['relevanz']},
+    {l:'Fuzzy/Tippfehler-tolerant, aber nicht zu aggressiv', any:['fuzzy','tippfehler']},
+    {l:'Autocomplete mit Debounce 300ms (korrigiert von „jeder Buchstabe")', any:['debounce']},
+    {l:'300 ms', any:['300']},
+    {l:'Endpoint /api/search mit Query-Param q', any:['/api/search','api/search']},
+    {l:'Suche öffentlich, kein Login', any:['öffentlich','public','kein login']},
+  ],
+  s10:[
+    {l:'Abgleich gegen LIVE-Umgebung, echte Stripe-Live-Daten (korrigiert von Demo)', any:['live']},
+    {l:'Job läuft täglich, nachts 3 Uhr', any:['drei uhr','3 uhr','nachts']},
+    {l:'Zieht erfolgreiche Stripe-Zahlungen der letzten 24h', any:['24']},
+    {l:'Offen bei uns + bezahlt bei Stripe → Status nachsetzen', any:['nachsetz','status nach','offen']},
+    {l:'Bezahlt bei uns + storniert bei Stripe → nur flaggen, NICHT automatisch stornieren', any:['flaggen','manuell']},
+    {l:'Nicht automatisch stornieren', any:['nicht automatisch','nicht stornier']},
+    {l:'Keine doppelten Buchungen (vorher prüfen)', any:['doppelt']},
+    {l:'Report per Mail an die Buchhaltung', any:['buchhaltung']},
+    {l:'Bei >50 Diskrepanzen: stoppen + Alarm (nicht alle korrigieren)', any:['50']},
+  ],
+};
+
+/* ============================ Persistenz ============================ */
+const ALL_IDS=['prompt','s1','s2','s3','s4','s5','s6','s7','s8','s9','s10'];
+const DEFAULTS = {};
+ALL_IDS.forEach(id=>{
+  const el=document.getElementById('src-'+id);
+  DEFAULTS[id] = el ? el.textContent.replace(/^\n/,'').replace(/[ \t\n]+$/,'') : '';
+});
+function lsGet(k){try{return localStorage.getItem('stt-eval2:'+k)}catch(e){return null}}
+function lsSet(k,v){try{localStorage.setItem('stt-eval2:'+k,v)}catch(e){}}
+function lsDel(k){try{localStorage.removeItem('stt-eval2:'+k)}catch(e){}}
+function persist(id,v){lsSet(id,v)}
+function val(id){const s=lsGet(id);return s!==null?s:DEFAULTS[id]}
+function estTok(s){return Math.ceil((s||'').length/4);}
+
+/* ============================ UI ============================ */
+function toggle(head){const b=head.nextElementSibling;b.style.display = b.style.display==='none'?'':'none';}
+
+function buildScenarios(){
+  const root=document.getElementById('scenarios');
+  root.innerHTML='';
+  SC.forEach((s,i)=>{
+    const card=document.createElement('div');
+    card.className='card';
+    card.innerHTML = `
+      <div class="head" onclick="toggle(this)">
+        <h2>Szenario ${i+1} <span class="chip">${s.len}</span> · ${s.title}</h2>
+        <span class="badge" id="st-${s.id}">bereit</span>
+      </div>
+      <div class="body">
+        <label>Roh-Input (editierbar · gesprochen, mit Selbstkorrekturen + gelegentlichem Fluchen)</label>
+        <textarea id="${s.id}" oninput="persist('${s.id}',this.value);updateTokens('${s.id}')"></textarea>
+        <div class="toolbar">
+          <span class="pill" id="tok-${s.id}"></span>
+          <button class="sm" onclick="runOne('${s.id}')">▶ Test starten</button>
+          <button class="sec sm" onclick="resetOne('${s.id}');updateTokens('${s.id}')">Zurücksetzen</button>
+          <button class="sec sm" onclick="copyCurl('${s.id}')">curl kopieren</button>
+          <span class="pill" id="meta-${s.id}"></span>
+        </div>
+        <div class="err" id="err-${s.id}"></div>
+        <div class="grid2" style="margin-top:12px">
+          <div><label>Modell-Output</label><div class="out" id="out-${s.id}">—</div></div>
+          <div><label>Fakten- &amp; Korrektur-Check</label><ul class="facts" id="facts-${s.id}"></ul></div>
+        </div>
+        <div class="ratebox">
+          <label style="margin:0">Bewertung 1–10</label>
+          <input type="number" min="1" max="10" id="rate-${s.id}" oninput="persist('rate-${s.id}',this.value);refreshSummary()" value="${lsGet('rate-'+s.id)||''}">
+          <input type="text" placeholder="Notiz / was ging schief?" id="notes-${s.id}" style="flex:1;min-width:220px" oninput="persist('notes-${s.id}',this.value)" value="${(lsGet('notes-'+s.id)||'').replace(/"/g,'&quot;')}">
+        </div>
+      </div>`;
+    root.appendChild(card);
+    document.getElementById(s.id).value = val(s.id);
+    const savedOut=lsGet('out-'+s.id);
+    if(savedOut!==null){
+      document.getElementById('out-'+s.id).textContent=savedOut;
+      const sc=renderFacts(s.id, savedOut);
+      document.getElementById('facts-'+s.id).setAttribute('data-score', sc.pass+'/'+sc.total);
+      const m=lsGet('meta-'+s.id); if(m) document.getElementById('meta-'+s.id).textContent=m;
+      const st=document.getElementById('st-'+s.id); st.textContent='geladen'; st.className='badge';
+    } else { renderFacts(s.id,''); }
+    updateTokens(s.id);
+  });
+  refreshSummary();
+}
+
+function renderFacts(id, output){
+  const ul=document.getElementById('facts-'+id);
+  const lc=(output||'').toLowerCase();
+  let pass=0,total=0;
+  ul.innerHTML='';
+  FACTS[id].forEach(f=>{
+    const isBonus = !!f.gone;
+    let hit;
+    if(!output) hit=null;
+    else if(f.any) hit = f.any.some(k=>lc.includes(k.toLowerCase()));
+    else hit = !f.gone.some(k=>lc.includes(k.toLowerCase())); // bonus passt, wenn falscher Wert WEG
+    if(!isBonus){ total++; if(hit) pass++; }
+    let mk;
+    if(hit===null) mk='<span class="mk">·</span>';
+    else if(!isBonus) mk = hit?'<span class="mk ok">✓</span>':'<span class="mk bad">✗</span>';
+    else mk = hit?'<span class="mk ok">✓</span>':'<span class="mk warn">○</span>';
+    const li=document.createElement('li');
+    li.innerHTML = mk + '<span>'+f.l+(isBonus?' <span class="tag">(Bonus)</span>':'')+'</span>';
+    ul.appendChild(li);
+  });
+  return {pass, total};
+}
+
+function refreshSummary(){
+  const tb=document.querySelector('#summary tbody');
+  tb.innerHTML='';
+  SC.forEach((s,i)=>{
+    const st=document.getElementById('st-'+s.id);
+    const fEl=document.getElementById('facts-'+s.id);
+    const auto = (fEl && fEl.getAttribute('data-score')) || '—';
+    const rate = (lsGet('rate-'+s.id)||'—');
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${i+1}</td><td>${s.title}</td><td>${s.len}</td><td>${st?st.textContent:'—'}</td><td>${auto}</td><td>${rate}</td>`;
+    tb.appendChild(tr);
+  });
+}
+
+function updateTokens(id){
+  const pTok=estTok(document.getElementById('prompt').value);
+  document.getElementById('promptTok').textContent='~'+pTok+' Token';
+  const iTok=estTok(document.getElementById(id).value);
+  const sum=pTok+iTok, reserve=8192-sum;
+  const el=document.getElementById('tok-'+id);
+  if(!el) return;
+  el.textContent=`Input ~${iTok} tok · Prompt+Input ~${sum} · Reserve ~${reserve}/8192`;
+  el.className = reserve < 1500 ? 'pill warn' : 'pill';
+}
+function updateAllTokens(){ SC.forEach(s=>updateTokens(s.id)); }
+
+/* ============================ Request ============================ */
+function buildPayload(id){
+  const provider=document.getElementById('cfgProvider').value;
+  const model=document.getElementById('cfgModel').value.trim();
+  const temperature=parseFloat(document.getElementById('cfgTemp').value)||0;
+  const reasoning=document.getElementById('cfgReasoning').value;
+  const prompt=document.getElementById('prompt').value;
+  const text=document.getElementById(id).value;
+  if(provider==='openai'){
+    return {model, messages:[{role:'system',content:prompt},{role:'user',content:text}], stream:false, temperature};
+  }
+  return {model, input: prompt + "\n\nText: " + text, store:false, stream:false, reasoning, temperature};
+}
+function extractText(provider, data){
+  if(provider==='openai') return (data&&data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'';
+  if(data && Array.isArray(data.output)){
+    let parts=[];
+    for(const item of data.output){
+      if(item && item.type==='message'){
+        const c=item.content;
+        if(typeof c==='string') parts.push(c);
+        else if(Array.isArray(c)) parts.push(c.map(x=> typeof x==='string'?x:((x&&(x.text||x.content))||'')).join(''));
+      }
+    }
+    if(parts.length) return parts.join('');
+  }
+  if(data && typeof data.output_text==='string') return data.output_text;
+  if(data && data.choices && data.choices[0]){ const ch=data.choices[0]; return (ch.message&&ch.message.content)||ch.text||''; }
+  return '';
+}
+
+async function runOne(id){
+  const provider=document.getElementById('cfgProvider').value;
+  const url=document.getElementById('cfgUrl').value.trim();
+  const timeout=(parseInt(document.getElementById('cfgTimeout').value)||180)*1000;
+  const st=document.getElementById('st-'+id), errEl=document.getElementById('err-'+id), outEl=document.getElementById('out-'+id);
+  errEl.textContent=''; st.textContent='läuft…'; st.className='badge run'; outEl.textContent='…';
+  const payload=buildPayload(id);
+  const t0=performance.now();
+  const ctrl=new AbortController(); const tm=setTimeout(()=>ctrl.abort(), timeout);
+  try{
+    const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload),signal:ctrl.signal});
+    clearTimeout(tm);
+    const raw=await res.text();
+    let data; try{data=JSON.parse(raw)}catch(e){data=raw}
+    if(!res.ok) throw new Error('HTTP '+res.status+' — '+raw.slice(0,400));
+    const text=extractText(provider, data);
+    const ms=Math.round(performance.now()-t0);
+    outEl.textContent = text || '(leere Antwort)';
+    const sc=renderFacts(id, text);
+    document.getElementById('facts-'+id).setAttribute('data-score', sc.pass+'/'+sc.total);
+    const meta=`${ms} ms · ${text.length} Zeichen · Fakten ${sc.pass}/${sc.total}`;
+    document.getElementById('meta-'+id).textContent = meta;
+    st.textContent = sc.pass===sc.total?'fertig ✓':'fertig ⚠'; st.className='badge '+(sc.pass===sc.total?'ok':'warn');
+    lsSet('out-'+id, text); lsSet('meta-'+id, meta);
+  }catch(e){
+    clearTimeout(tm);
+    st.textContent='Fehler'; st.className='badge bad'; outEl.textContent='—';
+    errEl.textContent=(e.message||String(e)) + (/Failed to fetch|aborted/i.test(e.message)?'\n→ Server läuft? Seite über http://127.0.0.1:1235/? Timeout erhöhen.':'');
+  }
+  refreshSummary();
+}
+async function runAll(){
+  const btn=document.getElementById('runAllBtn'); btn.disabled=true;
+  for(const s of SC){ await runOne(s.id); }
+  btn.disabled=false; saveResults(false);
+}
+
+/* ============================ Speichern / Export ============================ */
+function collectResults(){
+  return {
+    timestamp:new Date().toISOString(),
+    config:{provider:document.getElementById('cfgProvider').value,url:document.getElementById('cfgUrl').value,model:document.getElementById('cfgModel').value,temperature:document.getElementById('cfgTemp').value,reasoning:document.getElementById('cfgReasoning').value,context_limit:8192},
+    prompt_tokens_est: estTok(document.getElementById('prompt').value),
+    prompt:document.getElementById('prompt').value,
+    scenarios: SC.map(s=>({id:s.id,title:s.title,len:s.len,input:document.getElementById(s.id).value,input_tokens_est:estTok(document.getElementById(s.id).value),output:document.getElementById('out-'+s.id).textContent,facts_auto:(document.getElementById('facts-'+s.id).getAttribute('data-score')||''),meta:document.getElementById('meta-'+s.id).textContent,rating:document.getElementById('rate-'+s.id).value,notes:document.getElementById('notes-'+s.id).value}))
+  };
+}
+async function saveResults(silent){
+  const data=collectResults();
+  try{ lsSet('results', JSON.stringify(data)); }catch(e){}
+  try{
+    const r=await fetch('/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+    const j=await r.json().catch(()=>({}));
+    if(r.ok && j && j.ok===true && j.file){ if(!silent) flash('saveStatus','gespeichert: '+j.file); return true; }
+    if(!silent) flash('saveStatus','Server-Speichern nicht bestätigt — Server neu starten (python3 stt-eval-proxy.py) oder „JSON herunterladen".');
+  }catch(e){ if(!silent) flash('saveStatus','Server nicht erreichbar — „JSON herunterladen" nutzen'); }
+  return false;
+}
+function downloadResults(){
+  const blob=new Blob([JSON.stringify(collectResults(),null,2)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='stt-eval-results.json'; a.click();
+}
+function copyCurl(id){
+  const url=document.getElementById('cfgUrl').value.trim();
+  const body=JSON.stringify(buildPayload(id));
+  const cmd=`cat > /tmp/${id}.json <<'EOF'\n${body}\nEOF\ncurl -sS ${url} -H 'Content-Type: application/json' -d @/tmp/${id}.json`;
+  navigator.clipboard.writeText(cmd).then(()=>flash('meta-'+id,'curl kopiert ✓'));
+}
+function flash(elId,msg){const el=document.getElementById(elId);if(!el)return;const old=el.textContent;el.textContent=msg;setTimeout(()=>el.textContent=old,2500);}
+
+/* ============================ Verbindung ============================ */
+function curPath(){const el=document.getElementById('cfgUrl');try{return new URL(el.value,location.href).pathname||'/api/v1/chat';}catch(e){return '/api/v1/chat';}}
+function useSameOrigin(){const el=document.getElementById('cfgUrl');const base=location.protocol.indexOf('http')===0?location.origin:'http://127.0.0.1:1235';el.value=base+curPath();persist('cfgUrl',el.value);const b=document.getElementById('connBadge');b.textContent='same-origin';b.className='badge run';}
+function useDirect(){const el=document.getElementById('cfgUrl');el.value='http://192.168.30.30:1234'+curPath();persist('cfgUrl',el.value);const b=document.getElementById('connBadge');b.textContent='direkt';b.className='badge';}
+async function testConnection(){
+  const url=document.getElementById('cfgUrl').value.trim();
+  const b=document.getElementById('connBadge'),err=document.getElementById('connErr');
+  err.textContent=''; b.textContent='teste…'; b.className='badge run';
+  try{
+    const provider=document.getElementById('cfgProvider').value, model=document.getElementById('cfgModel').value.trim();
+    const payload=provider==='openai'?{model,messages:[{role:'user',content:'ping'}],stream:false,temperature:0}:{model,input:'ping',store:false,stream:false,reasoning:'off',temperature:0};
+    const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    const raw=await res.text();
+    if(res.ok){b.textContent='erreichbar ✓';b.className='badge ok';}else{b.textContent='HTTP '+res.status;b.className='badge warn';err.textContent=raw.slice(0,400);}
+  }catch(e){b.textContent='nicht erreichbar';b.className='badge bad';err.textContent=(e.message||String(e))+'\n→ Server läuft? Seite über http://127.0.0.1:1235/?';}
+}
+
+/* ============================ Reset ============================ */
+function resetOne(id){lsDel(id);lsDel('out-'+id);lsDel('meta-'+id);document.getElementById(id).value=DEFAULTS[id];const o=document.getElementById('out-'+id);if(o){o.textContent='—';renderFacts(id,'');document.getElementById('facts-'+id).removeAttribute('data-score');document.getElementById('meta-'+id).textContent='';const st=document.getElementById('st-'+id);st.textContent='bereit';st.className='badge';}refreshSummary();}
+function resetAll(){ALL_IDS.forEach(id=>lsDel(id));SC.forEach(s=>{lsDel('out-'+s.id);lsDel('meta-'+s.id);});document.getElementById('prompt').value=DEFAULTS.prompt;buildScenarios();}
+
+/* ============================ Init ============================ */
+['cfgProvider','cfgUrl','cfgModel','cfgTemp','cfgReasoning','cfgTimeout'].forEach(id=>{
+  const el=document.getElementById(id); const saved=lsGet(id);
+  if(saved!==null) el.value=saved;
+  el.addEventListener('input',()=>persist(id,el.value)); el.addEventListener('change',()=>persist(id,el.value));
+});
+if(location.protocol.indexOf('http')===0 && lsGet('cfgUrl')===null) document.getElementById('cfgUrl').value=location.origin+'/api/v1/chat';
+document.getElementById('prompt').value = val('prompt');
+buildScenarios();
+updateAllTokens();
+</script>
+</body>
+</html>
