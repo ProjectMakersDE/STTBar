@@ -356,6 +356,34 @@ final class SettingsModel: ObservableObject {
         assets.first { $0.name == name }?.url
     }
 
+    /// Download + install the available update, then relaunch.
+    func performUpdate() {
+        guard let appZip = appAssetURL else {
+            updateState = .failed
+            updateMessage = L("Kein App-Asset im Release gefunden.", "No app asset found in the release.")
+            return
+        }
+        updateState = .downloading
+        UpdateInstaller.performUpdate(
+            appZip: appZip, scriptsZip: scriptsAssetURL, sha256: appSha256URL,
+            appBundlePath: Bundle.main.bundlePath, installDir: installDir,
+            log: { msg in DispatchQueue.main.async { self.updateMessage = msg } },
+            done: { result in
+                DispatchQueue.main.async {
+                    switch result {
+                    case .success:
+                        self.updateState = .installing
+                        self.updateMessage = L("Update installiert. Starte neu…", "Update installed. Relaunching…")
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { NSApp.terminate(nil) }
+                    case .failure:
+                        self.updateState = .failed
+                        self.updateMessage = L("Update fehlgeschlagen. Bitte install.sh manuell ausführen.",
+                                               "Update failed. Please run install.sh manually.")
+                    }
+                }
+            })
+    }
+
     private static func normalizedVersion(_ raw: String) -> String {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.lowercased().hasPrefix("v") ? String(trimmed.dropFirst()) : trimmed
