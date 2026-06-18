@@ -189,7 +189,7 @@ final class HudView: NSView {
         waveTravel = (waveTravel + delta * 20.0).truncatingRemainder(dividingBy: Double(count))
 
         let rise = min(1, delta * 30.0)
-        let fall = min(1, delta * 18.0)
+        let fall = min(1, delta * 3.2)
         for i in 0..<count {
             let raw = interpolated(target, at: Double(i) + waveTravel)
             let shimmer = 0.90 + 0.10 * sin(phase * 16.0 + Double(i) * 0.62)
