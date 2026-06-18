@@ -12,6 +12,8 @@ stt_runtime_init
 
 STT_AUDIO_DEVICE="${STT_AUDIO_DEVICE:-}"
 STT_MACOS_AVOID_BLUETOOTH_PROFILE_SWITCH="${STT_MACOS_AVOID_BLUETOOTH_PROFILE_SWITCH:-1}"
+STT_LEGACY_PID_FILE="${STT_LEGACY_PID_FILE:-/tmp/stt-recording.pid}"
+STT_LEGACY_RECORD_FILE="${STT_LEGACY_RECORD_FILE:-/tmp/stt-recording.wav}"
 
 is_truthy() {
     case "${1:-}" in
@@ -112,10 +114,33 @@ resolve_audio_device() {
     printf '%s\n' "$audio_device"
 }
 
+legacy_recording_pids() {
+    [[ "$STT_LEGACY_RECORD_FILE" != "$STT_RECORD_FILE" ]] || return 0
+    ps ax -o pid=,args= 2>/dev/null | awk -v file="$STT_LEGACY_RECORD_FILE" '
+        index($0, file) > 0 && $0 ~ /(^|[[:space:]])rec([[:space:]]|$)/ {
+            print $1
+        }
+    '
+}
+
+first_legacy_recording_pid() {
+    legacy_recording_pids | head -n 1
+}
+
 start_recording() {
     if [[ -f "$STT_PID_FILE" ]] && kill -0 "$(cat "$STT_PID_FILE")" 2>/dev/null; then
         echo "ERROR: Recording already in progress" >&2
         stt_status_event "recording_already_running" "recording" "warning" "recording_already_running" "Eine Aufnahme läuft bereits."
+        return 1
+    fi
+    if [[ "$STT_LEGACY_PID_FILE" != "$STT_PID_FILE" ]] && [[ -f "$STT_LEGACY_PID_FILE" ]] && kill -0 "$(cat "$STT_LEGACY_PID_FILE")" 2>/dev/null; then
+        echo "ERROR: Legacy recording already in progress" >&2
+        stt_status_event "legacy_recording_running" "recording" "warning" "legacy_recording_running" "Eine alte /tmp-Aufnahme läuft bereits." "$STT_LEGACY_PID_FILE"
+        return 1
+    fi
+    if [[ -n "$(first_legacy_recording_pid)" ]]; then
+        echo "ERROR: Legacy orphan recording already in progress" >&2
+        stt_status_event "legacy_recording_running" "recording" "warning" "legacy_recording_running" "Eine alte /tmp-Aufnahme ohne PID-Datei läuft bereits." "$STT_LEGACY_RECORD_FILE"
         return 1
     fi
     rm -f "$STT_PID_FILE" "$STT_LOCK_FILE" "$STT_RECORD_FILE" 2>/dev/null || true
@@ -141,14 +166,30 @@ start_recording() {
 }
 
 stop_recording() {
-    if [[ ! -f "$STT_PID_FILE" ]]; then
+    local pid_file="$STT_PID_FILE"
+    local record_file="$STT_RECORD_FILE"
+    if [[ ! -f "$pid_file" ]] && [[ "$STT_LEGACY_PID_FILE" != "$STT_PID_FILE" ]] && [[ -f "$STT_LEGACY_PID_FILE" ]] && kill -0 "$(cat "$STT_LEGACY_PID_FILE")" 2>/dev/null; then
+        pid_file="$STT_LEGACY_PID_FILE"
+        record_file="$STT_LEGACY_RECORD_FILE"
+        stt_status_event "legacy_recording_stop_requested" "whisper" "warning" "legacy_recording" "Alte /tmp-Aufnahme wird gestoppt." "$STT_LEGACY_PID_FILE"
+    fi
+
+    local rec_pid
+    if [[ -f "$pid_file" ]]; then
+        rec_pid="$(cat "$pid_file")"
+    else
+        rec_pid="$(first_legacy_recording_pid)"
+        if [[ -n "$rec_pid" ]]; then
+            record_file="$STT_LEGACY_RECORD_FILE"
+            stt_status_event "legacy_recording_stop_requested" "whisper" "warning" "legacy_recording" "Alte /tmp-Aufnahme ohne PID-Datei wird gestoppt." "$STT_LEGACY_RECORD_FILE"
+        fi
+    fi
+
+    if [[ -z "${rec_pid:-}" ]]; then
         echo "ERROR: No recording in progress" >&2
         stt_status_event "recording_missing" "idle" "warning" "recording_missing" "Keine laufende Aufnahme gefunden."
         return 1
     fi
-
-    local rec_pid
-    rec_pid="$(cat "$STT_PID_FILE")"
 
     if kill -0 "$rec_pid" 2>/dev/null; then
         kill -SIGINT "$rec_pid" 2>/dev/null
@@ -159,24 +200,25 @@ stop_recording() {
         done
     fi
 
-    rm -f "$STT_PID_FILE" "$STT_LOCK_FILE"
+    rm -f "$pid_file" "$STT_LOCK_FILE"
 
     # Check if file exists and has audio content (> 44 bytes = WAV header only)
-    if [[ ! -f "$STT_RECORD_FILE" ]] || [[ "$(wc -c < "$STT_RECORD_FILE" 2>/dev/null || echo 0)" -le 44 ]]; then
+    if [[ ! -f "$record_file" ]] || [[ "$(wc -c < "$record_file" 2>/dev/null || echo 0)" -le 44 ]]; then
         echo "ERROR: Recording is empty" >&2
-        rm -f "$STT_RECORD_FILE"
+        rm -f "$record_file"
         stt_status_event "recording_empty" "error" "error" "recording_empty" "Aufnahme war leer." "Prüfe Mikrofon, sox/rec und Eingabegerät."
         return 1
     fi
 
     stt_status_event "recording_stopped" "whisper" "info" "" "Aufnahme beendet."
-    echo "$STT_RECORD_FILE"
+    echo "$record_file"
 }
 
 cancel_recording() {
-    if [[ -f "$STT_PID_FILE" ]]; then
+    for pid_file in "$STT_PID_FILE" "$STT_LEGACY_PID_FILE"; do
+        [[ -f "$pid_file" ]] || continue
         local rec_pid
-        rec_pid="$(cat "$STT_PID_FILE" 2>/dev/null || true)"
+        rec_pid="$(cat "$pid_file" 2>/dev/null || true)"
         if [[ -n "$rec_pid" ]] && kill -0 "$rec_pid" 2>/dev/null; then
             kill -SIGINT "$rec_pid" 2>/dev/null || true
             local i=0
@@ -185,8 +227,19 @@ cancel_recording() {
             done
             kill "$rec_pid" 2>/dev/null || true
         fi
-    fi
-    rm -f "$STT_PID_FILE" "$STT_LOCK_FILE" "$STT_RECORD_FILE" "$STT_RECORDING_STARTED_FILE" 2>/dev/null || true
+    done
+    while read -r rec_pid; do
+        [[ -n "$rec_pid" ]] || continue
+        if kill -0 "$rec_pid" 2>/dev/null; then
+            kill -SIGINT "$rec_pid" 2>/dev/null || true
+            local i=0
+            while kill -0 "$rec_pid" 2>/dev/null && (( i++ < 20 )); do
+                sleep 0.1
+            done
+            kill "$rec_pid" 2>/dev/null || true
+        fi
+    done < <(legacy_recording_pids)
+    rm -f "$STT_PID_FILE" "$STT_LEGACY_PID_FILE" "$STT_LOCK_FILE" "$STT_RECORD_FILE" "$STT_LEGACY_RECORD_FILE" "$STT_RECORDING_STARTED_FILE" 2>/dev/null || true
     stt_set_phase "idle"
     stt_status_event "recording_cancelled" "idle" "info" "" "Aufnahme abgebrochen."
 }
@@ -194,8 +247,15 @@ cancel_recording() {
 get_status() {
     if [[ -f "$STT_PID_FILE" ]] && kill -0 "$(cat "$STT_PID_FILE")" 2>/dev/null; then
         echo "recording"
+    elif [[ "$STT_LEGACY_PID_FILE" != "$STT_PID_FILE" ]] && [[ -f "$STT_LEGACY_PID_FILE" ]] && kill -0 "$(cat "$STT_LEGACY_PID_FILE")" 2>/dev/null; then
+        echo "recording"
+    elif [[ -n "$(first_legacy_recording_pid)" ]]; then
+        echo "recording"
     else
         rm -f "$STT_PID_FILE"
+        if [[ "$STT_LEGACY_PID_FILE" != "$STT_PID_FILE" ]] && [[ -f "$STT_LEGACY_PID_FILE" ]] && ! kill -0 "$(cat "$STT_LEGACY_PID_FILE")" 2>/dev/null; then
+            rm -f "$STT_LEGACY_PID_FILE"
+        fi
         echo "idle"
     fi
 }

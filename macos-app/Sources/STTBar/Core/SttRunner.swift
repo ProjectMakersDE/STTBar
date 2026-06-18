@@ -29,9 +29,7 @@ final class SttRunner {
     }
 
     var isRecording: Bool {
-        guard let pid = try? String(contentsOf: RuntimePaths.pidFile, encoding: .utf8)
-            .trimmingCharacters(in: .whitespacesAndNewlines), let p = Int32(pid) else { return false }
-        return kill(p, 0) == 0
+        pidIsAlive(RuntimePaths.pidFile) || pidIsAlive(RuntimePaths.legacyPidFile)
     }
 
     var recordingDuration: TimeInterval {
@@ -98,6 +96,12 @@ final class SttRunner {
             StatusStore.writeAppStatus(event: "stale_pid_removed", phase: "idle", severity: "warning", code: "stale_pid_removed", message: "Veraltete Aufnahme-Markierung entfernt.")
             AppLogger.log("stale_pid_removed")
         }
+        if FileManager.default.fileExists(atPath: RuntimePaths.legacyPidFile.path), !pidIsAlive(RuntimePaths.legacyPidFile) {
+            try? FileManager.default.removeItem(at: RuntimePaths.legacyPidFile)
+            staleRemoved = true
+            StatusStore.writeAppStatus(event: "legacy_stale_pid_removed", phase: "idle", severity: "warning", code: "legacy_stale_pid_removed", message: "Alte /tmp-Aufnahme-Markierung entfernt.")
+            AppLogger.log("legacy_stale_pid_removed")
+        }
         let duration = recordingDuration
         let exceeded = isRecording && maxDuration > 0 && duration > maxDuration
         return WatchdogReport(isRecording: isRecording, duration: duration, stalePidRemoved: staleRemoved, exceededLimit: exceeded)
@@ -155,6 +159,12 @@ final class SttRunner {
     private func setState(_ newState: SttState) {
         state = newState
         onState?(newState)
+    }
+
+    private func pidIsAlive(_ url: URL) -> Bool {
+        guard let pid = try? String(contentsOf: url, encoding: .utf8)
+            .trimmingCharacters(in: .whitespacesAndNewlines), let p = Int32(pid) else { return false }
+        return kill(p, 0) == 0
     }
 
     private func runnerEnvironment(mode: SttMode) -> [String: String] {

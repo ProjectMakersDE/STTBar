@@ -5,7 +5,9 @@ import Foundation
 struct AudioLevelReader {
     let bucketCount: Int
     private let headerBytes = 44
-    private let bytesPerBucketTarget = 480
+    // Keep the HUD responsive by sampling only the newest ~100-120 ms.
+    // Larger windows look delayed during live dictation.
+    private let bytesPerBucketTarget = 160
 
     func levels(from url: URL) -> [Double] {
         let zeros = Array(repeating: 0.0, count: bucketCount)

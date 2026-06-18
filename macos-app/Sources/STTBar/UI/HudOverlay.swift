@@ -26,7 +26,7 @@ final class HudOverlay {
 
     private func ensurePanel() {
         guard panel == nil else { return }
-        let size = NSSize(width: 190, height: 46)
+        let size = NSSize(width: 210, height: 64)
         let p = NSPanel(contentRect: NSRect(origin: .zero, size: size),
                         styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         p.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.overlayWindow)))
@@ -55,7 +55,7 @@ final class HudOverlay {
         view?.needsDisplay = true
         panel?.orderFrontRegardless()
         if timer == nil {
-            timer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
+            timer = Timer.scheduledTimer(withTimeInterval: 1.0 / 30.0, repeats: true) { [weak self] _ in
                 guard let self, let view = self.view else { return }
                 if let phase = self.runner.currentPhase(), view.state == .whisper || view.state == .llm {
                     view.state = phase
@@ -63,6 +63,7 @@ final class HudOverlay {
                 view.stateStartedAt = self.stateStartedAt
                 view.needsDisplay = true
             }
+            timer?.tolerance = 0.006
         }
     }
 
@@ -118,7 +119,7 @@ final class HudView: NSView {
     private let whisperColor = NSColor(red: 0.20, green: 0.64, blue: 1.0, alpha: 1)
     private let llmColor = NSColor(red: 0.78, green: 0.54, blue: 1.0, alpha: 1)
     // Left icon slot — where the mic used to sit.
-    private let iconRect = NSRect(x: 9, y: 11, width: 24, height: 24)
+    private let iconRect = NSRect(x: 10, y: 28, width: 24, height: 24)
 
     override func draw(_ dirty: NSRect) {
         phase += 0.11
@@ -162,21 +163,27 @@ final class HudView: NSView {
     private func drawWave() -> Double {
         let target = reader.levels(from: URL(fileURLWithPath: wav))
         var sum = 0.0
-        for i in 0..<levels.count { levels[i] = levels[i] * 0.28 + target[i] * 0.72 }
-        let centerY = 23.0
+        for i in 0..<levels.count {
+            if target[i] >= levels[i] {
+                levels[i] = levels[i] * 0.12 + target[i] * 0.88
+            } else {
+                levels[i] = levels[i] * 0.42 + target[i] * 0.58
+            }
+        }
+        let centerY = 40.0
         for i in 0..<levels.count {
             sum += levels[i]
-            let h = 3 + levels[i] * 32
+            let h = 2 + levels[i] * 28
             let a = 0.10 + levels[i] * 0.90
             recColor.withAlphaComponent(a).setFill()
-            let r = NSRect(x: 45 + Double(i) * 6, y: centerY - h / 2, width: 3, height: h)
+            let r = NSRect(x: 48 + Double(i) * 7, y: centerY - h / 2, width: 3.5, height: h)
             NSBezierPath(roundedRect: r, xRadius: 1.5, yRadius: 1.5).fill()
         }
         return sum / Double(max(1, levels.count))
     }
 
     private func drawSpinner(color: NSColor) {
-        let cx = 100.0, cy = 23.0, radius = 15.0, count = 12
+        let cx = 108.0, cy = 40.0, radius = 15.0, count = 12
         let active = Int(phase * 9)
         for i in 0..<count {
             let angle = Double(i) / Double(count) * .pi * 2
@@ -190,7 +197,7 @@ final class HudView: NSView {
 
     private func drawError() {
         NSColor(red: 1.0, green: 0.26, blue: 0.24, alpha: 0.95).setFill()
-        NSBezierPath(ovalIn: NSRect(x: 84, y: 12, width: 22, height: 22)).fill()
+        NSBezierPath(ovalIn: NSRect(x: 94, y: 29, width: 22, height: 22)).fill()
     }
 
     private func drawFooter(label: String, color: NSColor, lowLevel: Bool) {
@@ -212,6 +219,9 @@ final class HudView: NSView {
             .foregroundColor: color.withAlphaComponent(0.92),
         ]
         let size = text.size(withAttributes: attrs)
-        text.draw(at: NSPoint(x: bounds.maxX - size.width - 10, y: 4), withAttributes: attrs)
+        let pill = NSRect(x: 8, y: 6, width: max(84, size.width + 16), height: 17)
+        NSColor.black.withAlphaComponent(0.24).setFill()
+        NSBezierPath(roundedRect: pill, xRadius: 8.5, yRadius: 8.5).fill()
+        text.draw(at: NSPoint(x: pill.minX + 8, y: pill.minY + 3), withAttributes: attrs)
     }
 }

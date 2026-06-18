@@ -65,7 +65,7 @@ notify() {
 }
 
 is_recording() {
-    [[ -f "$STT_PID_FILE" ]] && kill -0 "$(cat "$STT_PID_FILE")" 2>/dev/null
+    [[ "$("$SCRIPT_DIR/stt-record.sh" status 2>/dev/null || true)" == "recording" ]]
 }
 
 duration_since_recording_start_ms() {

@@ -18,6 +18,8 @@ enum RuntimePaths {
     static var recordingFile: URL { directory.appendingPathComponent("recording.wav") }
     static var lockFile: URL { directory.appendingPathComponent("recording.lock") }
     static var recordingStartedFile: URL { directory.appendingPathComponent("recording-started-ms") }
+    static var legacyPidFile: URL { URL(fileURLWithPath: "/tmp/stt-recording.pid") }
+    static var legacyRecordingFile: URL { URL(fileURLWithPath: "/tmp/stt-recording.wav") }
 
     static func ensureDirectory() {
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
