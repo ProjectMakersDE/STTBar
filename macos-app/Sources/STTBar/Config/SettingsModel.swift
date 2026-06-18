@@ -41,8 +41,18 @@ final class SettingsModel: ObservableObject {
     @Published var hotkeyStatuses: [HotkeyRegistrationStatus] = []
     @Published var updateMessage: String?
     @Published var updateURL: URL?
+    @Published var updateState: UpdateState = .idle
+    @Published var latestVersion: String?
+    var appAssetURL: URL?
+    var scriptsAssetURL: URL?
+    var appSha256URL: URL?
+
+    enum UpdateState: Equatable { case idle, checking, upToDate, available, downloading, installing, failed }
 
     static let defaultUpdateRepository = "ProjectMakersDE/STTBar"
+
+    /// The GitHub `owner/repo` slug used for update checks.
+    var updateRepository: String { env.value("STTBAR_UPDATE_REPOSITORY") ?? Self.defaultUpdateRepository }
 
     /// Common Whisper model presets surfaced in the picker (free text still allowed).
     static let whisperPresets = [
@@ -273,13 +283,16 @@ final class SettingsModel: ObservableObject {
 
     func checkForUpdates() {
         let version = VersionInfo.load(installDir: installDir)
-        let repository = env.value("STTBAR_UPDATE_REPOSITORY") ?? Self.defaultUpdateRepository
+        let repository = updateRepository
         guard let url = URL(string: "https://api.github.com/repos/\(repository)/releases/latest") else {
-            updateMessage = "Update-URL ist ungültig."
+            updateMessage = L("Update-URL ist ungültig.", "Update URL is invalid.")
+            updateState = .failed
             return
         }
-        updateMessage = "Suche Releases auf GitHub…"
+        updateMessage = L("Suche Releases auf GitHub…", "Checking GitHub releases…")
+        updateState = .checking
         updateURL = nil
+        appAssetURL = nil; scriptsAssetURL = nil; appSha256URL = nil
         var request = URLRequest(url: url)
         request.cachePolicy = .reloadIgnoringLocalCacheData
         request.setValue("STTBar/\(version.appVersion)", forHTTPHeaderField: "User-Agent")
@@ -287,48 +300,60 @@ final class SettingsModel: ObservableObject {
         URLSession.shared.dataTask(with: request) { data, response, error in
             let message: String
             var releaseURL: URL?
+            var state: UpdateState = .idle
+            var assets: [GitHubAsset] = []
+            var latestVersion: String?
             defer {
                 DispatchQueue.main.async {
                     self.updateMessage = message
                     self.updateURL = releaseURL
+                    self.updateState = state
+                    self.latestVersion = latestVersion
+                    self.appAssetURL = Self.pickAsset(assets, name: "STTBar.app.zip")
+                    self.scriptsAssetURL = Self.pickAsset(assets, name: "stt-scripts.zip")
+                    self.appSha256URL = Self.pickAsset(assets, name: "STTBar.app.zip.sha256")
                 }
             }
 
             if let error {
-                message = "Update-Check fehlgeschlagen: \(error.localizedDescription)"
+                message = L("Update-Check fehlgeschlagen: ", "Update check failed: ") + error.localizedDescription
+                state = .failed
                 return
             }
             if let http = response as? HTTPURLResponse, http.statusCode == 404 {
-                message = "Noch kein public Release gefunden."
+                message = L("Noch kein öffentliches Release gefunden.", "No public release found yet.")
+                state = .upToDate
                 return
             }
             guard let data,
                   let release = try? JSONDecoder().decode(GitHubRelease.self, from: data) else {
-                message = "GitHub-Release konnte nicht gelesen werden."
+                message = L("GitHub-Release konnte nicht gelesen werden.", "Could not read the GitHub release.")
+                state = .failed
                 return
             }
             let latest = Self.normalizedVersion(release.tagName)
             let current = Self.normalizedVersion(version.appVersion)
             releaseURL = URL(string: release.htmlURL)
+            assets = release.assets
+            latestVersion = latest
             switch Self.compareVersions(latest, current) {
             case .orderedDescending:
-                message = "Update verfügbar: v\(latest) (installiert v\(current))"
+                message = L("Update verfügbar: v\(latest) (installiert v\(current))",
+                            "Update available: v\(latest) (installed v\(current))")
+                state = .available
             case .orderedSame:
-                message = "Aktuell: v\(current)"
+                message = L("Aktuell: v\(current)", "Up to date: v\(current)")
+                state = .upToDate
             case .orderedAscending:
-                message = "Installiert: v\(current), neuestes Release: v\(latest)"
+                message = L("Installiert: v\(current), neuestes Release: v\(latest)",
+                            "Installed: v\(current), latest release: v\(latest)")
+                state = .upToDate
             }
         }.resume()
     }
 
-    private struct GitHubRelease: Decodable {
-        let tagName: String
-        let htmlURL: String
-
-        enum CodingKeys: String, CodingKey {
-            case tagName = "tag_name"
-            case htmlURL = "html_url"
-        }
+    static func pickAsset(_ assets: [GitHubAsset], name: String) -> URL? {
+        assets.first { $0.name == name }?.url
     }
 
     private static func normalizedVersion(_ raw: String) -> String {
@@ -500,5 +525,27 @@ final class SettingsModel: ObservableObject {
         var prompts: [Prompt]
         var replacements: [ReplacementEntry]
         var profiles: [SttProfile]
+    }
+}
+
+/// A downloadable file attached to a GitHub release.
+struct GitHubAsset: Decodable {
+    let name: String
+    let url: URL
+    enum CodingKeys: String, CodingKey {
+        case name
+        case url = "browser_download_url"
+    }
+}
+
+/// The subset of a GitHub release payload STTBar needs for update checks.
+struct GitHubRelease: Decodable {
+    let tagName: String
+    let htmlURL: String
+    let assets: [GitHubAsset]
+    enum CodingKeys: String, CodingKey {
+        case tagName = "tag_name"
+        case htmlURL = "html_url"
+        case assets
     }
 }
