@@ -130,16 +130,16 @@ final class HudView: NSView {
         switch state {
         case .recording:
             drawSymbol("mic.fill", color: recColor, in: iconRect)
-            let avg = drawWave()
-            drawFooter(label: "Aufnahme", color: recColor, lowLevel: avg < 0.025)
+            drawWave()
+            drawTimer(color: recColor)
         case .whisper:
             drawSymbol("waveform", color: whisperColor, in: iconRect)
             drawSpinner(color: whisperColor)
-            drawFooter(label: "Whisper", color: whisperColor, lowLevel: false)
+            drawTimer(color: whisperColor)
         case .llm:
             drawSymbol("sparkles", color: llmColor, in: iconRect)
             drawSpinner(color: llmColor)
-            drawFooter(label: "LLM", color: llmColor, lowLevel: false)
+            drawTimer(color: llmColor)
         case .error:
             drawError()
         case .idle:
@@ -159,10 +159,8 @@ final class HudView: NSView {
         img.draw(in: NSRect(x: dx, y: dy, width: size.width, height: size.height))
     }
 
-    @discardableResult
-    private func drawWave() -> Double {
+    private func drawWave() {
         let target = reader.levels(from: URL(fileURLWithPath: wav))
-        var sum = 0.0
         for i in 0..<levels.count {
             if target[i] >= levels[i] {
                 levels[i] = levels[i] * 0.12 + target[i] * 0.88
@@ -172,14 +170,12 @@ final class HudView: NSView {
         }
         let centerY = 40.0
         for i in 0..<levels.count {
-            sum += levels[i]
             let h = 2 + levels[i] * 28
             let a = 0.10 + levels[i] * 0.90
             recColor.withAlphaComponent(a).setFill()
             let r = NSRect(x: 48 + Double(i) * 7, y: centerY - h / 2, width: 3.5, height: h)
             NSBezierPath(roundedRect: r, xRadius: 1.5, yRadius: 1.5).fill()
         }
-        return sum / Double(max(1, levels.count))
     }
 
     private func drawSpinner(color: NSColor) {
@@ -200,28 +196,19 @@ final class HudView: NSView {
         NSBezierPath(ovalIn: NSRect(x: 94, y: 29, width: 22, height: 22)).fill()
     }
 
-    private func drawFooter(label: String, color: NSColor, lowLevel: Bool) {
-        guard AppSettings.shared.showHudTimer || AppSettings.shared.showHudPhaseLabel || (lowLevel && AppSettings.shared.lowMicWarningEnabled) else { return }
+    private func drawTimer(color: NSColor) {
+        guard AppSettings.shared.showHudTimer else { return }
         let elapsed = Int(Date().timeIntervalSince(stateStartedAt))
-        let timer = String(format: "%02d:%02d", elapsed / 60, elapsed % 60)
-        let text: String
-        if lowLevel && elapsed > 4 && AppSettings.shared.lowMicWarningEnabled {
-            text = "Pegel niedrig"
-        } else {
-            text = [
-                AppSettings.shared.showHudPhaseLabel ? label : nil,
-                AppSettings.shared.showHudTimer ? timer : nil,
-            ].compactMap { $0 }.joined(separator: " ")
-        }
-        guard !text.isEmpty else { return }
+        let text = String(format: "%02d:%02d", elapsed / 60, elapsed % 60)
         let attrs: [NSAttributedString.Key: Any] = [
             .font: NSFont.systemFont(ofSize: 10, weight: .medium),
             .foregroundColor: color.withAlphaComponent(0.92),
         ]
         let size = text.size(withAttributes: attrs)
-        let pill = NSRect(x: 8, y: 6, width: max(84, size.width + 16), height: 17)
+        let pillWidth = max(58, size.width + 18)
+        let pill = NSRect(x: (bounds.width - pillWidth) / 2, y: 6, width: pillWidth, height: 17)
         NSColor.black.withAlphaComponent(0.24).setFill()
         NSBezierPath(roundedRect: pill, xRadius: 8.5, yRadius: 8.5).fill()
-        text.draw(at: NSPoint(x: pill.minX + 8, y: pill.minY + 3), withAttributes: attrs)
+        text.draw(at: NSPoint(x: pill.midX - size.width / 2, y: pill.minY + 3), withAttributes: attrs)
     }
 }
