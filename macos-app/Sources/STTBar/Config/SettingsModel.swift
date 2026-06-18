@@ -196,6 +196,24 @@ final class SettingsModel: ObservableObject {
         objectWillChange.send()
     }
 
+    /// Single entry point for the DE/EN app-language switch: flips the UI
+    /// language, the Whisper default (STT_LANGUAGE) and the active built-in
+    /// prompt, then persists `.env` + the active-prompt mirror.
+    func setAppLanguage(_ lang: AppLanguage) {
+        Localization.shared.set(lang)
+
+        language = (lang == .de) ? "de" : "en"
+        write("STT_LANGUAGE", language)
+
+        let wantedTitle = (lang == .de) ? DefaultPrompt.germanTitle : DefaultPrompt.englishTitle
+        if let prompt = prompts.prompts.first(where: { $0.title == wantedTitle }) {
+            try? prompts.setActive(prompt.id)
+            write("STT_POSTPROCESS_PROMPT_FILE", prompts.activeFileURL.path)
+        }
+        try? env.save()
+        objectWillChange.send()
+    }
+
     func saveReplacements(_ entries: [ReplacementEntry]) {
         do {
             try replacements.update(entries)

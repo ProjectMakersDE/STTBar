@@ -42,6 +42,11 @@ final class AppSettings {
         }
         set { d.set(try? JSONEncoder().encode(newValue), forKey: "hudBackgroundColor") }
     }
+    /// Active app UI language. Defaults to German (existing users stay DE).
+    var appLanguage: AppLanguage {
+        get { AppLanguage(rawValue: d.string(forKey: "appLanguage") ?? "") ?? .de }
+        set { d.set(newValue.rawValue, forKey: "appLanguage") }
+    }
     func hotkey(_ mode: SttMode) -> Hotkey {
         if let data = d.data(forKey: "hotkey.\(mode.rawValue)"),
            let hk = try? JSONDecoder().decode(Hotkey.self, from: data) { return hk }
