@@ -109,14 +109,18 @@ enum UpdateInstaller {
                 log(L("Installiere…", "Installing…"))
                 let backup = appBundlePath + ".old"
                 try? fm.removeItem(atPath: backup)
-                // In-place swap while running (APFS keeps the live process intact).
-                try fm.moveItem(atPath: appBundlePath, toPath: backup)
+                // Atomic in-place replacement. Unlike a remove-and-recreate, this
+                // preserves the bundle identity that LaunchServices and TCC track,
+                // so the Accessibility + Microphone grants survive the update (as
+                // long as the new bundle keeps the same Developer ID Designated
+                // Requirement). APFS keeps the running process's executable inode
+                // alive after the swap, and on failure nothing is changed.
                 do {
-                    try run("/usr/bin/ditto", [stagedApp.path, appBundlePath])
+                    _ = try fm.replaceItemAt(URL(fileURLWithPath: appBundlePath),
+                                             withItemAt: stagedApp,
+                                             backupItemName: (backup as NSString).lastPathComponent,
+                                             options: [])
                 } catch {
-                    // Roll back so the user is not left without an app.
-                    try? fm.removeItem(atPath: appBundlePath)
-                    try? fm.moveItem(atPath: backup, toPath: appBundlePath)
                     throw UpdateError.swap
                 }
 

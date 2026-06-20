@@ -32,6 +32,12 @@ fi
 
 ENTITLEMENTS="$HERE/Resources/STTBar.entitlements"
 IDENTITY=""
+# Release builds must be signed with the Developer ID identity so the Designated
+# Requirement (and therefore every TCC grant) stays stable across updates. When
+# this is set, a missing/failed Developer ID signature is a hard error instead
+# of a silent fall back to a self-signed or ad-hoc identity that would change the
+# DR and make macOS drop Accessibility/Microphone permissions on the next update.
+REQUIRE_DEVELOPER_ID="${STT_REQUIRE_DEVELOPER_ID:-0}"
 
 # 1) Release path: a Developer ID Application cert supplied via env (CI secrets
 #    MACOS_CERT_P12_BASE64 + MACOS_CERT_PASSWORD). Sign with Hardened Runtime +
@@ -63,6 +69,15 @@ if [[ -n "${MACOS_CERT_P12_BASE64:-}" ]]; then
     else
         echo "WARN: no Developer ID Application identity found in the provided cert."
     fi
+fi
+
+# A release build stops here: if Developer ID signing did not happen, fail loudly
+# rather than shipping an app with a different Designated Requirement.
+if [[ "$REQUIRE_DEVELOPER_ID" == "1" && -z "$IDENTITY" ]]; then
+    echo "ERROR: release build requires a Developer ID Application signature, but none was applied." >&2
+    echo "       Provide MACOS_CERT_P12_BASE64 + MACOS_CERT_PASSWORD; refusing to fall back to" >&2
+    echo "       a self-signed/ad-hoc identity that would reset TCC permissions on update." >&2
+    exit 1
 fi
 
 # 2) Local/dev path: a STABLE self-signed identity so the Designated Requirement
