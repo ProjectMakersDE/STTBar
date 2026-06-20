@@ -1,3 +1,9 @@
+## [1.1.2](https://github.com/ProjectMakersDE/STTBar/compare/v1.1.1...v1.1.2) (2026-06-20)
+
+### Bug Fixes
+
+* **hotkey:** make start/stop a single authoritative state machine ([69648d3](https://github.com/ProjectMakersDE/STTBar/commit/69648d338d6b218f4c1c0b44d9b74691e468cae2))
+
 ## [1.1.1](https://github.com/ProjectMakersDE/STTBar/compare/v1.1.0...v1.1.1) (2026-06-18)
 
 ### Bug Fixes
