@@ -27,6 +27,9 @@ final class SttRunner {
     /// in the shell (which could diverge and mis-fire).
     private let toggle = RecordingToggle()
     private var lastTriggerAt: Date?
+    /// Arrival time of the previous *raw* trigger event (accepted or ignored),
+    /// used purely to measure double-fire spacing — not part of the decision.
+    private var lastRawEventAt: Date?
     /// A press that arrived while a previous run was still finishing. Honored as
     /// a fresh start once that run completes, so a press is never silently lost.
     private var pendingStart = false
@@ -49,10 +52,16 @@ final class SttRunner {
         return max(0, (Date().timeIntervalSince1970 * 1000 - startMs) / 1000)
     }
 
-    func trigger(mode: SttMode) {
+    /// `eventTime` is when the raw hotkey event arrived (stamped in the Carbon
+    /// callback before the hop to main); nil for menu clicks. It feeds only the
+    /// instrumentation, never the decision, so behavior is unchanged.
+    func trigger(mode: SttMode, eventTime: Date? = nil) {
         let now = Date()
+        let eventAt = eventTime ?? now
+        let timing = TriggerTiming(previousRawEventAt: lastRawEventAt, eventAt: eventAt, handledAt: now)
+        lastRawEventAt = eventAt
         let action = toggle.decide(isLiveRecording: isRecording, isBusy: busy, lastTriggerAt: lastTriggerAt, now: now)
-        AppLogger.log("trigger mode=\(mode.rawValue) decided=\(action) isRecording=\(isRecording) busy=\(busy)")
+        AppLogger.log("trigger mode=\(mode.rawValue) decided=\(action) isRecording=\(isRecording) busy=\(busy) dtMs=\(timing.intervalToken) latencyMs=\(timing.latencyMs)")
         if action == .ignore { return }
         lastTriggerAt = now
         switch action {

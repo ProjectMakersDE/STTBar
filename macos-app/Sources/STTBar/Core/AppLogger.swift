@@ -8,8 +8,16 @@ enum AppLogger {
         return dir.appendingPathComponent("sttbar.log")
     }
 
+    private static let formatter: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        // Millisecond precision: the double-fire/latency analysis needs finer
+        // resolution than whole seconds to size the debounce window honestly.
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
+    }()
+
     static func log(_ message: String) {
-        let timestamp = ISO8601DateFormatter().string(from: Date())
+        let timestamp = formatter.string(from: Date())
         let line = "[\(timestamp)] \(message)\n"
         if FileManager.default.fileExists(atPath: logURL.path),
            let handle = try? FileHandle(forWritingTo: logURL) {
