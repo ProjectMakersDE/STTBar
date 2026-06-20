@@ -1,3 +1,9 @@
+## [1.1.3](https://github.com/ProjectMakersDE/STTBar/compare/v1.1.2...v1.1.3) (2026-06-20)
+
+### Bug Fixes
+
+* **update:** keep macOS permissions stable across in-app updates ([1eafd51](https://github.com/ProjectMakersDE/STTBar/commit/1eafd51fb2c194692601e576af2b3ad00ccfc9c0))
+
 ## [1.1.2](https://github.com/ProjectMakersDE/STTBar/compare/v1.1.1...v1.1.2) (2026-06-20)
 
 ### Bug Fixes
