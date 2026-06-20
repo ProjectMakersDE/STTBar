@@ -128,6 +128,12 @@ first_legacy_recording_pid() {
 }
 
 start_recording() {
+    # A force start (the app decided this press is unambiguously a start because
+    # no recording was live) tears down any stale pid/lock/wav and any orphan
+    # rec process first, so the toggle can never get stuck on leftovers.
+    if is_truthy "${STT_FORCE_START:-0}"; then
+        force_clear_recordings
+    fi
     if [[ -f "$STT_PID_FILE" ]] && kill -0 "$(cat "$STT_PID_FILE")" 2>/dev/null; then
         echo "ERROR: Recording already in progress" >&2
         stt_status_event "recording_already_running" "recording" "warning" "recording_already_running" "A recording is already running."
@@ -215,7 +221,9 @@ stop_recording() {
     echo "$record_file"
 }
 
-cancel_recording() {
+# Kill any recording (own pid, legacy pid, orphan rec) and remove its files,
+# without emitting any phase/status events. Shared by `cancel` and force start.
+force_clear_recordings() {
     for pid_file in "$STT_PID_FILE" "$STT_LEGACY_PID_FILE"; do
         [[ -f "$pid_file" ]] || continue
         local rec_pid
@@ -241,6 +249,10 @@ cancel_recording() {
         fi
     done < <(legacy_recording_pids)
     rm -f "$STT_PID_FILE" "$STT_LEGACY_PID_FILE" "$STT_LOCK_FILE" "$STT_RECORD_FILE" "$STT_LEGACY_RECORD_FILE" "$STT_RECORDING_STARTED_FILE" 2>/dev/null || true
+}
+
+cancel_recording() {
+    force_clear_recordings
     stt_set_phase "idle"
     stt_status_event "recording_cancelled" "idle" "info" "" "Recording cancelled."
 }

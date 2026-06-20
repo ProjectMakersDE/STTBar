@@ -22,6 +22,16 @@ final class SttRunner {
     private var busy = false
     private(set) var state: SttState = .idle
 
+    /// Single source of truth for the start/stop decision. Replaces the old
+    /// implicit toggle that re-derived start-vs-stop independently in Swift and
+    /// in the shell (which could diverge and mis-fire).
+    private let toggle = RecordingToggle()
+    private var lastTriggerAt: Date?
+    /// A press that arrived while a previous run was still finishing. Honored as
+    /// a fresh start once that run completes, so a press is never silently lost.
+    private var pendingStart = false
+    private var pendingMode: SttMode = .full
+
     init(scriptPath: String) {
         self.scriptPath = scriptPath
         RuntimePaths.ensureDirectory()
@@ -40,21 +50,42 @@ final class SttRunner {
     }
 
     func trigger(mode: SttMode) {
-        if busy { setState(isRecording ? .recording : .whisper); return }
-        let wasRecording = isRecording
+        let now = Date()
+        let action = toggle.decide(isLiveRecording: isRecording, isBusy: busy, lastTriggerAt: lastTriggerAt, now: now)
+        AppLogger.log("trigger mode=\(mode.rawValue) decided=\(action) isRecording=\(isRecording) busy=\(busy)")
+        if action == .ignore { return }
+        lastTriggerAt = now
+        switch action {
+        case .queueStart:
+            // A run is still finishing (no live audio). The user's rule: this
+            // press is a start. Remember it and fire once the run completes.
+            pendingStart = true
+            pendingMode = mode
+        case .start:
+            launch(.start, mode: mode)
+        case .stop:
+            launch(.stop, mode: mode)
+        case .ignore:
+            break
+        }
+    }
+
+    /// Spawns the shell pipeline for an explicit `start` or `stop`. The action
+    /// is passed to the shell via `STT_ACTION` so the shell no longer re-derives
+    /// it from the pid file (which could disagree with what Swift decided).
+    private func launch(_ action: SttToggleAction, mode: SttMode) {
         try? FileManager.default.removeItem(at: RuntimePaths.phaseFile)
         try? FileManager.default.removeItem(at: RuntimePaths.resultFile)
         busy = true
-        setState(wasRecording ? .whisper : .recording)
-        AppLogger.log("trigger mode=\(mode.rawValue) wasRecording=\(wasRecording)")
+        setState(action == .stop ? .whisper : .recording)
 
         let p = Process()
         p.executableURL = URL(fileURLWithPath: "/bin/bash")
         p.arguments = ["-lc", "exec \(shellQuote(scriptPath))"]
-        p.environment = runnerEnvironment(mode: mode)
+        p.environment = runnerEnvironment(mode: mode, action: action)
         p.terminationHandler = { [weak self] proc in
             DispatchQueue.main.async {
-                self?.handleTermination(proc, wasRecording: wasRecording, mode: mode)
+                self?.handleTermination(proc, action: action, mode: mode)
             }
         }
         do {
@@ -78,6 +109,7 @@ final class SttRunner {
             task?.terminate()
             task = nil
             busy = false
+            pendingStart = false
             setState(.idle)
             StatusStore.writeAppStatus(event: "recording_cancelled_by_app", phase: "idle", severity: "info", message: "Aufnahme abgebrochen.")
             AppLogger.log("recording_cancelled")
@@ -124,10 +156,10 @@ final class SttRunner {
         URL(fileURLWithPath: scriptPath).deletingLastPathComponent()
     }
 
-    private func handleTermination(_ proc: Process, wasRecording: Bool, mode: SttMode) {
+    private func handleTermination(_ proc: Process, action: SttToggleAction, mode: SttMode) {
         busy = false
         task = nil
-        if wasRecording {
+        if action == .stop {
             try? FileManager.default.removeItem(at: RuntimePaths.phaseFile)
             if proc.terminationStatus == 0, let text = try? String(contentsOf: RuntimePaths.resultFile, encoding: .utf8), !text.isEmpty {
                 let paste = NativePaste.copyAndPaste(text)
@@ -143,6 +175,11 @@ final class SttRunner {
                 if AppSettings.shared.sensitiveMode {
                     try? FileManager.default.removeItem(at: RuntimePaths.resultFile)
                 }
+            } else if proc.terminationStatus == 0 {
+                // Stop ran but produced no transcript — there was nothing
+                // actually recording (stale state). Settle to idle quietly
+                // instead of flashing an error.
+                setState(.idle)
             } else {
                 setState(.error)
                 StatusStore.writeAppStatus(event: "result_missing", phase: "error", severity: "error", code: "result_missing", message: "Kein Transkript von der Shell erhalten.")
@@ -153,7 +190,18 @@ final class SttRunner {
         if let problem = StatusStore.latestProblem(limit: 50) {
             onProblem?(problem)
         }
-        AppLogger.log("termination status=\(proc.terminationStatus) state=\(state)")
+        AppLogger.log("termination status=\(proc.terminationStatus) action=\(action) state=\(state)")
+
+        // A press arrived while we were busy: start a fresh recording now,
+        // unless one already came alive (e.g. a double-tap during start).
+        if pendingStart {
+            pendingStart = false
+            if !isRecording {
+                let queuedMode = pendingMode
+                lastTriggerAt = Date()
+                launch(.start, mode: queuedMode)
+            }
+        }
     }
 
     private func setState(_ newState: SttState) {
@@ -167,9 +215,10 @@ final class SttRunner {
         return kill(p, 0) == 0
     }
 
-    private func runnerEnvironment(mode: SttMode) -> [String: String] {
+    private func runnerEnvironment(mode: SttMode, action: SttToggleAction) -> [String: String] {
         var env = ProcessInfo.processInfo.environment
         env["STT_MODE"] = mode.rawValue
+        env["STT_ACTION"] = action == .stop ? "stop" : "start"
         env["STT_NOTIFICATIONS"] = "0"
         env["STT_APP_NATIVE_PASTE"] = "1"
         env["STT_RUNTIME_DIR"] = RuntimePaths.directory.path

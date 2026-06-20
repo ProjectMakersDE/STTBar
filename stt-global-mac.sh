@@ -117,7 +117,24 @@ append_run_metrics() {
     fi
 }
 
-if is_recording; then
+# The app passes STT_ACTION=start|stop so the start/stop decision is made once,
+# authoritatively, instead of being re-derived here (which could disagree with
+# what the app showed and mis-fire). Without it, fall back to the legacy toggle.
+stt_action="${STT_ACTION:-toggle}"
+if [[ "$stt_action" == "toggle" ]]; then
+    if is_recording; then stt_action="stop"; else stt_action="start"; fi
+fi
+
+if [[ "$stt_action" == "stop" ]] && ! is_recording; then
+    # Asked to stop, but nothing is actually live: clear any stale leftovers and
+    # report idle. The app reconciles a zero-result stop to idle, not an error.
+    "$SCRIPT_DIR/stt-record.sh" cancel >/dev/null 2>&1 || true
+    set_phase "idle"
+    stt_status_event "stop_noop" "idle" "info" "" "Stop requested but no active recording."
+    exit 0
+fi
+
+if [[ "$stt_action" == "stop" ]]; then
     # --- STOP RECORDING & TRANSCRIBE & PASTE ---
     set_phase "whisper"
     stt_status_event "recording_stop_requested" "whisper" "info" "" "Stopping recording and transcribing."
@@ -228,8 +245,11 @@ if is_recording; then
     fi
     rm -f "$STT_RECORDING_STARTED_FILE" "$STT_RUN_ID_FILE" 2>/dev/null || true
 else
-    # --- START RECORDING ---
-    if ! "$SCRIPT_DIR/stt-record.sh" start >/dev/null 2>&1; then
+    # --- START RECORDING (clean) ---
+    # Force start tears down any leftover pid/lock/wav or orphan rec first, so a
+    # press with no live audio always starts fresh instead of getting stuck on
+    # stale state from a previous run.
+    if ! STT_FORCE_START=1 "$SCRIPT_DIR/stt-record.sh" start >/dev/null 2>&1; then
         set_phase "error"
         stt_status_event "recording_start_failed" "error" "error" "recording_start_failed" "Recording could not be started; check microphone/sox."
         notify "Could not start recording. Is sox installed?"
