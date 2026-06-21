@@ -26,9 +26,20 @@ struct SettingsView: View {
 private struct ServerTab: View {
     @ObservedObject var model: SettingsModel
     @ObservedObject private var loc = Localization.shared
+    @State private var audioDevices: [String] = []
 
     var body: some View {
         Form {
+            Section(L("Audio-Eingang", "Audio input")) {
+                Picker(L("Mikrofon", "Microphone"), selection: $model.audioInputDevice) {
+                    ForEach(AudioInputCatalog.deviceIds(available: audioDevices, current: model.audioInputDevice), id: \.self) { id in
+                        Text(audioDeviceLabel(id)).tag(id)
+                    }
+                }
+                Text(L("Automatisch nutzt das Standard-Mikrofon (Bluetooth-Headsets werden vermieden). Wird nach Anwenden aktiv.",
+                       "Automatic uses the default microphone (Bluetooth headsets are avoided). Takes effect after Apply."))
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             Section("Whisper") {
                 TextField(L("Whisper-URL", "Whisper URL"), text: $model.whisperURL)
                 Picker(L("Whisper-Modell", "Whisper model"), selection: $model.whisperModel) {
@@ -67,6 +78,13 @@ private struct ServerTab: View {
             }
         }
         .formStyle(.grouped)
+        .onAppear { audioDevices = AudioInputDevices.available() }
+    }
+
+    /// Display label for an audio-device env value in the picker.
+    private func audioDeviceLabel(_ id: String) -> String {
+        if id.isEmpty { return L("Automatisch", "Automatic") }
+        return audioDevices.contains(id) ? id : id + L(" (nicht verbunden)", " (disconnected)")
     }
 }
 
@@ -286,7 +304,7 @@ private struct DisplayTab: View {
 
     var body: some View {
         Form {
-            Section("HUD") {
+            Section(L("Position", "Position")) {
                 LazyVGrid(columns: Array(repeating: GridItem(.fixed(130)), count: 2), alignment: .leading) {
                     ForEach(anchors, id: \.self) { anchor in
                         Button {
@@ -297,7 +315,37 @@ private struct DisplayTab: View {
                         }
                     }
                 }
+                Toggle(L("Auf aktivem Monitor anzeigen", "Show on active monitor"), isOn: $model.hudFollowActiveScreen)
+                Stepper(L("Versatz X: \(model.hudOffsetX) pt", "Offset X: \(model.hudOffsetX) pt"),
+                        value: $model.hudOffsetX, in: -600...600, step: 4)
+                Stepper(L("Versatz Y: \(model.hudOffsetY) pt", "Offset Y: \(model.hudOffsetY) pt"),
+                        value: $model.hudOffsetY, in: -600...600, step: 4)
+            }
+            Section(L("Größe", "Size")) {
+                HStack {
+                    Text(L("Skalierung", "Scale"))
+                    Slider(value: $model.hudScale, in: 0.7...2.0, step: 0.05)
+                    Text("\(Int((model.hudScale * 100).rounded()))%").monospacedDigit().frame(width: 44, alignment: .trailing)
+                }
+            }
+            Section(L("Elemente", "Elements")) {
+                Toggle(L("Symbol anzeigen", "Show icon"), isOn: $model.showHudIcon)
                 Toggle(L("Timer anzeigen", "Show timer"), isOn: $model.showHudTimer)
+                Toggle(L("Waveform anzeigen", "Show waveform"), isOn: $model.showHudWaveform)
+            }
+            Section("Waveform") {
+                Picker(L("Stil", "Style"), selection: $model.hudWaveStyle) {
+                    ForEach(HudWaveStyle.allCases, id: \.self) { style in
+                        Text(style.label).tag(style)
+                    }
+                }
+                .disabled(!model.showHudWaveform)
+                HStack {
+                    Text(L("Abkling-Geschwindigkeit", "Release speed"))
+                    Slider(value: $model.hudWaveDecaySpeed, in: 0.3...3.0, step: 0.1)
+                    Text(String(format: "%.1f×", model.hudWaveDecaySpeed)).monospacedDigit().frame(width: 44, alignment: .trailing)
+                }
+                .disabled(!model.showHudWaveform)
             }
             Section(L("Hintergrund", "Background")) {
                 Toggle(L("Hintergrund anzeigen", "Show background"), isOn: $model.hudBackground)

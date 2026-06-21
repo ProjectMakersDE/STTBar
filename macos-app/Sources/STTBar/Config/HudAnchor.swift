@@ -14,9 +14,9 @@ enum HudAnchor: String, CaseIterable, Codable {
         }
     }
 
-    /// Origin for a panel of `size` on `screen`, with `margin` inset. AppKit's
-    /// origin is bottom-left.
-    func origin(for size: NSSize, in screen: NSRect, margin: CGFloat = 26) -> NSPoint {
+    /// Origin for a panel of `size` on `screen`, with `margin` inset and an
+    /// optional fine `offset` (+x right, +y up). AppKit's origin is bottom-left.
+    func origin(for size: NSSize, in screen: NSRect, margin: CGFloat = 26, offset: CGSize = .zero) -> NSPoint {
         let leftX = screen.minX + margin
         let rightX = screen.maxX - size.width - margin
         let centerX = screen.midX - size.width / 2
@@ -24,15 +24,17 @@ enum HudAnchor: String, CaseIterable, Codable {
         let bottomY = screen.minY + margin
         let upperY = screen.minY + (screen.height * 0.68) - (size.height / 2)
         let lowerY = screen.minY + (screen.height * 0.32) - (size.height / 2)
+        let base: NSPoint
         switch self {
-        case .topCenter:    return NSPoint(x: centerX, y: topY)
-        case .topRight:     return NSPoint(x: rightX,  y: topY)
-        case .bottomRight:  return NSPoint(x: rightX,  y: bottomY)
-        case .bottomLeft:   return NSPoint(x: leftX,   y: bottomY)
-        case .leftBottom:   return NSPoint(x: leftX,   y: lowerY)
-        case .leftTop:      return NSPoint(x: leftX,   y: topY)
-        case .rightBottom:  return NSPoint(x: rightX,  y: lowerY)
-        case .rightTop:     return NSPoint(x: rightX,  y: upperY)
+        case .topCenter:    base = NSPoint(x: centerX, y: topY)
+        case .topRight:     base = NSPoint(x: rightX,  y: topY)
+        case .bottomRight:  base = NSPoint(x: rightX,  y: bottomY)
+        case .bottomLeft:   base = NSPoint(x: leftX,   y: bottomY)
+        case .leftBottom:   base = NSPoint(x: leftX,   y: lowerY)
+        case .leftTop:      base = NSPoint(x: leftX,   y: topY)
+        case .rightBottom:  base = NSPoint(x: rightX,  y: lowerY)
+        case .rightTop:     base = NSPoint(x: rightX,  y: upperY)
         }
+        return NSPoint(x: base.x + offset.width, y: base.y + offset.height)
     }
 }

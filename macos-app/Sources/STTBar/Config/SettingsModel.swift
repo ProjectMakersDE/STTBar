@@ -30,11 +30,21 @@ final class SettingsModel: ObservableObject {
     @Published var historyEnabled: Bool = false
     @Published var historyRetentionHours: String = "24"
     @Published var sensitiveMode: Bool = false
+    /// Recording input device, written to `STT_AUDIO_DEVICE`. Empty = automatic.
+    @Published var audioInputDevice: String = ""
 
     @Published var hudAnchor: HudAnchor { didSet { AppSettings.shared.hudAnchor = hudAnchor } }
     @Published var hudBackground: Bool { didSet { AppSettings.shared.hudBackground = hudBackground } }
     @Published var hudBackgroundColor: Color { didSet { AppSettings.shared.hudBackgroundColor = RGBAColor(hudBackgroundColor) } }
     @Published var showHudTimer: Bool { didSet { AppSettings.shared.showHudTimer = showHudTimer } }
+    @Published var showHudIcon: Bool { didSet { AppSettings.shared.showHudIcon = showHudIcon } }
+    @Published var showHudWaveform: Bool { didSet { AppSettings.shared.showHudWaveform = showHudWaveform } }
+    @Published var hudFollowActiveScreen: Bool { didSet { AppSettings.shared.hudFollowActiveScreen = hudFollowActiveScreen } }
+    @Published var hudOffsetX: Int { didSet { AppSettings.shared.hudOffsetX = hudOffsetX } }
+    @Published var hudOffsetY: Int { didSet { AppSettings.shared.hudOffsetY = hudOffsetY } }
+    @Published var hudScale: Double { didSet { AppSettings.shared.hudScale = hudScale } }
+    @Published var hudWaveDecaySpeed: Double { didSet { AppSettings.shared.hudWaveDecaySpeed = hudWaveDecaySpeed } }
+    @Published var hudWaveStyle: HudWaveStyle { didSet { AppSettings.shared.hudWaveStyle = hudWaveStyle } }
 
     @Published var validationMessage: String?
     @Published var saveMessage: String?
@@ -74,6 +84,14 @@ final class SettingsModel: ObservableObject {
         self.hudBackground = AppSettings.shared.hudBackground
         self.hudBackgroundColor = AppSettings.shared.hudBackgroundColor.color
         self.showHudTimer = AppSettings.shared.showHudTimer
+        self.showHudIcon = AppSettings.shared.showHudIcon
+        self.showHudWaveform = AppSettings.shared.showHudWaveform
+        self.hudFollowActiveScreen = AppSettings.shared.hudFollowActiveScreen
+        self.hudOffsetX = AppSettings.shared.hudOffsetX
+        self.hudOffsetY = AppSettings.shared.hudOffsetY
+        self.hudScale = AppSettings.shared.hudScale
+        self.hudWaveDecaySpeed = AppSettings.shared.hudWaveDecaySpeed
+        self.hudWaveStyle = AppSettings.shared.hudWaveStyle
         loadEnvDraft()
         if env.value("STTBAR_UPDATE_REPOSITORY") == nil {
             write("STTBAR_UPDATE_REPOSITORY", Self.defaultUpdateRepository)
@@ -102,6 +120,7 @@ final class SettingsModel: ObservableObject {
         write("STT_HISTORY_ENABLED", historyEnabled ? "1" : "0")
         write("STT_HISTORY_RETENTION_HOURS", historyRetentionHours)
         write("STT_SENSITIVE_MODE", sensitiveMode ? "1" : "0")
+        write("STT_AUDIO_DEVICE", audioInputDevice)
         do {
             try env.save()
             syncAppSettingsFromDraft()
@@ -505,6 +524,7 @@ final class SettingsModel: ObservableObject {
         historyEnabled = (env.value("STT_HISTORY_ENABLED") ?? (AppSettings.shared.historyEnabled ? "1" : "0")) == "1"
         historyRetentionHours = env.value("STT_HISTORY_RETENTION_HOURS") ?? "\(AppSettings.shared.historyRetentionHours)"
         sensitiveMode = (env.value("STT_SENSITIVE_MODE") ?? (AppSettings.shared.sensitiveMode ? "1" : "0")) == "1"
+        audioInputDevice = env.value("STT_AUDIO_DEVICE") ?? ""
         syncAppSettingsFromDraft()
     }
 
@@ -541,6 +561,7 @@ final class SettingsModel: ObservableObject {
             "STT_POSTPROCESS_PROVIDER": provider,
             "STT_POSTPROCESS_TIMEOUT": postprocessTimeout,
             "STT_AUTO_RAW_FALLBACK": autoRawFallback ? "1" : "0",
+            "STT_AUDIO_DEVICE": audioInputDevice,
         ]
     }
 

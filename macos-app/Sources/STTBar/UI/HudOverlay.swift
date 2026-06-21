@@ -38,16 +38,45 @@ final class HudOverlay {
         panel = p; view = v
     }
 
+    private func currentLayout() -> HudLayout {
+        HudLayout(scale: HudLayout.clampScale(AppSettings.shared.hudScale),
+                  showIcon: AppSettings.shared.showHudIcon,
+                  showWaveform: AppSettings.shared.showHudWaveform,
+                  showTimer: AppSettings.shared.showHudTimer)
+    }
+
     private func reposition() {
         guard let panel else { return }
-        let screen = activeAppScreen() ?? NSScreen.main
-        let origin = AppSettings.shared.hudAnchor.origin(for: panel.frame.size, in: screen?.visibleFrame ?? NSScreen.main?.visibleFrame ?? .zero)
+        let screen = targetScreen()
+        let visible = screen?.visibleFrame ?? NSScreen.main?.visibleFrame ?? .zero
+        let offset = CGSize(width: CGFloat(AppSettings.shared.hudOffsetX),
+                            height: CGFloat(AppSettings.shared.hudOffsetY))
+        let origin = AppSettings.shared.hudAnchor.origin(for: panel.frame.size, in: visible, offset: offset)
         panel.setFrameOrigin(origin)
+    }
+
+    /// The screen to show the HUD on. When "follow active screen" is on, prefer
+    /// the frontmost app's screen, then the screen under the mouse, then main —
+    /// so it lands on the right monitor even when window detection comes up empty.
+    private func targetScreen() -> NSScreen? {
+        guard AppSettings.shared.hudFollowActiveScreen else { return NSScreen.main }
+        return activeAppScreen() ?? screenWithMouse() ?? NSScreen.main
+    }
+
+    private func screenWithMouse() -> NSScreen? {
+        let rects = NSScreen.screens.map { $0.frame }
+        guard let idx = ScreenPicker.indexContaining(NSEvent.mouseLocation, in: rects) else { return nil }
+        return NSScreen.screens[idx]
     }
 
     private func show(_ state: SttState) {
         hideWork?.cancel()
-        ensurePanel(); reposition()
+        ensurePanel()
+        let layout = currentLayout()
+        panel?.setContentSize(layout.panelSize)
+        view?.frame = NSRect(origin: .zero, size: layout.panelSize)
+        view?.layout = layout
+        reposition()
         view?.state = state
         view?.showBackground = AppSettings.shared.hudBackground
         view?.backgroundColor = AppSettings.shared.hudBackgroundColor.nsColor
@@ -86,12 +115,17 @@ final class HudOverlay {
         guard let window = windows.first(where: { info in
             (info[kCGWindowOwnerPID as String] as? Int) == Int(app.processIdentifier) &&
             (info[kCGWindowLayer as String] as? Int) == 0
-        }), let boundsDict = window[kCGWindowBounds as String] as? [String: CGFloat] else { return nil }
-        let rect = CGRect(x: boundsDict["X"] ?? 0, y: boundsDict["Y"] ?? 0, width: boundsDict["Width"] ?? 0, height: boundsDict["Height"] ?? 0)
-        return NSScreen.screens.max { a, b in
-            a.frame.intersection(rect).width * a.frame.intersection(rect).height <
-                b.frame.intersection(rect).width * b.frame.intersection(rect).height
-        }
+        }), let b = window[kCGWindowBounds as String] as? [String: CGFloat] else { return nil }
+        // CGWindowBounds are in top-left global coordinates (y grows downward);
+        // NSScreen.frame is bottom-left. Convert the window center into AppKit
+        // space before matching it to a screen, or multi-monitor layouts pick
+        // the wrong display (the cause of the HUD always landing on main).
+        let cg = CGRect(x: b["X"] ?? 0, y: b["Y"] ?? 0, width: b["Width"] ?? 0, height: b["Height"] ?? 0)
+        guard let primaryHeight = NSScreen.screens.first(where: { $0.frame.origin == .zero })?.frame.height
+            ?? NSScreen.screens.first?.frame.height else { return nil }
+        let rects = NSScreen.screens.map { $0.frame }
+        return ScreenPicker.indexForWindow(topLeftBounds: cg, primaryHeight: primaryHeight, in: rects)
+            .map { NSScreen.screens[$0] }
     }
 
     private func scheduleHide(after s: TimeInterval) {
@@ -112,6 +146,8 @@ final class HudView: NSView {
     var timeline = HudPhaseTimeline()
     var showBackground = false
     var backgroundColor: NSColor = NSColor(white: 0.5, alpha: 0.55)
+    /// Geometry + element toggles for the current frame; set by HudOverlay.show().
+    var layout = HudLayout(scale: 1, showIcon: true, showWaveform: true, showTimer: true)
     private let reader: AudioLevelReader
     private let runner: SttRunner
     private var levels: [Double]
@@ -133,33 +169,41 @@ final class HudView: NSView {
     private let recColor = NSColor(red: 0.08, green: 0.95, blue: 0.68, alpha: 1)
     private let whisperColor = NSColor(red: 0.20, green: 0.64, blue: 1.0, alpha: 1)
     private let llmColor = NSColor(red: 0.78, green: 0.54, blue: 1.0, alpha: 1)
-    // Left icon slot — where the mic used to sit.
-    private let iconRect = NSRect(x: 10, y: 28, width: 24, height: 24)
-    private var contentLeft: CGFloat { 46 }
-    private var contentRight: CGFloat { bounds.width - 12 }
-    private var contentCenterX: CGFloat { (contentLeft + contentRight) / 2 }
-    private let visualCenterY: CGFloat = 40
+    // Geometry comes from `layout` (base coordinates); the whole frame is drawn
+    // under a single scale transform so nothing else needs to know about scale.
+    private var contentLeft: CGFloat { layout.contentLeft }
+    private var contentRight: CGFloat { layout.contentRight }
+    private var contentCenterX: CGFloat { layout.contentCenterX }
+    private var visualCenterY: CGFloat { layout.visualCenterY }
 
     override func draw(_ dirty: NSRect) {
         let now = Date()
         let delta = min(1.0 / 15.0, max(0, now.timeIntervalSince(lastFrameAt)))
         lastFrameAt = now
         phase += delta
+
+        NSGraphicsContext.saveGraphicsState()
+        defer { NSGraphicsContext.restoreGraphicsState() }
+        let transform = NSAffineTransform()
+        transform.scale(by: layout.scale)
+        transform.concat()
+
         if showBackground {
             backgroundColor.setFill()
-            NSBezierPath(roundedRect: bounds, xRadius: 10, yRadius: 10).fill()
+            NSBezierPath(roundedRect: NSRect(x: 0, y: 0, width: layout.baseWidth, height: layout.baseHeight),
+                         xRadius: layout.cornerRadius, yRadius: layout.cornerRadius).fill()
         }
         switch state {
         case .recording:
-            drawSymbol("mic.fill", color: recColor, in: iconRect)
-            drawWave(delta: delta)
+            if let r = layout.iconRect { drawSymbol("mic.fill", color: recColor, in: r) }
+            if layout.showWaveform { drawWave(delta: delta) }
             drawTimerRow(now: now)
         case .whisper:
-            drawSymbol("waveform", color: whisperColor, in: iconRect)
+            if let r = layout.iconRect { drawSymbol("waveform", color: whisperColor, in: r) }
             drawSpinner(color: whisperColor)
             drawTimerRow(now: now)
         case .llm:
-            drawSymbol("sparkles", color: llmColor, in: iconRect)
+            if let r = layout.iconRect { drawSymbol("sparkles", color: llmColor, in: r) }
             drawSpinner(color: llmColor)
             drawTimerRow(now: now)
         case .error:
@@ -187,27 +231,95 @@ final class HudView: NSView {
         guard count > 0 else { return }
         waveTravel = (waveTravel + delta * 20.0).truncatingRemainder(dividingBy: Double(count))
 
-        let rise = min(1, delta * 30.0)
-        let fall = min(1, delta * 3.2)
+        let decaySpeed = WaveLevelFilter.clampDecaySpeed(AppSettings.shared.hudWaveDecaySpeed)
         for i in 0..<count {
             let raw = interpolated(target, at: Double(i) + waveTravel)
             let shimmer = 0.90 + 0.10 * sin(phase * 16.0 + Double(i) * 0.62)
             let next = min(1, max(0, raw * shimmer))
-            let rate = next >= levels[i] ? rise : fall
-            levels[i] += (next - levels[i]) * rate
+            levels[i] = WaveLevelFilter.step(current: levels[i], target: next, delta: delta, decaySpeed: decaySpeed)
         }
 
-        let barWidth: CGFloat = 3.2
-        let spacing = (contentRight - contentLeft - barWidth) / CGFloat(max(1, count - 1))
+        switch AppSettings.shared.hudWaveStyle {
+        case .bars:   drawWaveBars(count: count)
+        case .line:   drawWaveLine(count: count)
+        case .mirror: drawWaveMirror(count: count)
+        case .dots:   drawWaveDots(count: count)
+        case .blocks: drawWaveBlocks(count: count)
+        }
+    }
+
+    /// X position of bucket `i` so `width`-wide marks span content edge to edge.
+    private func waveX(_ i: Int, count: Int, width: CGFloat) -> CGFloat {
+        let spacing = (contentRight - contentLeft - width) / CGFloat(max(1, count - 1))
+        return contentLeft + CGFloat(i) * spacing
+    }
+
+    private func drawWaveBars(count: Int) {
+        let barWidth = layout.barWidth
         for i in 0..<count {
-            let h = 2.0 + CGFloat(levels[i]) * 30.0
+            let h = 2.0 + CGFloat(levels[i]) * layout.barMaxHeight
             let a = 0.12 + CGFloat(levels[i]) * 0.88
             recColor.withAlphaComponent(a).setFill()
-            let r = NSRect(x: contentLeft + CGFloat(i) * spacing,
-                           y: visualCenterY - h / 2,
-                           width: barWidth,
-                           height: h)
+            let r = NSRect(x: waveX(i, count: count, width: barWidth), y: visualCenterY - h / 2, width: barWidth, height: h)
             NSBezierPath(roundedRect: r, xRadius: 1.5, yRadius: 1.5).fill()
+        }
+    }
+
+    private func drawWaveLine(count: Int) {
+        let path = NSBezierPath()
+        path.lineWidth = 1.8
+        let spacing = (contentRight - contentLeft) / CGFloat(max(1, count - 1))
+        let amplitude = layout.barMaxHeight / 2
+        for i in 0..<count {
+            // Oscilloscope line: amplitude tracks the level, so silence is a flat
+            // line through the center and louder swings further up and down.
+            let osc = sin(phase * 6.0 + Double(i) * 0.5)
+            let p = NSPoint(x: contentLeft + CGFloat(i) * spacing,
+                            y: visualCenterY + CGFloat(levels[i]) * amplitude * CGFloat(osc))
+            if i == 0 { path.move(to: p) } else { path.line(to: p) }
+        }
+        recColor.withAlphaComponent(0.92).setStroke()
+        path.lineJoinStyle = .round
+        path.stroke()
+    }
+
+    private func drawWaveMirror(count: Int) {
+        let barWidth = layout.barWidth
+        for i in 0..<count {
+            let half = (2.0 + CGFloat(levels[i]) * layout.barMaxHeight) / 2
+            let x = waveX(i, count: count, width: barWidth)
+            let a = 0.12 + CGFloat(levels[i]) * 0.88
+            recColor.withAlphaComponent(a).setFill()
+            NSBezierPath(roundedRect: NSRect(x: x, y: visualCenterY + 1, width: barWidth, height: half), xRadius: 1.4, yRadius: 1.4).fill()
+            recColor.withAlphaComponent(a * 0.45).setFill()
+            NSBezierPath(roundedRect: NSRect(x: x, y: visualCenterY - 1 - half, width: barWidth, height: half), xRadius: 1.4, yRadius: 1.4).fill()
+        }
+    }
+
+    private func drawWaveDots(count: Int) {
+        for i in 0..<count {
+            let d = 2.0 + CGFloat(levels[i]) * (layout.barMaxHeight * 0.5)
+            let x = waveX(i, count: count, width: d)
+            let a = 0.16 + CGFloat(levels[i]) * 0.84
+            recColor.withAlphaComponent(a).setFill()
+            NSBezierPath(ovalIn: NSRect(x: x, y: visualCenterY - d / 2, width: d, height: d)).fill()
+        }
+    }
+
+    private func drawWaveBlocks(count: Int) {
+        let barWidth = layout.barWidth
+        let blockH: CGFloat = 3.0
+        let gap: CGFloat = 1.5
+        for i in 0..<count {
+            let total = 2.0 + CGFloat(levels[i]) * layout.barMaxHeight
+            let x = waveX(i, count: count, width: barWidth)
+            let a = 0.14 + CGFloat(levels[i]) * 0.86
+            recColor.withAlphaComponent(a).setFill()
+            let segments = max(1, Int(total / (blockH + gap)))
+            for s in 0..<segments {
+                let y = visualCenterY - total / 2 + CGFloat(s) * (blockH + gap)
+                NSBezierPath(rect: NSRect(x: x, y: y, width: barWidth, height: blockH)).fill()
+            }
         }
     }
 
@@ -246,7 +358,7 @@ final class HudView: NSView {
     }
 
     private func drawTimerRow(now: Date) {
-        guard AppSettings.shared.showHudTimer else { return }
+        guard layout.showTimer else { return }
         let durations = timeline.durations(at: now, state: state)
         let digitFont = NSFont.monospacedDigitSystemFont(ofSize: 10, weight: .semibold)
         let operatorFont = NSFont.systemFont(ofSize: 10, weight: .semibold)
@@ -280,7 +392,7 @@ final class HudView: NSView {
         let textWidth = widths.reduce(0, +) + gap * CGFloat(max(0, items.count - 1))
         let pillWidth = min(contentRight - contentLeft, max(58, textWidth + 18))
         let pillX = min(max(contentLeft, contentCenterX - pillWidth / 2), contentRight - pillWidth)
-        let pill = NSRect(x: pillX, y: 6, width: pillWidth, height: 17)
+        let pill = NSRect(x: pillX, y: layout.timerPillY, width: pillWidth, height: layout.timerPillHeight)
         NSColor.black.withAlphaComponent(0.24).setFill()
         NSBezierPath(roundedRect: pill, xRadius: 8.5, yRadius: 8.5).fill()
 
