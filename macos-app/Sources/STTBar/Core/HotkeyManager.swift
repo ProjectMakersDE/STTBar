@@ -16,7 +16,7 @@ struct HotkeyRegistrationStatus: Identifiable, Equatable {
 /// Registers up to three global hotkeys and invokes `onTrigger(mode)` on the
 /// main thread. Re-register by calling `reload()` after settings change.
 final class HotkeyManager {
-    var onTrigger: ((SttMode) -> Void)?
+    var onTrigger: ((SttMode, Date?) -> Void)?
     var onStatusesChanged: (([HotkeyRegistrationStatus]) -> Void)?
     private var refs: [EventHotKeyRef?] = []
     private var handler: EventHandlerRef?
@@ -26,11 +26,15 @@ final class HotkeyManager {
         var spec = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: OSType(kEventHotKeyPressed))
         let this = Unmanaged.passUnretained(self).toOpaque()
         InstallEventHandler(GetEventDispatcherTarget(), { _, event, ctx in
+            // Stamp arrival here, synchronously, before the hop to main. Doing
+            // it after the async dispatch would smear the measured interval and
+            // hide main-thread latency — exactly the signal we want.
+            let arrivedAt = Date()
             var hkID = EventHotKeyID()
             GetEventParameter(event, EventParamName(kEventParamDirectObject), EventParamType(typeEventHotKeyID),
                               nil, MemoryLayout<EventHotKeyID>.size, nil, &hkID)
             let mgr = Unmanaged<HotkeyManager>.fromOpaque(ctx!).takeUnretainedValue()
-            if let mode = mgr.idToMode[hkID.id] { DispatchQueue.main.async { mgr.onTrigger?(mode) } }
+            if let mode = mgr.idToMode[hkID.id] { DispatchQueue.main.async { mgr.onTrigger?(mode, arrivedAt) } }
             return noErr
         }, 1, &spec, this, &handler)
         reload()

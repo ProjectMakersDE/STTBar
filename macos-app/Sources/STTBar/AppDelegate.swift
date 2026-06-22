@@ -57,7 +57,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             case .clipboardOnly(let reason): AppLogger.log("native_paste clipboard_only reason=\(reason)")
             }
         }
-        let trigger: (SttMode) -> Void = { [weak self] mode in self?.runner.trigger(mode: mode) }
+        let trigger: (SttMode, Date?) -> Void = { [weak self] mode, eventTime in self?.runner.trigger(mode: mode, eventTime: eventTime) }
         menu.onTrigger = trigger
         menu.onCancelRecording = { [weak self] in self?.runner.cancelRecording() }
         menu.onOpenStatus = { [weak self] in self?.showStatus() }

@@ -3,7 +3,7 @@ import AppKit
 /// Owns the menu-bar status item: a state-driven SF Symbol and a dropdown menu.
 final class MenuBarController {
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-    var onTrigger: ((SttMode) -> Void)?
+    var onTrigger: ((SttMode, Date?) -> Void)?
     var onCancelRecording: (() -> Void)?
     var onOpenStatus: (() -> Void)?
     var onOpenSettings: (() -> Void)?
@@ -121,7 +121,7 @@ final class MenuBarController {
     }
 
     @objc private func triggerMode(_ sender: NSMenuItem) {
-        if let raw = sender.representedObject as? String, let m = SttMode(rawValue: raw) { onTrigger?(m) }
+        if let raw = sender.representedObject as? String, let m = SttMode(rawValue: raw) { onTrigger?(m, nil) }
     }
     @objc private func cancelRecording() { onCancelRecording?() }
     @objc private func openStatus() { onOpenStatus?() }
