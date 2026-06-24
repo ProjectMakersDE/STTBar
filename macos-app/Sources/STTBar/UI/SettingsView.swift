@@ -417,7 +417,7 @@ private struct PermissionRow: View {
 private struct GeneralTab: View {
     @ObservedObject var model: SettingsModel
     @ObservedObject private var loc = Localization.shared
-    @State private var autostart = LaunchAgent.isEnabled
+    @State private var autostart = LoginItem.isEnabled
 
     var body: some View {
         let version = VersionInfo.load(installDir: model.installDir)
@@ -438,8 +438,7 @@ private struct GeneralTab: View {
             Section(L("Start", "Startup")) {
                 Toggle(L("Beim Login automatisch starten", "Launch automatically at login"), isOn: $autostart)
                     .onChange(of: autostart) { _, on in
-                        let appPath = Bundle.main.bundlePath
-                        LaunchAgent.setEnabled(on, appPath: appPath, installDir: model.installDir.path)
+                        if !LoginItem.setEnabled(on) { autostart = LoginItem.isEnabled }
                     }
             }
             Section(L("Berechtigungen", "Permissions")) {

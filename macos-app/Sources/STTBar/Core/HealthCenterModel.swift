@@ -130,13 +130,10 @@ final class HealthCenterModel: ObservableObject {
     }
 
     private func launchAgentCheck() -> HealthCheckItem {
-        let plist = LaunchAgent.plistURL
-        guard FileManager.default.fileExists(atPath: plist.path) else {
-            return HealthCheckItem(title: "LaunchAgent", detail: L("Nicht installiert", "Not installed"), level: .warning)
-        }
-        let text = (try? String(contentsOf: plist, encoding: .utf8)) ?? ""
-        let ok = text.contains(settings.installDir.path)
-        return HealthCheckItem(title: "LaunchAgent", detail: ok ? L("Pfad korrekt", "Path correct") : L("Pfad prüfen", "Check path"), level: ok ? .ok : .warning)
+        let enabled = LoginItem.isEnabled
+        return HealthCheckItem(title: L("Autostart", "Launch at login"),
+                               detail: enabled ? L("Aktiv", "Enabled") : L("Aus", "Off"),
+                               level: .ok)
     }
 
     private func scriptCheck() -> HealthCheckItem {
