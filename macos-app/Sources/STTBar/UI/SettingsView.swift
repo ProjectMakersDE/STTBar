@@ -26,10 +26,22 @@ struct SettingsView: View {
 private struct ServerTab: View {
     @ObservedObject var model: SettingsModel
     @ObservedObject private var loc = Localization.shared
+    @StateObject private var models = WhisperModelManager()
     @State private var audioDevices: [String] = []
 
     var body: some View {
         Form {
+            Section(L("Transkriptions-Quelle", "Transcription source")) {
+                Picker(L("Quelle", "Source"), selection: $model.transcriptionSource) {
+                    Text(L("Server-URL", "Server URL")).tag(TranscriptionSource.server.rawValue)
+                    Text(L("Selbst hosten", "Self-host")).tag(TranscriptionSource.selfHost.rawValue)
+                    Text(L("Eingebaut / lokal", "Built-in / local")).tag(TranscriptionSource.local.rawValue)
+                }
+                .pickerStyle(.segmented)
+                Text(L("Lokal läuft offline über WhisperKit; Server/Selbst-Host nutzen einen Whisper-Endpunkt. Wird nach Anwenden aktiv.",
+                       "Local runs offline via WhisperKit; Server/Self-host use a Whisper endpoint. Takes effect after Apply."))
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             Section(L("Audio-Eingang", "Audio input")) {
                 Picker(L("Mikrofon", "Microphone"), selection: $model.audioInputDevice) {
                     ForEach(AudioInputCatalog.deviceIds(available: audioDevices, current: model.audioInputDevice), id: \.self) { id in
@@ -40,17 +52,47 @@ private struct ServerTab: View {
                        "Automatic uses the default microphone (Bluetooth headsets are avoided). Takes effect after Apply."))
                     .font(.caption).foregroundStyle(.secondary)
             }
-            Section("Whisper") {
-                TextField(L("Whisper-URL", "Whisper URL"), text: $model.whisperURL)
-                Picker(L("Whisper-Modell", "Whisper model"), selection: $model.whisperModel) {
-                    ForEach(SettingsModel.whisperPresets, id: \.self) { Text($0).tag($0) }
-                    if !SettingsModel.whisperPresets.contains(model.whisperModel) {
-                        Text(model.whisperModel).tag(model.whisperModel)
+            if model.transcriptionSource != TranscriptionSource.local.rawValue {
+                Section("Whisper") {
+                    TextField(L("Whisper-URL", "Whisper URL"), text: $model.whisperURL)
+                    Picker(L("Whisper-Modell", "Whisper model"), selection: $model.whisperModel) {
+                        ForEach(SettingsModel.whisperPresets, id: \.self) { Text($0).tag($0) }
+                        if !SettingsModel.whisperPresets.contains(model.whisperModel) {
+                            Text(model.whisperModel).tag(model.whisperModel)
+                        }
+                    }
+                    TextField(L("Whisper-Modell", "Whisper model"), text: $model.whisperModel)
+                    TextField(L("Sprache", "Language"), text: $model.language)
+                    TextField(L("Whisper-Timeout (s)", "Whisper timeout (s)"), text: $model.transcribeTimeout)
+                    if model.transcriptionSource == TranscriptionSource.selfHost.rawValue {
+                        Button(L("localhost einsetzen + Anleitung öffnen", "Use localhost + open guide")) {
+                            model.whisperURL = "http://localhost:8000/v1/audio/transcriptions"
+                            if let url = URL(string: "https://github.com/ProjectMakersDE/STTBar#self-hosting") {
+                                NSWorkspace.shared.open(url)
+                            }
+                        }
                     }
                 }
-                TextField(L("Whisper-Modell", "Whisper model"), text: $model.whisperModel)
-                TextField(L("Sprache", "Language"), text: $model.language)
-                TextField(L("Whisper-Timeout (s)", "Whisper timeout (s)"), text: $model.transcribeTimeout)
+            }
+            if model.transcriptionSource == TranscriptionSource.local.rawValue {
+                Section(L("Lokales Modell (WhisperKit)", "Local model (WhisperKit)")) {
+                    Picker(L("Modell", "Model"), selection: $model.localModel) {
+                        Text(L("Automatisch (empfohlen)", "Automatic (recommended)")).tag("")
+                        ForEach(WhisperModelManager.presets, id: \.self) { Text($0).tag($0) }
+                        if !model.localModel.isEmpty && !WhisperModelManager.presets.contains(model.localModel) {
+                            Text(model.localModel).tag(model.localModel)
+                        }
+                    }
+                    Text(L("Empfehlung für diesen Mac: ", "Recommended for this Mac: ") + models.recommendedForThisMac())
+                        .font(.caption).foregroundStyle(.secondary)
+                    HStack {
+                        Button(L("Modell laden", "Load model")) { models.loadModel(model.localModel) }
+                            .disabled(models.working)
+                        if models.working { ProgressView().controlSize(.small) }
+                        if let s = models.status { Text(s).font(.caption).foregroundStyle(.secondary) }
+                    }
+                    TextField(L("Sprache", "Language"), text: $model.language)
+                }
             }
             Section(L("Nachbearbeitung", "Post-processing")) {
                 Toggle(L("LLM aktiv", "LLM enabled"), isOn: $model.postprocessEnabled)
@@ -473,6 +515,11 @@ private struct GeneralTab: View {
                          destination: URL(string: "https://github.com/ProjectMakersDE/STTBar/releases")!)
                 }
                 .font(.caption)
+            }
+            Section(L("Lizenzen", "Acknowledgements")) {
+                DisclosureGroup(L("Open-Source-Lizenzen (MIT)", "Open-source licenses (MIT)")) {
+                    AcknowledgementsView().frame(height: 220)
+                }
             }
             Section {
                 HStack(spacing: 4) {
