@@ -36,7 +36,6 @@ struct StatusView: View {
                 Button(L("Whisper testen", "Test Whisper")) { model.testWhisper() }
                 Button(L("LM Studio testen", "Test LM Studio")) { model.testLMStudio() }
                 Button(L("Mikrofon-Test", "Microphone test")) { model.microphoneTest() }
-                Button(L("Testaufnahme 3s", "Test recording 3s")) { model.testRecording() }
                 Button(L("Testtext einfügen", "Insert test text")) { model.clipboardTest() }
                 Button(L("Server vorwärmen", "Warm up servers")) { model.prewarmServers() }
                 Spacer()

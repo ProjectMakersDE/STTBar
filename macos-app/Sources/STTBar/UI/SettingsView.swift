@@ -233,14 +233,9 @@ private struct PromptsTab: View {
                     .border(Color(NSColor.separatorColor))
                 HStack {
                     Button(evalRunning ? L("Teste…", "Testing…") : L("Prompt testen", "Test prompt")) {
-                        if let id = selection ?? model.prompts.activePrompt?.id {
-                            evalRunning = true
-                            evalOutput = ""
-                            model.runPromptEval(promptId: id, input: evalInput) {
-                                evalOutput = $0.trimmingCharacters(in: .whitespacesAndNewlines)
-                                evalRunning = false
-                            }
-                        }
+                        // Native prompt eval returns in Phase 2 (LLM cleanup).
+                        evalOutput = L("Prompt-Test kehrt in Phase 2 (LLM-Cleanup) zurück.",
+                                       "Prompt testing returns in Phase 2 (LLM cleanup).")
                     }
                     .disabled(evalRunning || evalInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     Spacer()

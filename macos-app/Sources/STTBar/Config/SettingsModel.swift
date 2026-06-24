@@ -283,37 +283,6 @@ final class SettingsModel: ObservableObject {
         saveMessage = "Importiert"
     }
 
-    func runPromptEval(promptId: String, input: String, completion: @escaping (String) -> Void) {
-        guard let prompt = prompts.prompts.first(where: { $0.id == promptId }) else { completion(""); return }
-        DispatchQueue.global().async {
-            let process = Process()
-            let inputPipe = Pipe()
-            let outputPipe = Pipe()
-            process.executableURL = URL(fileURLWithPath: "/bin/bash")
-            process.arguments = ["-lc", "exec \(Self.shellQuote(self.installDir.appendingPathComponent("stt-postprocess.sh").path))"]
-            var env = ProcessInfo.processInfo.environment
-            env["STT_POSTPROCESS_PROMPT"] = prompt.body
-            env["STT_POSTPROCESS_ENABLED"] = "1"
-            env["STT_REPLACEMENTS_ENABLED"] = "1"
-            env["STT_POSTPROCESS_LOG_ENABLED"] = "0"
-            process.environment = env
-            process.standardInput = inputPipe
-            process.standardOutput = outputPipe
-            process.standardError = Pipe()
-            do {
-                try process.run()
-                inputPipe.fileHandleForWriting.write(Data(input.utf8))
-                try? inputPipe.fileHandleForWriting.close()
-                process.waitUntilExit()
-                let data = outputPipe.fileHandleForReading.readDataToEndOfFile()
-                let output = String(data: data, encoding: .utf8) ?? ""
-                DispatchQueue.main.async { completion(output) }
-            } catch {
-                DispatchQueue.main.async { completion("Fehler: \(error.localizedDescription)") }
-            }
-        }
-    }
-
     func addPrompt(title: String, body: String) {
         _ = try? prompts.add(title: title, body: body)
         objectWillChange.send()
@@ -419,10 +388,6 @@ final class SettingsModel: ObservableObject {
             "STT_AUTO_RAW_FALLBACK": autoRawFallback ? "1" : "0",
             "STT_AUDIO_DEVICE": audioInputDevice,
         ]
-    }
-
-    private static func shellQuote(_ s: String) -> String {
-        "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }
 
     private struct ExportBundle: Codable {
