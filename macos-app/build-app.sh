@@ -84,7 +84,7 @@ fi
 #    is anchored to the certificate (not the cdhash); TCC grants survive local
 #    rebuilds. Used when no Developer ID cert is supplied.
 if [[ -z "$IDENTITY" ]] && IDENTITY="$(bash "$HERE/setup-signing-cert.sh" 2>/dev/null | tail -1)" && [[ -n "$IDENTITY" ]]; then
-    if codesign --force --sign "$IDENTITY" --timestamp=none "$APP" >/dev/null 2>&1; then
+    if codesign --force --sign "$IDENTITY" --entitlements "$ENTITLEMENTS" --timestamp=none "$APP" >/dev/null 2>&1; then
         echo "Signed (stable identity): $IDENTITY"
     else
         echo "WARN: signing with '$IDENTITY' failed; falling back to ad-hoc."
@@ -94,7 +94,7 @@ fi
 
 # 3) Last resort: ad-hoc (cdhash-anchored; grant lost on every rebuild).
 if [[ -z "$IDENTITY" ]]; then
-    codesign --force --sign - --timestamp=none "$APP" >/dev/null 2>&1 \
+    codesign --force --sign - --entitlements "$ENTITLEMENTS" --timestamp=none "$APP" >/dev/null 2>&1 \
         && echo "Signed (ad-hoc — grant will be lost on next rebuild): $APP" \
         || echo "WARN: ad-hoc signing failed (continuing)"
 fi
