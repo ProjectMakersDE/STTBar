@@ -29,7 +29,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         RuntimePaths.ensureDirectory()
-        runner = SttRunner(scriptPath: installDir.appendingPathComponent("stt-global.sh").path)
+        runner = SttRunner()
         hud = HudOverlay(runner: runner)
         menu = MenuBarController()
         hotkeys = HotkeyManager()
