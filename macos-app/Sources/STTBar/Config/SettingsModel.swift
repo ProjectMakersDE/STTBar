@@ -49,20 +49,6 @@ final class SettingsModel: ObservableObject {
     @Published var validationMessage: String?
     @Published var saveMessage: String?
     @Published var hotkeyStatuses: [HotkeyRegistrationStatus] = []
-    @Published var updateMessage: String?
-    @Published var updateURL: URL?
-    @Published var updateState: UpdateState = .idle
-    @Published var latestVersion: String?
-    var appAssetURL: URL?
-    var scriptsAssetURL: URL?
-    var appSha256URL: URL?
-
-    enum UpdateState: Equatable { case idle, checking, upToDate, available, downloading, installing, failed }
-
-    static let defaultUpdateRepository = "ProjectMakersDE/STTBar"
-
-    /// The GitHub `owner/repo` slug used for update checks.
-    var updateRepository: String { env.value("STTBAR_UPDATE_REPOSITORY") ?? Self.defaultUpdateRepository }
 
     /// Common Whisper model presets surfaced in the picker (free text still allowed).
     static let whisperPresets = [
@@ -93,9 +79,6 @@ final class SettingsModel: ObservableObject {
         self.hudWaveDecaySpeed = AppSettings.shared.hudWaveDecaySpeed
         self.hudWaveStyle = AppSettings.shared.hudWaveStyle
         loadEnvDraft()
-        if env.value("STTBAR_UPDATE_REPOSITORY") == nil {
-            write("STTBAR_UPDATE_REPOSITORY", Self.defaultUpdateRepository)
-        }
         write("STT_POSTPROCESS_PROMPT_FILE", prompts.activeFileURL.path)
         try? env.save()
     }
@@ -300,133 +283,6 @@ final class SettingsModel: ObservableObject {
         saveMessage = "Importiert"
     }
 
-    func checkForUpdates() {
-        let version = VersionInfo.load(installDir: installDir)
-        let repository = updateRepository
-        guard let url = URL(string: "https://api.github.com/repos/\(repository)/releases/latest") else {
-            updateMessage = L("Update-URL ist ungültig.", "Update URL is invalid.")
-            updateState = .failed
-            return
-        }
-        updateMessage = L("Suche Releases auf GitHub…", "Checking GitHub releases…")
-        updateState = .checking
-        updateURL = nil
-        appAssetURL = nil; scriptsAssetURL = nil; appSha256URL = nil
-        var request = URLRequest(url: url)
-        request.cachePolicy = .reloadIgnoringLocalCacheData
-        request.setValue("STTBar/\(version.appVersion)", forHTTPHeaderField: "User-Agent")
-
-        URLSession.shared.dataTask(with: request) { data, response, error in
-            let message: String
-            var releaseURL: URL?
-            var state: UpdateState = .idle
-            var assets: [GitHubAsset] = []
-            var latestVersion: String?
-            defer {
-                DispatchQueue.main.async {
-                    self.updateMessage = message
-                    self.updateURL = releaseURL
-                    self.updateState = state
-                    self.latestVersion = latestVersion
-                    self.appAssetURL = Self.pickAsset(assets, name: "STTBar.app.zip")
-                    self.scriptsAssetURL = Self.pickAsset(assets, name: "stt-scripts.zip")
-                    self.appSha256URL = Self.pickAsset(assets, name: "STTBar.app.zip.sha256")
-                }
-            }
-
-            if let error {
-                message = L("Update-Check fehlgeschlagen: ", "Update check failed: ") + error.localizedDescription
-                state = .failed
-                return
-            }
-            if let http = response as? HTTPURLResponse, http.statusCode == 404 {
-                message = L("Noch kein öffentliches Release gefunden.", "No public release found yet.")
-                state = .upToDate
-                return
-            }
-            guard let data,
-                  let release = try? JSONDecoder().decode(GitHubRelease.self, from: data) else {
-                message = L("GitHub-Release konnte nicht gelesen werden.", "Could not read the GitHub release.")
-                state = .failed
-                return
-            }
-            let latest = Self.normalizedVersion(release.tagName)
-            let current = Self.normalizedVersion(version.appVersion)
-            releaseURL = URL(string: release.htmlURL)
-            assets = release.assets
-            latestVersion = latest
-            switch Self.compareVersions(latest, current) {
-            case .orderedDescending:
-                message = L("Update verfügbar: v\(latest) (installiert v\(current))",
-                            "Update available: v\(latest) (installed v\(current))")
-                state = .available
-            case .orderedSame:
-                message = L("Aktuell: v\(current)", "Up to date: v\(current)")
-                state = .upToDate
-            case .orderedAscending:
-                message = L("Installiert: v\(current), neuestes Release: v\(latest)",
-                            "Installed: v\(current), latest release: v\(latest)")
-                state = .upToDate
-            }
-        }.resume()
-    }
-
-    static func pickAsset(_ assets: [GitHubAsset], name: String) -> URL? {
-        assets.first { $0.name == name }?.url
-    }
-
-    /// Download + install the available update, then relaunch.
-    func performUpdate() {
-        guard let appZip = appAssetURL else {
-            updateState = .failed
-            updateMessage = L("Kein App-Asset im Release gefunden.", "No app asset found in the release.")
-            return
-        }
-        updateState = .downloading
-        UpdateInstaller.performUpdate(
-            appZip: appZip, scriptsZip: scriptsAssetURL, sha256: appSha256URL,
-            appBundlePath: Bundle.main.bundlePath, installDir: installDir,
-            log: { msg in DispatchQueue.main.async { self.updateMessage = msg } },
-            done: { result in
-                DispatchQueue.main.async {
-                    switch result {
-                    case .success:
-                        self.updateState = .installing
-                        self.updateMessage = L("Update installiert. Starte neu…", "Update installed. Relaunching…")
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { NSApp.terminate(nil) }
-                    case .failure:
-                        self.updateState = .failed
-                        self.updateMessage = L("Update fehlgeschlagen. Bitte install.sh manuell ausführen.",
-                                               "Update failed. Please run install.sh manually.")
-                    }
-                }
-            })
-    }
-
-    private static func normalizedVersion(_ raw: String) -> String {
-        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.lowercased().hasPrefix("v") ? String(trimmed.dropFirst()) : trimmed
-    }
-
-    private static func compareVersions(_ left: String, _ right: String) -> ComparisonResult {
-        let a = versionParts(left)
-        let b = versionParts(right)
-        for i in 0..<max(a.count, b.count) {
-            let av = i < a.count ? a[i] : 0
-            let bv = i < b.count ? b[i] : 0
-            if av > bv { return .orderedDescending }
-            if av < bv { return .orderedAscending }
-        }
-        return .orderedSame
-    }
-
-    private static func versionParts(_ version: String) -> [Int] {
-        version.split(separator: ".").map { part in
-            let digits = part.prefix { $0.isNumber }
-            return Int(digits) ?? 0
-        }
-    }
-
     func runPromptEval(promptId: String, input: String, completion: @escaping (String) -> Void) {
         guard let prompt = prompts.prompts.first(where: { $0.id == promptId }) else { completion(""); return }
         DispatchQueue.global().async {
@@ -574,27 +430,5 @@ final class SettingsModel: ObservableObject {
         var prompts: [Prompt]
         var replacements: [ReplacementEntry]
         var profiles: [SttProfile]
-    }
-}
-
-/// A downloadable file attached to a GitHub release.
-struct GitHubAsset: Decodable {
-    let name: String
-    let url: URL
-    enum CodingKeys: String, CodingKey {
-        case name
-        case url = "browser_download_url"
-    }
-}
-
-/// The subset of a GitHub release payload STTBar needs for update checks.
-struct GitHubRelease: Decodable {
-    let tagName: String
-    let htmlURL: String
-    let assets: [GitHubAsset]
-    enum CodingKeys: String, CodingKey {
-        case tagName = "tag_name"
-        case htmlURL = "html_url"
-        case assets
     }
 }

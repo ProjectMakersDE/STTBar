@@ -421,7 +421,6 @@ private struct GeneralTab: View {
 
     var body: some View {
         let version = VersionInfo.load(installDir: model.installDir)
-        let repo = model.updateRepository
         Form {
             Section(L("Sprache", "Language")) {
                 Picker(L("App-Sprache", "App language"), selection: Binding(
@@ -474,29 +473,11 @@ private struct GeneralTab: View {
                 Text(L("Installiert: ", "Installed: ") + version.installedAt)
                 HStack {
                     Link(L("GitHub-Repository", "GitHub repository"),
-                         destination: URL(string: "https://github.com/\(repo)")!)
+                         destination: URL(string: "https://github.com/ProjectMakersDE/STTBar")!)
                     Link(L("Releases öffnen", "Open releases"),
-                         destination: URL(string: "https://github.com/\(repo)/releases")!)
+                         destination: URL(string: "https://github.com/ProjectMakersDE/STTBar/releases")!)
                 }
                 .font(.caption)
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Button(L("Nach Updates suchen", "Check for updates")) { model.checkForUpdates() }
-                        if model.updateState == .available {
-                            Button(L("Aktualisieren", "Update")) { model.performUpdate() }
-                                .buttonStyle(.borderedProminent)
-                        }
-                        if let url = model.updateURL {
-                            Button(L("Release öffnen", "Open release")) { NSWorkspace.shared.open(url) }
-                        }
-                    }
-                    if model.updateState == .downloading || model.updateState == .installing {
-                        ProgressView().controlSize(.small)
-                    }
-                    if let message = model.updateMessage {
-                        Text(message).font(.caption).foregroundStyle(.secondary)
-                    }
-                }
             }
             Section {
                 HStack(spacing: 4) {
