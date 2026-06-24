@@ -4,8 +4,14 @@ import PackageDescription
 let package = Package(
     name: "STTBar",
     platforms: [.macOS(.v14)],
+    dependencies: [
+        .package(url: "https://github.com/argmaxinc/WhisperKit.git", .upToNextMajor(from: "1.0.0")),
+    ],
     targets: [
-        .executableTarget(name: "STTBar", path: "Sources/STTBar"),
+        .executableTarget(
+            name: "STTBar",
+            dependencies: [.product(name: "WhisperKit", package: "WhisperKit")],
+            path: "Sources/STTBar"),
         .testTarget(name: "STTBarTests", dependencies: ["STTBar"], path: "Tests/STTBarTests"),
     ]
 )
