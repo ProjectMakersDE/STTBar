@@ -132,6 +132,7 @@ struct PromptStore {
     }
 
     private func persist() throws {
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let data = try JSONEncoder().encode(Persisted(activeId: activeId, prompts: prompts))
         try data.write(to: jsonURL, options: .atomic)
         try (activePrompt?.body ?? "").write(to: activeFileURL, atomically: true, encoding: .utf8)

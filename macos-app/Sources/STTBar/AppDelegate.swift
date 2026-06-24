@@ -29,6 +29,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         RuntimePaths.ensureDirectory()
+        try? FileManager.default.createDirectory(at: installDir, withIntermediateDirectories: true)
         runner = SttRunner()
         hud = HudOverlay(runner: runner)
         menu = MenuBarController()
@@ -153,12 +154,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
-/// Resolves the directory containing the shell scripts + .env. Order: env var,
-/// the standard install dir, else a sensible default.
+/// Resolves the directory holding the app's config (.env, prompts, profiles,
+/// replacements). Under the App Sandbox this is the container's Application
+/// Support; `STT_INSTALL_DIR` overrides it for tests/dev.
 enum InstallPaths {
     static func resolve() -> URL {
-        if let p = ProcessInfo.processInfo.environment["STT_INSTALL_DIR"] { return URL(fileURLWithPath: p) }
-        let std = (NSHomeDirectory() as NSString).appendingPathComponent(".local/share/stt")
-        return URL(fileURLWithPath: std)
+        if let p = ProcessInfo.processInfo.environment["STT_INSTALL_DIR"], !p.isEmpty {
+            return URL(fileURLWithPath: p)
+        }
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            ?? URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Library/Application Support")
+        return base.appendingPathComponent("STTBar", isDirectory: true)
     }
 }
