@@ -18,6 +18,10 @@ struct TranscriptionConfig {
     /// Snapshot of the configured word replacements (value type — safe to use
     /// off the main thread inside the async pipeline).
     var replacements: ReplacementStore
+    /// "server" | "selfhost" | "local".
+    var source: String
+    /// WhisperKit model name for local mode (empty = WhisperKit auto-select).
+    var localModel: String
 
     /// The Whisper `language` form field, or nil when auto-detect is requested.
     static func languageParam(for language: String) -> String? {
@@ -39,6 +43,8 @@ struct TranscriptionConfig {
             postprocessTimeout: TimeInterval(Int(model.postprocessTimeout) ?? 60),
             temperature: 0,
             reasoning: "off",
-            replacements: model.replacements)
+            replacements: model.replacements,
+            source: model.transcriptionSource,
+            localModel: model.localModel)
     }
 }

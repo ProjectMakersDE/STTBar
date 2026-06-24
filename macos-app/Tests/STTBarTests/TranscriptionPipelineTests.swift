@@ -8,7 +8,8 @@ private func makeConfig(language: String = "de", provider: String = "lmstudio") 
                         postprocessEnabled: false, provider: provider, lmStudioURL: "http://localhost:1234/api/v1/chat",
                         llmModel: "m", promptBody: "SYS", transcribeTimeout: 30,
                         postprocessTimeout: 60, temperature: 0, reasoning: "off",
-                        replacements: ReplacementStore(directory: FileManager.default.temporaryDirectory))
+                        replacements: ReplacementStore(directory: FileManager.default.temporaryDirectory),
+                        source: "server", localModel: "")
 }
 
 final class TranscriptionConfigTests: XCTestCase {
@@ -82,6 +83,21 @@ final class AudioRecorderTests: XCTestCase {
         XCTAssertEqual(AudioRecorder.targetSettings[AVSampleRateKey] as? Int, 16000)
         XCTAssertEqual(AudioRecorder.targetSettings[AVNumberOfChannelsKey] as? Int, 1)
         XCTAssertEqual(AudioRecorder.targetSettings[AVLinearPCMBitDepthKey] as? Int, 16)
+    }
+}
+
+final class TranscriptionSourceTests: XCTestCase {
+    func testSourceMapping() {
+        XCTAssertEqual(TranscriptionSource(rawValue: "local"), .local)
+        XCTAssertEqual(TranscriptionSource(rawValue: "selfhost"), .selfHost)
+        XCTAssertEqual(TranscriptionSource(rawValue: "server"), .server)
+        XCTAssertNil(TranscriptionSource(rawValue: "bogus"))
+    }
+
+    func testIsLocalOnlyForLocal() {
+        XCTAssertTrue(Transcribers.isLocal(.local))
+        XCTAssertFalse(Transcribers.isLocal(.server))
+        XCTAssertFalse(Transcribers.isLocal(.selfHost))
     }
 }
 

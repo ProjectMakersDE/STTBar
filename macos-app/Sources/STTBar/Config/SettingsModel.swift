@@ -32,6 +32,10 @@ final class SettingsModel: ObservableObject {
     @Published var sensitiveMode: Bool = false
     /// Recording input device, written to `STT_AUDIO_DEVICE`. Empty = automatic.
     @Published var audioInputDevice: String = ""
+    /// Transcription source: "server" | "selfhost" | "local" (STT_SOURCE).
+    @Published var transcriptionSource: String = "server"
+    /// WhisperKit model name for local mode (STT_LOCAL_MODEL). Empty = auto.
+    @Published var localModel: String = ""
 
     @Published var hudAnchor: HudAnchor { didSet { AppSettings.shared.hudAnchor = hudAnchor } }
     @Published var hudBackground: Bool { didSet { AppSettings.shared.hudBackground = hudBackground } }
@@ -104,6 +108,8 @@ final class SettingsModel: ObservableObject {
         write("STT_HISTORY_RETENTION_HOURS", historyRetentionHours)
         write("STT_SENSITIVE_MODE", sensitiveMode ? "1" : "0")
         write("STT_AUDIO_DEVICE", audioInputDevice)
+        write("STT_SOURCE", transcriptionSource)
+        write("STT_LOCAL_MODEL", localModel)
         do {
             try env.save()
             syncAppSettingsFromDraft()
@@ -350,6 +356,8 @@ final class SettingsModel: ObservableObject {
         historyRetentionHours = env.value("STT_HISTORY_RETENTION_HOURS") ?? "\(AppSettings.shared.historyRetentionHours)"
         sensitiveMode = (env.value("STT_SENSITIVE_MODE") ?? (AppSettings.shared.sensitiveMode ? "1" : "0")) == "1"
         audioInputDevice = env.value("STT_AUDIO_DEVICE") ?? ""
+        transcriptionSource = env.value("STT_SOURCE") ?? "server"
+        localModel = env.value("STT_LOCAL_MODEL") ?? ""
         syncAppSettingsFromDraft()
     }
 

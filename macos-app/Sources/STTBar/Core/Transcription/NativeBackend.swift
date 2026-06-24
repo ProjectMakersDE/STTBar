@@ -5,16 +5,19 @@ import Foundation
 final class NativeBackend: TranscriptionBackend {
     private let configProvider: () -> TranscriptionConfig
     private let recorder: AudioRecorder
-    private let whisper: WhisperClient
+    private let remote: RemoteTranscriber
+    private let local: LocalTranscriber
     private let llm: LLMClient
 
     init(config: @escaping () -> TranscriptionConfig,
          recorder: AudioRecorder = AudioRecorder(),
-         whisper: WhisperClient = WhisperClient(),
+         remote: RemoteTranscriber = RemoteTranscriber(),
+         local: LocalTranscriber = LocalTranscriber(),
          llm: LLMClient = LLMClient()) {
         self.configProvider = config
         self.recorder = recorder
-        self.whisper = whisper
+        self.remote = remote
+        self.local = local
         self.llm = llm
     }
 
@@ -35,7 +38,9 @@ final class NativeBackend: TranscriptionBackend {
         let config = configProvider()
         Task {
             do {
-                let raw = try await whisper.transcribe(audioURL: audioURL, config: config)
+                let source = TranscriptionSource(rawValue: config.source) ?? .server
+                let transcriber: Transcriber = Transcribers.isLocal(source) ? local : remote
+                let raw = try await transcriber.transcribe(audioURL: audioURL, config: config)
                 var text = raw
                 if Self.usesLLM(mode) && config.postprocessEnabled {
                     do {
