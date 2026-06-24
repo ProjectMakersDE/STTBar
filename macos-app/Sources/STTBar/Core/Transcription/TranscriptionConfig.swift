@@ -15,6 +15,9 @@ struct TranscriptionConfig {
     var postprocessTimeout: TimeInterval
     var temperature: Double
     var reasoning: String
+    /// Snapshot of the configured word replacements (value type — safe to use
+    /// off the main thread inside the async pipeline).
+    var replacements: ReplacementStore
 
     /// The Whisper `language` form field, or nil when auto-detect is requested.
     static func languageParam(for language: String) -> String? {
@@ -35,6 +38,7 @@ struct TranscriptionConfig {
             transcribeTimeout: TimeInterval(Int(model.postprocessTimeout) ?? 30),
             postprocessTimeout: TimeInterval(Int(model.postprocessTimeout) ?? 60),
             temperature: 0,
-            reasoning: "off")
+            reasoning: "off",
+            replacements: model.replacements)
     }
 }

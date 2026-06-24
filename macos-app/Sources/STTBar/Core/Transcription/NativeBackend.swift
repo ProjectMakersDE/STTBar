@@ -4,18 +4,15 @@ import Foundation
 /// TranscriptionBackend seam. Server mode (remote / self-hosted Whisper).
 final class NativeBackend: TranscriptionBackend {
     private let configProvider: () -> TranscriptionConfig
-    private let replace: (String) -> String
     private let recorder: AudioRecorder
     private let whisper: WhisperClient
     private let llm: LLMClient
 
     init(config: @escaping () -> TranscriptionConfig,
-         replace: @escaping (String) -> String,
          recorder: AudioRecorder = AudioRecorder(),
          whisper: WhisperClient = WhisperClient(),
          llm: LLMClient = LLMClient()) {
         self.configProvider = config
-        self.replace = replace
         self.recorder = recorder
         self.whisper = whisper
         self.llm = llm
@@ -49,7 +46,7 @@ final class NativeBackend: TranscriptionBackend {
                         text = raw
                     }
                 }
-                let final = replace(text)
+                let final = config.replacements.preview(text)
                 completion(.success(final))
             } catch {
                 completion(.failure(error))

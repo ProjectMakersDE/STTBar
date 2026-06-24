@@ -30,11 +30,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         RuntimePaths.ensureDirectory()
         try? FileManager.default.createDirectory(at: installDir, withIntermediateDirectories: true)
-        runner = SttRunner()
+        // Model first: the native backend snapshots its settings at stop() time.
+        model = SettingsModel(installDir: installDir)
+        let settingsModel = model!
+        let backend = NativeBackend(config: { TranscriptionConfig.from(settingsModel) })
+        runner = SttRunner(backend: backend)
         hud = HudOverlay(runner: runner)
         menu = MenuBarController()
         hotkeys = HotkeyManager()
-        model = SettingsModel(installDir: installDir)
         warmer = ServerWarmer(model: model)
         warmer?.reload()
         healthModel = HealthCenterModel(settings: model, runner: runner)
@@ -76,6 +79,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hotkeys.onTrigger = trigger
         hotkeys.onStatusesChanged = { [weak self] statuses in self?.model.syncHotkeyStatuses(statuses) }
         hotkeys.install()
+        Permissions.requestMicrophone()
         menu.setLastProblem(StatusStore.latestProblem())
         startWatchdog()
         AppLogger.log("app_started installDir=\(installDir.path)")

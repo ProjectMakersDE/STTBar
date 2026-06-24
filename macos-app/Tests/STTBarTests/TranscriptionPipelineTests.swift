@@ -7,7 +7,8 @@ private func makeConfig(language: String = "de", provider: String = "lmstudio") 
                         whisperModel: "Systran/faster-whisper-base", language: language,
                         postprocessEnabled: false, provider: provider, lmStudioURL: "http://localhost:1234/api/v1/chat",
                         llmModel: "m", promptBody: "SYS", transcribeTimeout: 30,
-                        postprocessTimeout: 60, temperature: 0, reasoning: "off")
+                        postprocessTimeout: 60, temperature: 0, reasoning: "off",
+                        replacements: ReplacementStore(directory: FileManager.default.temporaryDirectory))
 }
 
 final class TranscriptionConfigTests: XCTestCase {
