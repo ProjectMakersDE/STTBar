@@ -7,6 +7,11 @@ import WhisperKit
 final class WhisperModelManager: ObservableObject {
     @Published var status: String?
     @Published var working = false
+    /// nil = never attempted, true/false = last load outcome. Lets the wizard
+    /// advance only once a model is actually downloaded.
+    @Published var lastSucceeded: Bool?
+    /// Called on the main actor when a load finishes (success flag).
+    var onFinished: ((Bool) -> Void)?
 
     /// Common WhisperKit model names; free text is still allowed in the field.
     static let presets = ["tiny", "base", "small", "medium", "large-v3", "large-v3-v20240930_626MB"]
@@ -34,15 +39,17 @@ final class WhisperModelManager: ObservableObject {
                 try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
                 let cfg = WhisperKitConfig(model: name.isEmpty ? nil : name, downloadBase: dir)
                 _ = try await WhisperKit(cfg)
-                await finish(L("Modell bereit.", "Model ready."))
+                await finish(L("Modell bereit.", "Model ready."), success: true)
             } catch {
-                await finish(L("Fehler: ", "Error: ") + error.localizedDescription)
+                await finish(L("Fehler: ", "Error: ") + error.localizedDescription, success: false)
             }
         }
     }
 
-    @MainActor private func finish(_ msg: String) {
+    @MainActor private func finish(_ msg: String, success: Bool) {
         status = msg
         working = false
+        lastSucceeded = success
+        onFinished?(success)
     }
 }
