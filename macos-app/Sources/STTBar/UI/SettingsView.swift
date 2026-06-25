@@ -26,20 +26,73 @@ struct SettingsView: View {
 private struct ServerTab: View {
     @ObservedObject var model: SettingsModel
     @ObservedObject private var loc = Localization.shared
+    @StateObject private var models = WhisperModelManager()
+    @State private var audioDevices: [String] = []
 
     var body: some View {
         Form {
-            Section("Whisper") {
-                TextField(L("Whisper-URL", "Whisper URL"), text: $model.whisperURL)
-                Picker(L("Whisper-Modell", "Whisper model"), selection: $model.whisperModel) {
-                    ForEach(SettingsModel.whisperPresets, id: \.self) { Text($0).tag($0) }
-                    if !SettingsModel.whisperPresets.contains(model.whisperModel) {
-                        Text(model.whisperModel).tag(model.whisperModel)
+            Section(L("Transkriptions-Quelle", "Transcription source")) {
+                Picker(L("Quelle", "Source"), selection: $model.transcriptionSource) {
+                    Text(L("Server-URL", "Server URL")).tag(TranscriptionSource.server.rawValue)
+                    Text(L("Selbst hosten", "Self-host")).tag(TranscriptionSource.selfHost.rawValue)
+                    Text(L("Eingebaut / lokal", "Built-in / local")).tag(TranscriptionSource.local.rawValue)
+                }
+                .pickerStyle(.segmented)
+                Text(L("Lokal läuft offline über WhisperKit; Server/Selbst-Host nutzen einen Whisper-Endpunkt. Wird nach Anwenden aktiv.",
+                       "Local runs offline via WhisperKit; Server/Self-host use a Whisper endpoint. Takes effect after Apply."))
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Section(L("Audio-Eingang", "Audio input")) {
+                Picker(L("Mikrofon", "Microphone"), selection: $model.audioInputDevice) {
+                    ForEach(AudioInputCatalog.deviceIds(available: audioDevices, current: model.audioInputDevice), id: \.self) { id in
+                        Text(audioDeviceLabel(id)).tag(id)
                     }
                 }
-                TextField(L("Whisper-Modell", "Whisper model"), text: $model.whisperModel)
-                TextField(L("Sprache", "Language"), text: $model.language)
-                TextField(L("Whisper-Timeout (s)", "Whisper timeout (s)"), text: $model.transcribeTimeout)
+                Text(L("Automatisch nutzt das Standard-Mikrofon (Bluetooth-Headsets werden vermieden). Wird nach Anwenden aktiv.",
+                       "Automatic uses the default microphone (Bluetooth headsets are avoided). Takes effect after Apply."))
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            if model.transcriptionSource != TranscriptionSource.local.rawValue {
+                Section("Whisper") {
+                    TextField(L("Whisper-URL", "Whisper URL"), text: $model.whisperURL)
+                    Picker(L("Whisper-Modell", "Whisper model"), selection: $model.whisperModel) {
+                        ForEach(SettingsModel.whisperPresets, id: \.self) { Text($0).tag($0) }
+                        if !SettingsModel.whisperPresets.contains(model.whisperModel) {
+                            Text(model.whisperModel).tag(model.whisperModel)
+                        }
+                    }
+                    TextField(L("Whisper-Modell", "Whisper model"), text: $model.whisperModel)
+                    TextField(L("Sprache", "Language"), text: $model.language)
+                    TextField(L("Whisper-Timeout (s)", "Whisper timeout (s)"), text: $model.transcribeTimeout)
+                    if model.transcriptionSource == TranscriptionSource.selfHost.rawValue {
+                        Button(L("localhost einsetzen + Anleitung öffnen", "Use localhost + open guide")) {
+                            model.whisperURL = "http://localhost:8000/v1/audio/transcriptions"
+                            if let url = URL(string: "https://github.com/ProjectMakersDE/STTBar#self-hosting") {
+                                NSWorkspace.shared.open(url)
+                            }
+                        }
+                    }
+                }
+            }
+            if model.transcriptionSource == TranscriptionSource.local.rawValue {
+                Section(L("Lokales Modell (WhisperKit)", "Local model (WhisperKit)")) {
+                    Picker(L("Modell", "Model"), selection: $model.localModel) {
+                        Text(L("Automatisch (empfohlen)", "Automatic (recommended)")).tag("")
+                        ForEach(WhisperModelManager.presets, id: \.self) { Text($0).tag($0) }
+                        if !model.localModel.isEmpty && !WhisperModelManager.presets.contains(model.localModel) {
+                            Text(model.localModel).tag(model.localModel)
+                        }
+                    }
+                    Text(L("Empfehlung für diesen Mac: ", "Recommended for this Mac: ") + models.recommendedForThisMac())
+                        .font(.caption).foregroundStyle(.secondary)
+                    HStack {
+                        Button(L("Modell laden", "Load model")) { models.loadModel(model.localModel) }
+                            .disabled(models.working)
+                        if models.working { ProgressView().controlSize(.small) }
+                        if let s = models.status { Text(s).font(.caption).foregroundStyle(.secondary) }
+                    }
+                    TextField(L("Sprache", "Language"), text: $model.language)
+                }
             }
             Section(L("Nachbearbeitung", "Post-processing")) {
                 Toggle(L("LLM aktiv", "LLM enabled"), isOn: $model.postprocessEnabled)
@@ -67,6 +120,13 @@ private struct ServerTab: View {
             }
         }
         .formStyle(.grouped)
+        .onAppear { audioDevices = AudioInputDevices.available() }
+    }
+
+    /// Display label for an audio-device env value in the picker.
+    private func audioDeviceLabel(_ id: String) -> String {
+        if id.isEmpty { return L("Automatisch", "Automatic") }
+        return audioDevices.contains(id) ? id : id + L(" (nicht verbunden)", " (disconnected)")
     }
 }
 
@@ -168,9 +228,6 @@ private struct PromptsTab: View {
     @ObservedObject private var loc = Localization.shared
     var openEditor: (String) -> Void
     @State private var selection: String?
-    @State private var evalInput = DefaultPrompt.evalInput
-    @State private var evalOutput = ""
-    @State private var evalRunning = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -205,40 +262,6 @@ private struct PromptsTab: View {
                 }
                 Button(L("Löschen", "Delete"), role: .destructive) { if let id = selection { model.removePrompt(id) } }
                     .disabled(selection == nil || model.prompts.prompts.count <= 1)
-            }
-            Divider()
-            VStack(alignment: .leading, spacing: 8) {
-                Text(L("Mini-Eval", "Mini eval")).font(.headline)
-                TextEditor(text: $evalInput)
-                    .font(.system(.body, design: .monospaced))
-                    .frame(height: 58)
-                    .border(Color(NSColor.separatorColor))
-                HStack {
-                    Button(evalRunning ? L("Teste…", "Testing…") : L("Prompt testen", "Test prompt")) {
-                        if let id = selection ?? model.prompts.activePrompt?.id {
-                            evalRunning = true
-                            evalOutput = ""
-                            model.runPromptEval(promptId: id, input: evalInput) {
-                                evalOutput = $0.trimmingCharacters(in: .whitespacesAndNewlines)
-                                evalRunning = false
-                            }
-                        }
-                    }
-                    .disabled(evalRunning || evalInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    Spacer()
-                }
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(L("Ausgabe", "Output")).font(.caption).foregroundStyle(.secondary)
-                    Text(evalRunning ? L("Prompt wird getestet…", "Testing prompt…") : (evalOutput.isEmpty ? L("Noch nicht getestet.", "Not tested yet.") : evalOutput))
-                        .font(.system(.body, design: .rounded))
-                        .foregroundStyle(evalOutput.isEmpty ? .secondary : .primary)
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, minHeight: 54, alignment: .topLeading)
-                        .padding(8)
-                        .background(Color(NSColor.textBackgroundColor))
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
-                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color(NSColor.separatorColor)))
-                }
             }
         }
         .onAppear { selection = model.prompts.activeId }
@@ -286,7 +309,7 @@ private struct DisplayTab: View {
 
     var body: some View {
         Form {
-            Section("HUD") {
+            Section(L("Position", "Position")) {
                 LazyVGrid(columns: Array(repeating: GridItem(.fixed(130)), count: 2), alignment: .leading) {
                     ForEach(anchors, id: \.self) { anchor in
                         Button {
@@ -297,7 +320,37 @@ private struct DisplayTab: View {
                         }
                     }
                 }
+                Toggle(L("Auf aktivem Monitor anzeigen", "Show on active monitor"), isOn: $model.hudFollowActiveScreen)
+                Stepper(L("Versatz X: \(model.hudOffsetX) pt", "Offset X: \(model.hudOffsetX) pt"),
+                        value: $model.hudOffsetX, in: -600...600, step: 4)
+                Stepper(L("Versatz Y: \(model.hudOffsetY) pt", "Offset Y: \(model.hudOffsetY) pt"),
+                        value: $model.hudOffsetY, in: -600...600, step: 4)
+            }
+            Section(L("Größe", "Size")) {
+                HStack {
+                    Text(L("Skalierung", "Scale"))
+                    Slider(value: $model.hudScale, in: 0.7...2.0, step: 0.05)
+                    Text("\(Int((model.hudScale * 100).rounded()))%").monospacedDigit().frame(width: 44, alignment: .trailing)
+                }
+            }
+            Section(L("Elemente", "Elements")) {
+                Toggle(L("Symbol anzeigen", "Show icon"), isOn: $model.showHudIcon)
                 Toggle(L("Timer anzeigen", "Show timer"), isOn: $model.showHudTimer)
+                Toggle(L("Waveform anzeigen", "Show waveform"), isOn: $model.showHudWaveform)
+            }
+            Section("Waveform") {
+                Picker(L("Stil", "Style"), selection: $model.hudWaveStyle) {
+                    ForEach(HudWaveStyle.allCases, id: \.self) { style in
+                        Text(style.label).tag(style)
+                    }
+                }
+                .disabled(!model.showHudWaveform)
+                HStack {
+                    Text(L("Abkling-Geschwindigkeit", "Release speed"))
+                    Slider(value: $model.hudWaveDecaySpeed, in: 0.3...3.0, step: 0.1)
+                    Text(String(format: "%.1f×", model.hudWaveDecaySpeed)).monospacedDigit().frame(width: 44, alignment: .trailing)
+                }
+                .disabled(!model.showHudWaveform)
             }
             Section(L("Hintergrund", "Background")) {
                 Toggle(L("Hintergrund anzeigen", "Show background"), isOn: $model.hudBackground)
@@ -369,11 +422,10 @@ private struct PermissionRow: View {
 private struct GeneralTab: View {
     @ObservedObject var model: SettingsModel
     @ObservedObject private var loc = Localization.shared
-    @State private var autostart = LaunchAgent.isEnabled
+    @State private var autostart = LoginItem.isEnabled
 
     var body: some View {
         let version = VersionInfo.load(installDir: model.installDir)
-        let repo = model.updateRepository
         Form {
             Section(L("Sprache", "Language")) {
                 Picker(L("App-Sprache", "App language"), selection: Binding(
@@ -390,8 +442,7 @@ private struct GeneralTab: View {
             Section(L("Start", "Startup")) {
                 Toggle(L("Beim Login automatisch starten", "Launch automatically at login"), isOn: $autostart)
                     .onChange(of: autostart) { _, on in
-                        let appPath = Bundle.main.bundlePath
-                        LaunchAgent.setEnabled(on, appPath: appPath, installDir: model.installDir.path)
+                        if !LoginItem.setEnabled(on) { autostart = LoginItem.isEnabled }
                     }
             }
             Section(L("Berechtigungen", "Permissions")) {
@@ -407,12 +458,6 @@ private struct GeneralTab: View {
                     granted: Permissions.microphoneStatus == .authorized,
                     openLabel: L("Öffnen", "Open"), grantLabel: L("Erlauben…", "Grant…"),
                     action: { Permissions.requestMicrophone(); Permissions.openMicrophone() })
-                PermissionRow(
-                    title: L("Automatisierung", "Automation"),
-                    detail: L("Nur für den AppleScript-Fallback relevant.", "Only relevant for the AppleScript fallback."),
-                    granted: nil,
-                    openLabel: L("Öffnen", "Open"), grantLabel: L("Erlauben…", "Grant…"),
-                    action: { Permissions.primeAutomation(); Permissions.openAutomation() })
             }
             Section("Import/Export") {
                 HStack {
@@ -427,28 +472,15 @@ private struct GeneralTab: View {
                 Text(L("Installiert: ", "Installed: ") + version.installedAt)
                 HStack {
                     Link(L("GitHub-Repository", "GitHub repository"),
-                         destination: URL(string: "https://github.com/\(repo)")!)
+                         destination: URL(string: "https://github.com/ProjectMakersDE/STTBar")!)
                     Link(L("Releases öffnen", "Open releases"),
-                         destination: URL(string: "https://github.com/\(repo)/releases")!)
+                         destination: URL(string: "https://github.com/ProjectMakersDE/STTBar/releases")!)
                 }
                 .font(.caption)
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Button(L("Nach Updates suchen", "Check for updates")) { model.checkForUpdates() }
-                        if model.updateState == .available {
-                            Button(L("Aktualisieren", "Update")) { model.performUpdate() }
-                                .buttonStyle(.borderedProminent)
-                        }
-                        if let url = model.updateURL {
-                            Button(L("Release öffnen", "Open release")) { NSWorkspace.shared.open(url) }
-                        }
-                    }
-                    if model.updateState == .downloading || model.updateState == .installing {
-                        ProgressView().controlSize(.small)
-                    }
-                    if let message = model.updateMessage {
-                        Text(message).font(.caption).foregroundStyle(.secondary)
-                    }
+            }
+            Section(L("Lizenzen", "Acknowledgements")) {
+                DisclosureGroup(L("Open-Source-Lizenzen (MIT)", "Open-source licenses (MIT)")) {
+                    AcknowledgementsView().frame(height: 220)
                 }
             }
             Section {

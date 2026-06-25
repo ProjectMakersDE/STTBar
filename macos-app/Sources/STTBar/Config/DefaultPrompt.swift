@@ -4,7 +4,6 @@ import Foundation
 enum DefaultPrompt {
     static let germanTitle = "Agent V4 (DE)"
     static let englishTitle = "Agent V4 (EN output)"
-    static let evalInput = "also ich glaube wir sollten die speicherlogik im prompt editor refactoren und danach einen test fuer die profile ergaenzen"
 
     static let seeds: [PromptSeed] = [
         PromptSeed(title: germanTitle,

@@ -34,11 +34,8 @@ final class HealthCenterModel: ObservableObject {
         var next: [HealthCheckItem] = []
         next.append(item("STTBar", true, L("App läuft", "App running")))
         next.append(launchAgentCheck())
-        next.append(scriptCheck())
-        next.append(toolCheck(["sox", "rec", "curl", "jq"]))
         next.append(item(L("Mikrofon", "Microphone"), Permissions.microphoneStatus == .authorized, L("Berechtigung", "Permission")))
         next.append(item(L("Bedienungshilfen", "Accessibility"), Permissions.accessibilityTrusted, L("Paste-Berechtigung", "Paste permission")))
-        next.append(HealthCheckItem(title: "Automation/System Events", detail: L("Bei nativer Paste nicht erforderlich; Fallback kann sie nutzen.", "Not required for native paste; the fallback may use it."), level: .unknown))
         next.append(urlCheck(title: L("Whisper-URL", "Whisper URL"), urlString: settings.whisperURL, required: true))
         if settings.postprocessEnabled {
             next.append(urlCheck(title: L("LM-Studio-URL", "LM Studio URL"), urlString: settings.lmStudioURL, required: true))
@@ -86,19 +83,6 @@ final class HealthCenterModel: ObservableObject {
         refresh()
     }
 
-    func testRecording() {
-        DispatchQueue.global().async {
-            let script = self.settings.installDir.appendingPathComponent("stt-record.sh").path
-            _ = Self.run("STT_RUNTIME_DIR=\(Self.shellQuote(RuntimePaths.directory.path)) \(Self.shellQuote(script)) start >/dev/null 2>&1")
-            Thread.sleep(forTimeInterval: 3)
-            let result = Self.run("STT_RUNTIME_DIR=\(Self.shellQuote(RuntimePaths.directory.path)) \(Self.shellQuote(script)) stop 2>&1")
-            DispatchQueue.main.async {
-                self.actionMessage = result.success ? L("Testaufnahme erstellt", "Test recording created") : L("Testaufnahme fehlgeschlagen: ", "Test recording failed: ") + result.output
-                self.refresh()
-            }
-        }
-    }
-
     func prewarmServers() {
         testWhisper()
         if settings.postprocessEnabled { testLMStudio() }
@@ -130,24 +114,10 @@ final class HealthCenterModel: ObservableObject {
     }
 
     private func launchAgentCheck() -> HealthCheckItem {
-        let plist = LaunchAgent.plistURL
-        guard FileManager.default.fileExists(atPath: plist.path) else {
-            return HealthCheckItem(title: "LaunchAgent", detail: L("Nicht installiert", "Not installed"), level: .warning)
-        }
-        let text = (try? String(contentsOf: plist, encoding: .utf8)) ?? ""
-        let ok = text.contains(settings.installDir.path)
-        return HealthCheckItem(title: "LaunchAgent", detail: ok ? L("Pfad korrekt", "Path correct") : L("Pfad prüfen", "Check path"), level: ok ? .ok : .warning)
-    }
-
-    private func scriptCheck() -> HealthCheckItem {
-        let scripts = ["stt-global.sh", "stt-record.sh", "stt-transcribe.sh", "stt-postprocess.sh", "stt-runtime.sh"]
-        let missing = scripts.filter { !FileManager.default.isExecutableFile(atPath: settings.installDir.appendingPathComponent($0).path) }
-        return HealthCheckItem(title: "Scripts", detail: missing.isEmpty ? L("Vorhanden und ausführbar", "Present and executable") : L("Fehlt/nicht ausführbar: ", "Missing/not executable: ") + missing.joined(separator: ", "), level: missing.isEmpty ? .ok : .error)
-    }
-
-    private func toolCheck(_ tools: [String]) -> HealthCheckItem {
-        let missing = tools.filter { !Self.run("command -v \($0) >/dev/null 2>&1").success }
-        return HealthCheckItem(title: "CLI-Tools", detail: missing.isEmpty ? tools.joined(separator: ", ") : L("Fehlt: ", "Missing: ") + missing.joined(separator: ", "), level: missing.isEmpty ? .ok : .error)
+        let enabled = LoginItem.isEnabled
+        return HealthCheckItem(title: L("Autostart", "Launch at login"),
+                               detail: enabled ? L("Aktiv", "Enabled") : L("Aus", "Off"),
+                               level: .ok)
     }
 
     private func urlCheck(title: String, urlString: String, required: Bool) -> HealthCheckItem {
@@ -158,34 +128,21 @@ final class HealthCenterModel: ObservableObject {
     }
 
     private func testURL(_ url: String, label: String) {
-        DispatchQueue.global().async {
-            let result = Self.run("curl -sS --max-time 3 -o /dev/null -w '%{http_code}' \(Self.shellQuote(url))")
+        guard let u = URL(string: url), let scheme = u.scheme, ["http", "https"].contains(scheme) else {
+            actionMessage = "\(label): \(L("ungültige URL", "invalid URL"))"
+            return
+        }
+        var req = URLRequest(url: u)
+        req.httpMethod = "HEAD"
+        req.timeoutInterval = 3
+        URLSession.shared.dataTask(with: req) { _, response, error in
             DispatchQueue.main.async {
-                self.actionMessage = "\(label): \(result.success ? result.output : L("nicht erreichbar", "unreachable"))"
+                let code = (response as? HTTPURLResponse)?.statusCode
+                let ok = error == nil && (code.map { (200..<500).contains($0) } ?? false)
+                let detail = code.map { "HTTP \($0)" } ?? (error?.localizedDescription ?? L("nicht erreichbar", "unreachable"))
+                self.actionMessage = "\(label): \(ok ? detail : L("nicht erreichbar", "unreachable"))"
                 self.refresh()
             }
-        }
-    }
-
-    private static func run(_ command: String) -> (success: Bool, output: String) {
-        let process = Process()
-        let pipe = Pipe()
-        process.executableURL = URL(fileURLWithPath: "/bin/bash")
-        process.arguments = ["-lc", command]
-        process.standardOutput = pipe
-        process.standardError = pipe
-        do {
-            try process.run()
-            process.waitUntilExit()
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            return (process.terminationStatus == 0, output)
-        } catch {
-            return (false, error.localizedDescription)
-        }
-    }
-
-    private static func shellQuote(_ s: String) -> String {
-        "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'"
+        }.resume()
     }
 }

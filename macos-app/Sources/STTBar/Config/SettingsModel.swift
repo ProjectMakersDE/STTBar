@@ -30,29 +30,29 @@ final class SettingsModel: ObservableObject {
     @Published var historyEnabled: Bool = false
     @Published var historyRetentionHours: String = "24"
     @Published var sensitiveMode: Bool = false
+    /// Recording input device, written to `STT_AUDIO_DEVICE`. Empty = automatic.
+    @Published var audioInputDevice: String = ""
+    /// Transcription source: "server" | "selfhost" | "local" (STT_SOURCE).
+    @Published var transcriptionSource: String = "server"
+    /// WhisperKit model name for local mode (STT_LOCAL_MODEL). Empty = auto.
+    @Published var localModel: String = ""
 
     @Published var hudAnchor: HudAnchor { didSet { AppSettings.shared.hudAnchor = hudAnchor } }
     @Published var hudBackground: Bool { didSet { AppSettings.shared.hudBackground = hudBackground } }
     @Published var hudBackgroundColor: Color { didSet { AppSettings.shared.hudBackgroundColor = RGBAColor(hudBackgroundColor) } }
     @Published var showHudTimer: Bool { didSet { AppSettings.shared.showHudTimer = showHudTimer } }
+    @Published var showHudIcon: Bool { didSet { AppSettings.shared.showHudIcon = showHudIcon } }
+    @Published var showHudWaveform: Bool { didSet { AppSettings.shared.showHudWaveform = showHudWaveform } }
+    @Published var hudFollowActiveScreen: Bool { didSet { AppSettings.shared.hudFollowActiveScreen = hudFollowActiveScreen } }
+    @Published var hudOffsetX: Int { didSet { AppSettings.shared.hudOffsetX = hudOffsetX } }
+    @Published var hudOffsetY: Int { didSet { AppSettings.shared.hudOffsetY = hudOffsetY } }
+    @Published var hudScale: Double { didSet { AppSettings.shared.hudScale = hudScale } }
+    @Published var hudWaveDecaySpeed: Double { didSet { AppSettings.shared.hudWaveDecaySpeed = hudWaveDecaySpeed } }
+    @Published var hudWaveStyle: HudWaveStyle { didSet { AppSettings.shared.hudWaveStyle = hudWaveStyle } }
 
     @Published var validationMessage: String?
     @Published var saveMessage: String?
     @Published var hotkeyStatuses: [HotkeyRegistrationStatus] = []
-    @Published var updateMessage: String?
-    @Published var updateURL: URL?
-    @Published var updateState: UpdateState = .idle
-    @Published var latestVersion: String?
-    var appAssetURL: URL?
-    var scriptsAssetURL: URL?
-    var appSha256URL: URL?
-
-    enum UpdateState: Equatable { case idle, checking, upToDate, available, downloading, installing, failed }
-
-    static let defaultUpdateRepository = "ProjectMakersDE/STTBar"
-
-    /// The GitHub `owner/repo` slug used for update checks.
-    var updateRepository: String { env.value("STTBAR_UPDATE_REPOSITORY") ?? Self.defaultUpdateRepository }
 
     /// Common Whisper model presets surfaced in the picker (free text still allowed).
     static let whisperPresets = [
@@ -74,10 +74,15 @@ final class SettingsModel: ObservableObject {
         self.hudBackground = AppSettings.shared.hudBackground
         self.hudBackgroundColor = AppSettings.shared.hudBackgroundColor.color
         self.showHudTimer = AppSettings.shared.showHudTimer
+        self.showHudIcon = AppSettings.shared.showHudIcon
+        self.showHudWaveform = AppSettings.shared.showHudWaveform
+        self.hudFollowActiveScreen = AppSettings.shared.hudFollowActiveScreen
+        self.hudOffsetX = AppSettings.shared.hudOffsetX
+        self.hudOffsetY = AppSettings.shared.hudOffsetY
+        self.hudScale = AppSettings.shared.hudScale
+        self.hudWaveDecaySpeed = AppSettings.shared.hudWaveDecaySpeed
+        self.hudWaveStyle = AppSettings.shared.hudWaveStyle
         loadEnvDraft()
-        if env.value("STTBAR_UPDATE_REPOSITORY") == nil {
-            write("STTBAR_UPDATE_REPOSITORY", Self.defaultUpdateRepository)
-        }
         write("STT_POSTPROCESS_PROMPT_FILE", prompts.activeFileURL.path)
         try? env.save()
     }
@@ -102,6 +107,9 @@ final class SettingsModel: ObservableObject {
         write("STT_HISTORY_ENABLED", historyEnabled ? "1" : "0")
         write("STT_HISTORY_RETENTION_HOURS", historyRetentionHours)
         write("STT_SENSITIVE_MODE", sensitiveMode ? "1" : "0")
+        write("STT_AUDIO_DEVICE", audioInputDevice)
+        write("STT_SOURCE", transcriptionSource)
+        write("STT_LOCAL_MODEL", localModel)
         do {
             try env.save()
             syncAppSettingsFromDraft()
@@ -281,164 +289,6 @@ final class SettingsModel: ObservableObject {
         saveMessage = "Importiert"
     }
 
-    func checkForUpdates() {
-        let version = VersionInfo.load(installDir: installDir)
-        let repository = updateRepository
-        guard let url = URL(string: "https://api.github.com/repos/\(repository)/releases/latest") else {
-            updateMessage = L("Update-URL ist ungültig.", "Update URL is invalid.")
-            updateState = .failed
-            return
-        }
-        updateMessage = L("Suche Releases auf GitHub…", "Checking GitHub releases…")
-        updateState = .checking
-        updateURL = nil
-        appAssetURL = nil; scriptsAssetURL = nil; appSha256URL = nil
-        var request = URLRequest(url: url)
-        request.cachePolicy = .reloadIgnoringLocalCacheData
-        request.setValue("STTBar/\(version.appVersion)", forHTTPHeaderField: "User-Agent")
-
-        URLSession.shared.dataTask(with: request) { data, response, error in
-            let message: String
-            var releaseURL: URL?
-            var state: UpdateState = .idle
-            var assets: [GitHubAsset] = []
-            var latestVersion: String?
-            defer {
-                DispatchQueue.main.async {
-                    self.updateMessage = message
-                    self.updateURL = releaseURL
-                    self.updateState = state
-                    self.latestVersion = latestVersion
-                    self.appAssetURL = Self.pickAsset(assets, name: "STTBar.app.zip")
-                    self.scriptsAssetURL = Self.pickAsset(assets, name: "stt-scripts.zip")
-                    self.appSha256URL = Self.pickAsset(assets, name: "STTBar.app.zip.sha256")
-                }
-            }
-
-            if let error {
-                message = L("Update-Check fehlgeschlagen: ", "Update check failed: ") + error.localizedDescription
-                state = .failed
-                return
-            }
-            if let http = response as? HTTPURLResponse, http.statusCode == 404 {
-                message = L("Noch kein öffentliches Release gefunden.", "No public release found yet.")
-                state = .upToDate
-                return
-            }
-            guard let data,
-                  let release = try? JSONDecoder().decode(GitHubRelease.self, from: data) else {
-                message = L("GitHub-Release konnte nicht gelesen werden.", "Could not read the GitHub release.")
-                state = .failed
-                return
-            }
-            let latest = Self.normalizedVersion(release.tagName)
-            let current = Self.normalizedVersion(version.appVersion)
-            releaseURL = URL(string: release.htmlURL)
-            assets = release.assets
-            latestVersion = latest
-            switch Self.compareVersions(latest, current) {
-            case .orderedDescending:
-                message = L("Update verfügbar: v\(latest) (installiert v\(current))",
-                            "Update available: v\(latest) (installed v\(current))")
-                state = .available
-            case .orderedSame:
-                message = L("Aktuell: v\(current)", "Up to date: v\(current)")
-                state = .upToDate
-            case .orderedAscending:
-                message = L("Installiert: v\(current), neuestes Release: v\(latest)",
-                            "Installed: v\(current), latest release: v\(latest)")
-                state = .upToDate
-            }
-        }.resume()
-    }
-
-    static func pickAsset(_ assets: [GitHubAsset], name: String) -> URL? {
-        assets.first { $0.name == name }?.url
-    }
-
-    /// Download + install the available update, then relaunch.
-    func performUpdate() {
-        guard let appZip = appAssetURL else {
-            updateState = .failed
-            updateMessage = L("Kein App-Asset im Release gefunden.", "No app asset found in the release.")
-            return
-        }
-        updateState = .downloading
-        UpdateInstaller.performUpdate(
-            appZip: appZip, scriptsZip: scriptsAssetURL, sha256: appSha256URL,
-            appBundlePath: Bundle.main.bundlePath, installDir: installDir,
-            log: { msg in DispatchQueue.main.async { self.updateMessage = msg } },
-            done: { result in
-                DispatchQueue.main.async {
-                    switch result {
-                    case .success:
-                        self.updateState = .installing
-                        self.updateMessage = L("Update installiert. Starte neu…", "Update installed. Relaunching…")
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { NSApp.terminate(nil) }
-                    case .failure:
-                        self.updateState = .failed
-                        self.updateMessage = L("Update fehlgeschlagen. Bitte install.sh manuell ausführen.",
-                                               "Update failed. Please run install.sh manually.")
-                    }
-                }
-            })
-    }
-
-    private static func normalizedVersion(_ raw: String) -> String {
-        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.lowercased().hasPrefix("v") ? String(trimmed.dropFirst()) : trimmed
-    }
-
-    private static func compareVersions(_ left: String, _ right: String) -> ComparisonResult {
-        let a = versionParts(left)
-        let b = versionParts(right)
-        for i in 0..<max(a.count, b.count) {
-            let av = i < a.count ? a[i] : 0
-            let bv = i < b.count ? b[i] : 0
-            if av > bv { return .orderedDescending }
-            if av < bv { return .orderedAscending }
-        }
-        return .orderedSame
-    }
-
-    private static func versionParts(_ version: String) -> [Int] {
-        version.split(separator: ".").map { part in
-            let digits = part.prefix { $0.isNumber }
-            return Int(digits) ?? 0
-        }
-    }
-
-    func runPromptEval(promptId: String, input: String, completion: @escaping (String) -> Void) {
-        guard let prompt = prompts.prompts.first(where: { $0.id == promptId }) else { completion(""); return }
-        DispatchQueue.global().async {
-            let process = Process()
-            let inputPipe = Pipe()
-            let outputPipe = Pipe()
-            process.executableURL = URL(fileURLWithPath: "/bin/bash")
-            process.arguments = ["-lc", "exec \(Self.shellQuote(self.installDir.appendingPathComponent("stt-postprocess.sh").path))"]
-            var env = ProcessInfo.processInfo.environment
-            env["STT_POSTPROCESS_PROMPT"] = prompt.body
-            env["STT_POSTPROCESS_ENABLED"] = "1"
-            env["STT_REPLACEMENTS_ENABLED"] = "1"
-            env["STT_POSTPROCESS_LOG_ENABLED"] = "0"
-            process.environment = env
-            process.standardInput = inputPipe
-            process.standardOutput = outputPipe
-            process.standardError = Pipe()
-            do {
-                try process.run()
-                inputPipe.fileHandleForWriting.write(Data(input.utf8))
-                try? inputPipe.fileHandleForWriting.close()
-                process.waitUntilExit()
-                let data = outputPipe.fileHandleForReading.readDataToEndOfFile()
-                let output = String(data: data, encoding: .utf8) ?? ""
-                DispatchQueue.main.async { completion(output) }
-            } catch {
-                DispatchQueue.main.async { completion("Fehler: \(error.localizedDescription)") }
-            }
-        }
-    }
-
     func addPrompt(title: String, body: String) {
         _ = try? prompts.add(title: title, body: body)
         objectWillChange.send()
@@ -505,6 +355,9 @@ final class SettingsModel: ObservableObject {
         historyEnabled = (env.value("STT_HISTORY_ENABLED") ?? (AppSettings.shared.historyEnabled ? "1" : "0")) == "1"
         historyRetentionHours = env.value("STT_HISTORY_RETENTION_HOURS") ?? "\(AppSettings.shared.historyRetentionHours)"
         sensitiveMode = (env.value("STT_SENSITIVE_MODE") ?? (AppSettings.shared.sensitiveMode ? "1" : "0")) == "1"
+        audioInputDevice = env.value("STT_AUDIO_DEVICE") ?? ""
+        transcriptionSource = env.value("STT_SOURCE") ?? "server"
+        localModel = env.value("STT_LOCAL_MODEL") ?? ""
         syncAppSettingsFromDraft()
     }
 
@@ -541,11 +394,8 @@ final class SettingsModel: ObservableObject {
             "STT_POSTPROCESS_PROVIDER": provider,
             "STT_POSTPROCESS_TIMEOUT": postprocessTimeout,
             "STT_AUTO_RAW_FALLBACK": autoRawFallback ? "1" : "0",
+            "STT_AUDIO_DEVICE": audioInputDevice,
         ]
-    }
-
-    private static func shellQuote(_ s: String) -> String {
-        "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }
 
     private struct ExportBundle: Codable {
@@ -553,27 +403,5 @@ final class SettingsModel: ObservableObject {
         var prompts: [Prompt]
         var replacements: [ReplacementEntry]
         var profiles: [SttProfile]
-    }
-}
-
-/// A downloadable file attached to a GitHub release.
-struct GitHubAsset: Decodable {
-    let name: String
-    let url: URL
-    enum CodingKeys: String, CodingKey {
-        case name
-        case url = "browser_download_url"
-    }
-}
-
-/// The subset of a GitHub release payload STTBar needs for update checks.
-struct GitHubRelease: Decodable {
-    let tagName: String
-    let htmlURL: String
-    let assets: [GitHubAsset]
-    enum CodingKeys: String, CodingKey {
-        case tagName = "tag_name"
-        case htmlURL = "html_url"
-        case assets
     }
 }

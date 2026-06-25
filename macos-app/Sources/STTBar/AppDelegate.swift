@@ -8,6 +8,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var runner: SttRunner!
     private var hud: HudOverlay!
     private var settingsWindow: SettingsWindow?
+    private var onboardingWindow: OnboardingWindow?
     private var promptWindow: PromptEditorWindow?
     private var statusWindow: StatusWindow?
     private var healthModel: HealthCenterModel?
@@ -29,11 +30,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         RuntimePaths.ensureDirectory()
-        runner = SttRunner(scriptPath: installDir.appendingPathComponent("stt-global.sh").path)
+        try? FileManager.default.createDirectory(at: installDir, withIntermediateDirectories: true)
+        // Model first: the native backend snapshots its settings at stop() time.
+        model = SettingsModel(installDir: installDir)
+        let settingsModel = model!
+        let backend = NativeBackend(config: { TranscriptionConfig.from(settingsModel) })
+        runner = SttRunner(backend: backend)
         hud = HudOverlay(runner: runner)
         menu = MenuBarController()
         hotkeys = HotkeyManager()
-        model = SettingsModel(installDir: installDir)
         warmer = ServerWarmer(model: model)
         warmer?.reload()
         healthModel = HealthCenterModel(settings: model, runner: runner)
@@ -45,10 +50,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         runner.onState = { [weak self] state in
             self?.menu.setState(state)
             self?.hud.update(state)
+            self?.onboardingWindow?.flow.liveState = state
         }
-        runner.onProblem = { [weak self] problem in self?.menu.setLastProblem(problem) }
+        runner.onProblem = { [weak self] problem in
+            guard let self else { return }
+            self.menu.setLastProblem(problem)
+            // Self-heal: a hard failure on an unusable config means the user is
+            // stuck (e.g. today's "Rot") — bring the setup wizard back.
+            if problem.severity == "error", OnboardingReadiness.needsOnboarding(model: self.model) {
+                self.showOnboarding()
+            }
+        }
         runner.onTranscript = { [weak self] text, mode, paste in
             self?.lastTranscript = text
+            self?.onboardingWindow?.flow.lastTestTranscript = text
             self?.menu.setLastTranscriptAvailable(true)
             self?.history.add(text: text, mode: mode)
             self?.updateLastRunSummary()
@@ -57,11 +72,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             case .clipboardOnly(let reason): AppLogger.log("native_paste clipboard_only reason=\(reason)")
             }
         }
-        let trigger: (SttMode) -> Void = { [weak self] mode in self?.runner.trigger(mode: mode) }
+        let trigger: (SttMode, Date?) -> Void = { [weak self] mode, eventTime in self?.runner.trigger(mode: mode, eventTime: eventTime) }
         menu.onTrigger = trigger
         menu.onCancelRecording = { [weak self] in self?.runner.cancelRecording() }
         menu.onOpenStatus = { [weak self] in self?.showStatus() }
         menu.onOpenSettings = { [weak self] in self?.showSettings() }
+        menu.onOpenOnboarding = { [weak self] in self?.showOnboarding(force: true) }
         menu.onEditPrompt = { [weak self] in self?.showPromptEditor() }
         menu.onShowLastError = { [weak self] in self?.showLastError() }
         menu.onCopyLastTranscript = { [weak self] in self?.copyLastTranscript() }
@@ -75,9 +91,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hotkeys.onTrigger = trigger
         hotkeys.onStatusesChanged = { [weak self] statuses in self?.model.syncHotkeyStatuses(statuses) }
         hotkeys.install()
+        Permissions.requestMicrophone()
         menu.setLastProblem(StatusStore.latestProblem())
         startWatchdog()
         AppLogger.log("app_started installDir=\(installDir.path)")
+        // First run (no completion flag) or an unusable config opens the wizard.
+        if OnboardingReadiness.needsOnboarding(model: model) { showOnboarding(force: true) }
+    }
+
+    private func showOnboarding(force: Bool = false) {
+        if onboardingWindow == nil {
+            let w = OnboardingWindow(model: model)
+            w.onStartRawTest = { [weak self] in self?.runner.trigger(mode: .raw, eventTime: nil) }
+            w.onCompleted = { [weak self] in self?.menu.rebuild() }
+            onboardingWindow = w
+            // Steer a fresh, unconfigured user to local without clobbering a real
+            // remote config. Only on first creation, so it never yanks an
+            // in-progress selection.
+            if !OnboardingReadiness.isCompleted {
+                model.transcriptionSource = OnboardingReadiness.preferredInitialSource(model: model)
+            }
+        }
+        onboardingWindow?.show(reset: force)
     }
 
     private func showSettings() {
@@ -153,12 +188,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
-/// Resolves the directory containing the shell scripts + .env. Order: env var,
-/// the standard install dir, else a sensible default.
+/// Resolves the directory holding the app's config (.env, prompts, profiles,
+/// replacements). Under the App Sandbox this is the container's Application
+/// Support; `STT_INSTALL_DIR` overrides it for tests/dev.
 enum InstallPaths {
     static func resolve() -> URL {
-        if let p = ProcessInfo.processInfo.environment["STT_INSTALL_DIR"] { return URL(fileURLWithPath: p) }
-        let std = (NSHomeDirectory() as NSString).appendingPathComponent(".local/share/stt")
-        return URL(fileURLWithPath: std)
+        if let p = ProcessInfo.processInfo.environment["STT_INSTALL_DIR"], !p.isEmpty {
+            return URL(fileURLWithPath: p)
+        }
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            ?? URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Library/Application Support")
+        return base.appendingPathComponent("STTBar", isDirectory: true)
     }
 }

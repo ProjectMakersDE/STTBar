@@ -3,10 +3,11 @@ import AppKit
 /// Owns the menu-bar status item: a state-driven SF Symbol and a dropdown menu.
 final class MenuBarController {
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-    var onTrigger: ((SttMode) -> Void)?
+    var onTrigger: ((SttMode, Date?) -> Void)?
     var onCancelRecording: (() -> Void)?
     var onOpenStatus: (() -> Void)?
     var onOpenSettings: (() -> Void)?
+    var onOpenOnboarding: (() -> Void)?
     var onEditPrompt: (() -> Void)?
     var onShowLastError: (() -> Void)?
     var onCopyLastTranscript: (() -> Void)?
@@ -100,6 +101,8 @@ final class MenuBarController {
         status.target = self; menu.addItem(status)
         let settings = NSMenuItem(title: L("Einstellungen…", "Settings…"), action: #selector(openSettings), keyEquivalent: ",")
         settings.target = self; menu.addItem(settings)
+        let onboarding = NSMenuItem(title: L("Einrichtung erneut starten…", "Run setup again…"), action: #selector(openOnboarding), keyEquivalent: "")
+        onboarding.target = self; menu.addItem(onboarding)
         let edit = NSMenuItem(title: L("Prompt bearbeiten…", "Edit prompt…"), action: #selector(editPrompt), keyEquivalent: "")
         edit.target = self; menu.addItem(edit)
         menu.addItem(.separator())
@@ -121,11 +124,12 @@ final class MenuBarController {
     }
 
     @objc private func triggerMode(_ sender: NSMenuItem) {
-        if let raw = sender.representedObject as? String, let m = SttMode(rawValue: raw) { onTrigger?(m) }
+        if let raw = sender.representedObject as? String, let m = SttMode(rawValue: raw) { onTrigger?(m, nil) }
     }
     @objc private func cancelRecording() { onCancelRecording?() }
     @objc private func openStatus() { onOpenStatus?() }
     @objc private func openSettings() { onOpenSettings?() }
+    @objc private func openOnboarding() { onOpenOnboarding?() }
     @objc private func editPrompt() { onEditPrompt?() }
     @objc private func showLastError() { onShowLastError?() }
     @objc private func copyLastTranscript() { onCopyLastTranscript?() }

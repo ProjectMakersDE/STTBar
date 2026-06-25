@@ -72,6 +72,49 @@ final class AppSettings {
         set { d.set(newValue, forKey: "showHudTimer") }
     }
 
+    var showHudIcon: Bool {
+        get { d.object(forKey: "showHudIcon") == nil ? true : d.bool(forKey: "showHudIcon") }
+        set { d.set(newValue, forKey: "showHudIcon") }
+    }
+
+    var showHudWaveform: Bool {
+        get { d.object(forKey: "showHudWaveform") == nil ? true : d.bool(forKey: "showHudWaveform") }
+        set { d.set(newValue, forKey: "showHudWaveform") }
+    }
+
+    /// Show the HUD on the screen the user is active on, not always the main screen.
+    var hudFollowActiveScreen: Bool {
+        get { d.object(forKey: "hudFollowActiveScreen") == nil ? true : d.bool(forKey: "hudFollowActiveScreen") }
+        set { d.set(newValue, forKey: "hudFollowActiveScreen") }
+    }
+
+    /// Fine position nudge from the anchor, in points (+x right, +y up).
+    var hudOffsetX: Int {
+        get { d.integer(forKey: "hudOffsetX") }
+        set { d.set(newValue, forKey: "hudOffsetX") }
+    }
+    var hudOffsetY: Int {
+        get { d.integer(forKey: "hudOffsetY") }
+        set { d.set(newValue, forKey: "hudOffsetY") }
+    }
+
+    /// HUD size multiplier (clamped to 0.7…2.0 on use).
+    var hudScale: Double {
+        get { d.object(forKey: "hudScale") == nil ? 1.0 : d.double(forKey: "hudScale") }
+        set { d.set(newValue, forKey: "hudScale") }
+    }
+
+    /// Waveform release speed (clamped to 0.3…3.0 on use).
+    var hudWaveDecaySpeed: Double {
+        get { d.object(forKey: "hudWaveDecaySpeed") == nil ? 1.0 : d.double(forKey: "hudWaveDecaySpeed") }
+        set { d.set(newValue, forKey: "hudWaveDecaySpeed") }
+    }
+
+    var hudWaveStyle: HudWaveStyle {
+        get { HudWaveStyle(rawValue: d.string(forKey: "hudWaveStyle") ?? "") ?? .bars }
+        set { d.set(newValue.rawValue, forKey: "hudWaveStyle") }
+    }
+
     var sensitiveMode: Bool {
         get { d.bool(forKey: "sensitiveMode") }
         set { d.set(newValue, forKey: "sensitiveMode") }
