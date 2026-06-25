@@ -1,3 +1,30 @@
+## [1.2.0](https://github.com/ProjectMakersDE/STTBar/compare/v1.1.3...v1.2.0) (2026-06-25)
+
+### Features
+
+* **app-store:** add privacy manifest, drop unused Apple Events + dead UI for 1.0 ([369b799](https://github.com/ProjectMakersDE/STTBar/commit/369b799692b84e0d0ebda30343471ccfc12e6046))
+* **app-store:** add WhisperKit 1.0.0 (MIT) dependency for local transcription ([16718ab](https://github.com/ProjectMakersDE/STTBar/commit/16718ab19e7ef8d986394ee4c86f0fafadcdcb58))
+* **app-store:** declare ITSAppUsesNonExemptEncryption=false ([8a50311](https://github.com/ProjectMakersDE/STTBar/commit/8a50311de835a8067f3fd1a74483b083c44e0d95))
+* **app-store:** drive transcription via a backend seam, drop shell spawning in SttRunner ([4d2da08](https://github.com/ProjectMakersDE/STTBar/commit/4d2da08295fbfb490567ac71c2a69d8b7dbd64e8))
+* **app-store:** enable app-sandbox and network.client entitlements ([c21ef02](https://github.com/ProjectMakersDE/STTBar/commit/c21ef026d6ba9b45ae9bdbdc927be7322b0a5f08))
+* **app-store:** local WhisperKit transcription via Transcriber abstraction, routed by source ([bd4efa7](https://github.com/ProjectMakersDE/STTBar/commit/bd4efa7211e1b4cc82ca4eddffe8fef8c1cf9c34))
+* **app-store:** move runtime files into the sandbox container ([3322b2b](https://github.com/ProjectMakersDE/STTBar/commit/3322b2bc2b0feba3eec9b6978b008e7271346f6a))
+* **app-store:** native record/transcribe/cleanup pipeline (WhisperClient, LLMClient, AudioRecorder, NativeBackend) ([ed3f681](https://github.com/ProjectMakersDE/STTBar/commit/ed3f6817bad6e3bd6adb670d926c7065db85d8b0))
+* **app-store:** Phase 3 settings UI — source picker, local model controls + RAM hint, self-host guide, acknowledgements ([30768d9](https://github.com/ProjectMakersDE/STTBar/commit/30768d94ba68060fc65e72aa97f429c83cc5142a))
+* **app-store:** remove in-app self-updater and its UI (App Store handles updates) ([64ac46a](https://github.com/ProjectMakersDE/STTBar/commit/64ac46ab534a32fa0fad627efdd9d4bb10bca359))
+* **app-store:** remove remaining shell spawns from settings + health checks ([1621904](https://github.com/ProjectMakersDE/STTBar/commit/16219040b01310afa4f81a0e343b57c014774c93))
+* **app-store:** replace LaunchAgent plist with SMAppService login item ([580724f](https://github.com/ProjectMakersDE/STTBar/commit/580724f890be0b7d7ebfd21d26904c05e23ca2e1))
+* **app-store:** staged paste (AX direct -> Unicode typing -> clipboard fallback with save/restore) ([7eb2b04](https://github.com/ProjectMakersDE/STTBar/commit/7eb2b046933022f138462e8ee6301a27475ca351))
+* **app-store:** wire NativeBackend into the app, snapshot replacements in config, request microphone ([a7b78e4](https://github.com/ProjectMakersDE/STTBar/commit/a7b78e4b2b2aca9078e28413d4a875e59eba5f9a))
+* **hud,audio:** audio input picker + HUD placement/size/element controls + waveform styles ([7e35238](https://github.com/ProjectMakersDE/STTBar/commit/7e35238db8284e3571e52b678b43bc0ecbcded00))
+* **onboarding:** first-run setup wizard with self-heal gating ([10df328](https://github.com/ProjectMakersDE/STTBar/commit/10df3287a0b794772fe8797610f323ccc9199a0c))
+
+### Bug Fixes
+
+* **app-store:** apply entitlements in dev + ad-hoc signing so the sandbox engages locally ([32e1c89](https://github.com/ProjectMakersDE/STTBar/commit/32e1c8970577d4aaea995e5063a6712ec5afb49d))
+* **app-store:** store config in the sandbox container, not ~/.local/share/stt ([79791ef](https://github.com/ProjectMakersDE/STTBar/commit/79791efe1ba0a4ab061830def7e721595c7fb0a8))
+* **hotkey:** capture space-based chords in the recorder ([058d474](https://github.com/ProjectMakersDE/STTBar/commit/058d474c436e62035047e84719b26bb8fad3efe0))
+
 ## [1.1.3](https://github.com/ProjectMakersDE/STTBar/compare/v1.1.2...v1.1.3) (2026-06-20)
 
 ### Bug Fixes
