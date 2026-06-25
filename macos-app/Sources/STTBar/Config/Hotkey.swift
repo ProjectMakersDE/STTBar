@@ -10,10 +10,6 @@ struct Hotkey: Codable, Equatable, Hashable {
     static let rawDefault     = Hotkey(keyCode: UInt32(kVK_Space), carbonModifiers: UInt32(controlKey | shiftKey))
     static let englishDefault = Hotkey(keyCode: UInt32(kVK_Space), carbonModifiers: UInt32(shiftKey | optionKey))
 
-    /// F5 with no modifiers — the macOS dictation/microphone key. Offered in the
-    /// wizard for plain (raw) recording once macOS Dictation is disabled on F5.
-    static let rawF5 = Hotkey(keyCode: UInt32(kVK_F5), carbonModifiers: 0)
-
     var display: String {
         var s = ""
         if carbonModifiers & UInt32(controlKey) != 0 { s += "⌃" }

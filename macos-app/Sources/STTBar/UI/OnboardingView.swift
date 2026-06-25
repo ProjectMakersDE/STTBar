@@ -231,11 +231,6 @@ struct OnboardingView: View {
                        "Your Mac's microphone/dictation key can't be used — macOS reserves it for Dictation. Pick a key combo above instead."))
             } icon: { Image(systemName: "info.circle") }
                 .font(.callout).foregroundStyle(.secondary)
-            Button(L("macOS-Diktat abschalten (stoppt die Nachfrage)", "Turn off macOS Dictation (stops the prompt)")) {
-                if let url = URL(string: "x-apple.systempreferences:com.apple.preference.keyboard") {
-                    NSWorkspace.shared.open(url)
-                }
-            }
             Spacer(minLength: 0)
         }
     }

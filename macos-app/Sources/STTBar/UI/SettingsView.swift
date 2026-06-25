@@ -228,9 +228,6 @@ private struct PromptsTab: View {
     @ObservedObject private var loc = Localization.shared
     var openEditor: (String) -> Void
     @State private var selection: String?
-    @State private var evalInput = DefaultPrompt.evalInput
-    @State private var evalOutput = ""
-    @State private var evalRunning = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -265,35 +262,6 @@ private struct PromptsTab: View {
                 }
                 Button(L("Löschen", "Delete"), role: .destructive) { if let id = selection { model.removePrompt(id) } }
                     .disabled(selection == nil || model.prompts.prompts.count <= 1)
-            }
-            Divider()
-            VStack(alignment: .leading, spacing: 8) {
-                Text(L("Mini-Eval", "Mini eval")).font(.headline)
-                TextEditor(text: $evalInput)
-                    .font(.system(.body, design: .monospaced))
-                    .frame(height: 58)
-                    .border(Color(NSColor.separatorColor))
-                HStack {
-                    Button(evalRunning ? L("Teste…", "Testing…") : L("Prompt testen", "Test prompt")) {
-                        // Native prompt eval returns in Phase 2 (LLM cleanup).
-                        evalOutput = L("Prompt-Test kehrt in Phase 2 (LLM-Cleanup) zurück.",
-                                       "Prompt testing returns in Phase 2 (LLM cleanup).")
-                    }
-                    .disabled(evalRunning || evalInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    Spacer()
-                }
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(L("Ausgabe", "Output")).font(.caption).foregroundStyle(.secondary)
-                    Text(evalRunning ? L("Prompt wird getestet…", "Testing prompt…") : (evalOutput.isEmpty ? L("Noch nicht getestet.", "Not tested yet.") : evalOutput))
-                        .font(.system(.body, design: .rounded))
-                        .foregroundStyle(evalOutput.isEmpty ? .secondary : .primary)
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, minHeight: 54, alignment: .topLeading)
-                        .padding(8)
-                        .background(Color(NSColor.textBackgroundColor))
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
-                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color(NSColor.separatorColor)))
-                }
             }
         }
         .onAppear { selection = model.prompts.activeId }
@@ -490,12 +458,6 @@ private struct GeneralTab: View {
                     granted: Permissions.microphoneStatus == .authorized,
                     openLabel: L("Öffnen", "Open"), grantLabel: L("Erlauben…", "Grant…"),
                     action: { Permissions.requestMicrophone(); Permissions.openMicrophone() })
-                PermissionRow(
-                    title: L("Automatisierung", "Automation"),
-                    detail: L("Nur für den AppleScript-Fallback relevant.", "Only relevant for the AppleScript fallback."),
-                    granted: nil,
-                    openLabel: L("Öffnen", "Open"), grantLabel: L("Erlauben…", "Grant…"),
-                    action: { Permissions.primeAutomation(); Permissions.openAutomation() })
             }
             Section("Import/Export") {
                 HStack {

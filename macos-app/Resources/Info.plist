@@ -20,8 +20,6 @@
 	<string>14.0</string>
 	<key>LSUIElement</key>
 	<true/>
-	<key>NSAppleEventsUsageDescription</key>
-	<string>STTBar uses System Events to paste the transcribed text into the focused app.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>STTBar records audio for speech-to-text transcription.</string>
 </dict>

@@ -36,7 +36,6 @@ final class HealthCenterModel: ObservableObject {
         next.append(launchAgentCheck())
         next.append(item(L("Mikrofon", "Microphone"), Permissions.microphoneStatus == .authorized, L("Berechtigung", "Permission")))
         next.append(item(L("Bedienungshilfen", "Accessibility"), Permissions.accessibilityTrusted, L("Paste-Berechtigung", "Paste permission")))
-        next.append(HealthCheckItem(title: "Automation/System Events", detail: L("Bei nativer Paste nicht erforderlich; Fallback kann sie nutzen.", "Not required for native paste; the fallback may use it."), level: .unknown))
         next.append(urlCheck(title: L("Whisper-URL", "Whisper URL"), urlString: settings.whisperURL, required: true))
         if settings.postprocessEnabled {
             next.append(urlCheck(title: L("LM-Studio-URL", "LM Studio URL"), urlString: settings.lmStudioURL, required: true))

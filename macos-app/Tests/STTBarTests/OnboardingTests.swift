@@ -121,7 +121,5 @@ final class HotkeyFunctionKeyTests: XCTestCase {
     func testF5HasAReadableName() {
         XCTAssertEqual(Hotkey.keyName(UInt32(kVK_F5)), "F5")
         XCTAssertEqual(Hotkey.keyName(UInt32(kVK_F1)), "F1")
-        XCTAssertEqual(Hotkey.rawF5.keyCode, UInt32(kVK_F5))
-        XCTAssertEqual(Hotkey.rawF5.display, "F5")
     }
 }

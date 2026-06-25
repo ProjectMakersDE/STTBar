@@ -13,6 +13,9 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/STTBar"
 cp "$HERE/Resources/Info.plist" "$APP/Contents/Info.plist"
+# App Store / privacy manifest. Must sit at Contents/Resources and be copied
+# before codesign so the signature covers it (required-reason API: UserDefaults).
+cp "$HERE/Resources/PrivacyInfo.xcprivacy" "$APP/Contents/Resources/PrivacyInfo.xcprivacy"
 
 COMMIT="unknown"
 if command -v git >/dev/null 2>&1 && git -C "$HERE/.." rev-parse --is-inside-work-tree >/dev/null 2>&1; then
