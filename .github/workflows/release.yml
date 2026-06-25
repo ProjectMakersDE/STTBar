@@ -13,7 +13,9 @@ permissions:
 
 jobs:
   release:
-    runs-on: macos-14
+    # macos-15 ships Xcode 16 / the macOS 15 SDK, required by WhisperKit's
+    # ArgmaxCore (uses the CoreML MLState API that the macos-14 SDK lacks).
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v5
         with:
