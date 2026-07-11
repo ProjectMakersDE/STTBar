@@ -1,3 +1,9 @@
+## [1.2.1](https://github.com/ProjectMakersDE/STTBar/compare/v1.2.0...v1.2.1) (2026-07-11)
+
+### Bug Fixes
+
+* **paste:** wait for held hotkey modifiers before injecting text ([1c8e00e](https://github.com/ProjectMakersDE/STTBar/commit/1c8e00e01eff47a4f2b7a0fc3add10c939b2dbab))
+
 ## [1.2.0](https://github.com/ProjectMakersDE/STTBar/compare/v1.1.3...v1.2.0) (2026-06-25)
 
 ### Features
