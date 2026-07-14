@@ -2,9 +2,11 @@ import AVFoundation
 
 enum AudioRecorderError: LocalizedError {
     case engineStart(String)
+    case noAudioInput
     var errorDescription: String? {
         switch self {
         case .engineStart(let m): return L("Audio-Engine konnte nicht starten.", "Audio engine could not start.") + " \(m)"
+        case .noAudioInput: return L("Kein Mikrofon verfügbar. Bitte Audio-Eingang prüfen und erneut versuchen.", "No microphone available. Please check your audio input and try again.")
         }
     }
 }
@@ -22,17 +24,40 @@ final class AudioRecorder {
         AVLinearPCMIsNonInterleaved: false,
     ]
 
-    private let engine = AVAudioEngine()
+    private var engine = AVAudioEngine()
     private var file: AVAudioFile?
     private var converter: AVAudioConverter?
     private(set) var isRecording = false
     private var outputURL: URL?
 
+    /// `installTap` raises an uncatchable Objective-C exception when handed a
+    /// 0 Hz / 0-channel format, which the input node reports after the default
+    /// input device changed underneath a cached engine (sleep/wake, dock or
+    /// display connects). Formats must pass this gate before reaching the tap.
+    static func isUsableInputFormat(sampleRate: Double, channelCount: AVAudioChannelCount) -> Bool {
+        sampleRate > 0 && channelCount > 0
+    }
+
+    private func usableInputFormat() -> AVAudioFormat? {
+        let format = engine.inputNode.outputFormat(forBus: 0)
+        guard Self.isUsableInputFormat(sampleRate: format.sampleRate, channelCount: format.channelCount) else { return nil }
+        return format
+    }
+
     func start(outputURL: URL) throws {
         self.outputURL = outputURL
         try? FileManager.default.removeItem(at: outputURL)
+        var liveFormat = usableInputFormat()
+        if liveFormat == nil {
+            // Stale engine after a device change: a fresh engine re-resolves
+            // the current default input device.
+            engine = AVAudioEngine()
+            liveFormat = usableInputFormat()
+        }
+        guard let inputFormat = liveFormat else {
+            throw AudioRecorderError.noAudioInput
+        }
         let input = engine.inputNode
-        let inputFormat = input.outputFormat(forBus: 0)
         guard let targetFormat = AVAudioFormat(settings: Self.targetSettings) else {
             throw AudioRecorderError.engineStart("invalid target format")
         }
@@ -63,6 +88,9 @@ final class AudioRecorder {
             input.removeTap(onBus: 0)
             file = nil
             converter = nil
+            // A failed start usually means the engine's device went away;
+            // drop it so the next attempt resolves the current device fresh.
+            engine = AVAudioEngine()
             throw AudioRecorderError.engineStart(error.localizedDescription)
         }
         isRecording = true

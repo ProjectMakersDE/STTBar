@@ -84,6 +84,27 @@ final class AudioRecorderTests: XCTestCase {
         XCTAssertEqual(AudioRecorder.targetSettings[AVNumberOfChannelsKey] as? Int, 1)
         XCTAssertEqual(AudioRecorder.targetSettings[AVLinearPCMBitDepthKey] as? Int, 16)
     }
+
+    // After sleep/wake or display/dock changes the cached AVAudioEngine input
+    // can report a dead format (0 Hz / 0 channels). Installing a tap with such
+    // a format raises an Objective-C exception that Swift cannot catch, so the
+    // recorder must reject it up front instead of crashing the app.
+    func testDeadInputFormatsAreRejected() {
+        XCTAssertFalse(AudioRecorder.isUsableInputFormat(sampleRate: 0, channelCount: 0))
+        XCTAssertFalse(AudioRecorder.isUsableInputFormat(sampleRate: 0, channelCount: 1))
+        XCTAssertFalse(AudioRecorder.isUsableInputFormat(sampleRate: 48_000, channelCount: 0))
+    }
+
+    func testLiveInputFormatsAreAccepted() {
+        XCTAssertTrue(AudioRecorder.isUsableInputFormat(sampleRate: 48_000, channelCount: 1))
+        XCTAssertTrue(AudioRecorder.isUsableInputFormat(sampleRate: 16_000, channelCount: 2))
+        XCTAssertTrue(AudioRecorder.isUsableInputFormat(sampleRate: 44_100, channelCount: 1))
+    }
+
+    func testNoAudioInputErrorExplainsItself() {
+        let message = AudioRecorderError.noAudioInput.localizedDescription
+        XCTAssertFalse(message.isEmpty)
+    }
 }
 
 final class TranscriptionSourceTests: XCTestCase {
