@@ -8,6 +8,27 @@ final class PromptStoreTests: XCTestCase {
         return u
     }
 
+    // An unwritable install dir (read-only container, full disk) used to hit a
+    // `try!` fallback in SettingsModel.init and crash the app at every launch.
+    // The store must come up in memory instead so the app can still start.
+    func testFallsBackToInMemoryStoreWhenDirectoryIsUnwritable() throws {
+        let d = dir()
+        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: d.path) }
+        try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: d.path)
+        XCTAssertThrowsError(try PromptStore(directory: d, defaultBody: "X"))
+        let store = PromptStore.loadOrFallback(directory: d, defaultPrompts: DefaultPrompt.seeds)
+        XCTAssertFalse(store.prompts.isEmpty)
+        XCTAssertNotNil(store.activePrompt)
+    }
+
+    func testLoadOrFallbackPersistsNormallyWhenWritable() throws {
+        let d = dir()
+        let store = PromptStore.loadOrFallback(directory: d, defaultPrompts: [PromptSeed(title: "T", body: "BODY")])
+        XCTAssertEqual(store.activePrompt?.body, "BODY")
+        let mirrored = try String(contentsOf: d.appendingPathComponent("active-prompt.txt"), encoding: .utf8)
+        XCTAssertEqual(mirrored, "BODY")
+    }
+
     func testSeedsDefaultAndMirrorsActiveFile() throws {
         let d = dir()
         let store = try PromptStore(directory: d, defaultBody: "DEFAULT_BODY")

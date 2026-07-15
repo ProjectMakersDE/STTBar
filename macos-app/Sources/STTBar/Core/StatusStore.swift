@@ -59,7 +59,7 @@ enum StatusStore {
     }
 
     static func readEvents(limit: Int = 200) -> [SttStatus] {
-        guard let text = try? String(contentsOf: RuntimePaths.eventsFile, encoding: .utf8) else { return [] }
+        guard let text = LineJournal.tail(of: RuntimePaths.eventsFile) else { return [] }
         let lines = text.split(separator: "\n").suffix(limit)
         return lines.compactMap { line in
             try? JSONDecoder().decode(SttStatus.self, from: Data(line.utf8))
@@ -67,7 +67,7 @@ enum StatusStore {
     }
 
     static func readMetrics(limit: Int = 20) -> [RunMetric] {
-        guard let text = try? String(contentsOf: RuntimePaths.metricsFile, encoding: .utf8) else { return [] }
+        guard let text = LineJournal.tail(of: RuntimePaths.metricsFile) else { return [] }
         let lines = text.split(separator: "\n").suffix(limit)
         return lines.compactMap { line in
             try? JSONDecoder().decode(RunMetric.self, from: Data(line.utf8))
@@ -101,13 +101,6 @@ enum StatusStore {
 
     private static func append(_ text: String, to url: URL) {
         RuntimePaths.ensureDirectory()
-        if FileManager.default.fileExists(atPath: url.path),
-           let handle = try? FileHandle(forWritingTo: url) {
-            _ = try? handle.seekToEnd()
-            try? handle.write(contentsOf: Data(text.utf8))
-            try? handle.close()
-        } else {
-            try? text.write(to: url, atomically: true, encoding: .utf8)
-        }
+        LineJournal.append(text, to: url)
     }
 }

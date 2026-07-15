@@ -39,7 +39,7 @@ struct TranscriptionConfig {
             lmStudioURL: model.lmStudioURL,
             llmModel: model.llmModel,
             promptBody: model.prompts.activePrompt?.body ?? "",
-            transcribeTimeout: TimeInterval(Int(model.postprocessTimeout) ?? 30),
+            transcribeTimeout: TimeInterval(Int(model.transcribeTimeout) ?? 30),
             postprocessTimeout: TimeInterval(Int(model.postprocessTimeout) ?? 60),
             temperature: 0,
             reasoning: "off",

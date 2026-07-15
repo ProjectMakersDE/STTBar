@@ -13,6 +13,20 @@ private func makeConfig(language: String = "de", provider: String = "lmstudio") 
 }
 
 final class TranscriptionConfigTests: XCTestCase {
+    // The Whisper timeout field must drive the transcribe timeout; it was
+    // accidentally wired to the LLM (postprocess) timeout.
+    func testFromModelKeepsTranscribeAndPostprocessTimeoutsApart() {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("sttbar-config-test-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let model = SettingsModel(installDir: dir)
+        model.transcribeTimeout = "45"
+        model.postprocessTimeout = "90"
+        let config = TranscriptionConfig.from(model)
+        XCTAssertEqual(config.transcribeTimeout, 45)
+        XCTAssertEqual(config.postprocessTimeout, 90)
+    }
+
     func testLanguageOmittedWhenAuto() {
         XCTAssertNil(TranscriptionConfig.languageParam(for: "auto"))
         XCTAssertNil(TranscriptionConfig.languageParam(for: "  AUTO "))

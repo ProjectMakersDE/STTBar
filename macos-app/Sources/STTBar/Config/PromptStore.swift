@@ -57,6 +57,19 @@ struct PromptStore {
     }
 
     init(directory: URL, defaultPrompts: [PromptSeed]) throws {
+        self.init(loading: directory, defaultPrompts: defaultPrompts)
+        try persist()
+    }
+
+    /// Loads the store, falling back to an in-memory copy of the seeds when the
+    /// directory cannot be written (read-only container, full disk). A launch
+    /// must never die on prompt persistence; edits surface their own errors.
+    static func loadOrFallback(directory: URL, defaultPrompts: [PromptSeed]) -> PromptStore {
+        (try? PromptStore(directory: directory, defaultPrompts: defaultPrompts))
+            ?? PromptStore(loading: directory, defaultPrompts: defaultPrompts)
+    }
+
+    private init(loading directory: URL, defaultPrompts: [PromptSeed]) {
         self.directory = directory
         self.jsonURL = directory.appendingPathComponent("prompts.json")
         self.activeFileURL = directory.appendingPathComponent("active-prompt.txt")
@@ -73,7 +86,6 @@ struct PromptStore {
             self.activeId = seed.id
         }
         migrateBuiltIns(seeds)
-        try persist()
     }
 
     @discardableResult

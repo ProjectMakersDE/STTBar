@@ -128,7 +128,9 @@ install_native_app() {
     <key>STT_INSTALL_DIR</key><string>$INSTALL_DIR</string>
   </dict>
   <key>RunAtLoad</key><true/>
-  <key>KeepAlive</key><true/>
+  <!-- Restart after crashes only. An unconditional KeepAlive would also undo
+       a clean "Quit STTBar" (and fight the app's single-instance guard). -->
+  <key>KeepAlive</key><dict><key>SuccessfulExit</key><false/></dict>
 </dict></plist>
 PL
     launchctl unload "$plist" 2>/dev/null || true

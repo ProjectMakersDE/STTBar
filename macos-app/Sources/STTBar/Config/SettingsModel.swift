@@ -66,8 +66,7 @@ final class SettingsModel: ObservableObject {
         self.installDir = installDir
         let envURL = installDir.appendingPathComponent(".env")
         self.env = (try? EnvStore(url: envURL)) ?? (try! EnvStore(url: envURL))
-        self.prompts = (try? PromptStore(directory: installDir, defaultPrompts: DefaultPrompt.seeds))
-            ?? (try! PromptStore(directory: installDir, defaultPrompts: DefaultPrompt.seeds))
+        self.prompts = PromptStore.loadOrFallback(directory: installDir, defaultPrompts: DefaultPrompt.seeds)
         self.profiles = ProfileStore(directory: installDir)
         self.replacements = ReplacementStore(directory: installDir)
         self.hudAnchor = AppSettings.shared.hudAnchor

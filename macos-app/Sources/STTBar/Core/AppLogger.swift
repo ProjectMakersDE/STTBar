@@ -19,13 +19,6 @@ enum AppLogger {
     static func log(_ message: String) {
         let timestamp = formatter.string(from: Date())
         let line = "[\(timestamp)] \(message)\n"
-        if FileManager.default.fileExists(atPath: logURL.path),
-           let handle = try? FileHandle(forWritingTo: logURL) {
-            _ = try? handle.seekToEnd()
-            try? handle.write(contentsOf: Data(line.utf8))
-            try? handle.close()
-        } else {
-            try? line.write(to: logURL, atomically: true, encoding: .utf8)
-        }
+        LineJournal.append(line, to: logURL)
     }
 }
