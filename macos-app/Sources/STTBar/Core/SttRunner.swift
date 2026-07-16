@@ -104,9 +104,19 @@ final class SttRunner {
         busy = true
         setState(.whisper)
         let generation = runGeneration
-        backend.stop(mode: mode) { [weak self] result in
+        backend.stop(mode: mode, onPhase: { [weak self] phase in
+            DispatchQueue.main.async { self?.handlePhase(phase, generation: generation) }
+        }) { [weak self] result in
             DispatchQueue.main.async { self?.handleResult(result, mode: mode, generation: generation) }
         }
+    }
+
+    /// Maps a backend pipeline phase to the high-level state that drives the
+    /// icon and HUD (so the LLM/sparkles segment shows during cleanup).
+    private func handlePhase(_ phase: TranscriptionPhase, generation: Int) {
+        guard generation == runGeneration, busy else { return }
+        let mapped: SttState = (phase == .postprocessing) ? .llm : .whisper
+        if state != mapped { setState(mapped) }
     }
 
     /// Stops a live recording and transcribes what was captured. Used by the
@@ -150,33 +160,56 @@ final class SttRunner {
             AppLogger.log("stale_result_dropped generation=\(generation) current=\(runGeneration)")
             return
         }
-        busy = false
         recordingStartedAt = nil
         switch result {
         case .success(let text) where !text.isEmpty:
-            let paste = NativePaste.copyAndPaste(text)
-            switch paste {
-            case .pasted:
-                StatusStore.writeAppStatus(event: "native_paste_done", phase: "done", severity: "info", message: L("Transkript nativ eingefügt.", "Transcript pasted natively."), detail: "chars=\(text.count)")
-                setState(.idle)
-            case .clipboardOnly(let reason):
-                StatusStore.writeAppStatus(event: "paste_failed_clipboard_ok", phase: "done", severity: "warning", code: "paste_permission_missing", message: L("Text liegt in der Zwischenablage.", "Text is on the clipboard."), detail: reason)
-                setState(.error)
-            }
-            onTranscript?(text, mode, paste)
-            if AppSettings.shared.sensitiveMode {
-                // The raw voice recording is the more sensitive artifact; the
-                // native pipeline leaves it in place until the next run.
-                try? FileManager.default.removeItem(at: RuntimePaths.resultFile)
-                try? FileManager.default.removeItem(at: RuntimePaths.recordingFile)
+            // Paste runs asynchronously (it may wait for a still-held hotkey
+            // chord to clear). Stay busy across that wait so a press meanwhile
+            // is queued as a fresh start rather than raced into a new recording.
+            NativePaste.copyAndPaste(text) { [weak self] paste in
+                self?.finishPaste(text: text, mode: mode, paste: paste, generation: generation)
             }
         case .success:
             // Stop produced no transcript (nothing was recording). Settle quietly.
+            busy = false
             setState(.idle)
+            settleAfterResult()
         case .failure(let error):
+            busy = false
             setState(.error)
             StatusStore.writeAppStatus(event: "transcription_failed", phase: "error", severity: "error", code: "transcription_failed", message: error.localizedDescription)
+            settleAfterResult()
         }
+    }
+
+    private func finishPaste(text: String, mode: SttMode, paste: NativePasteResult, generation: Int) {
+        // The user cancelled (or a newer run started) while paste was waiting.
+        guard generation == runGeneration else {
+            AppLogger.log("stale_paste_dropped generation=\(generation) current=\(runGeneration)")
+            return
+        }
+        busy = false
+        switch paste {
+        case .pasted:
+            StatusStore.writeAppStatus(event: "native_paste_done", phase: "done", severity: "info", message: L("Transkript nativ eingefügt.", "Transcript pasted natively."), detail: "chars=\(text.count)")
+            setState(.idle)
+        case .clipboardOnly(let reason):
+            StatusStore.writeAppStatus(event: "paste_failed_clipboard_ok", phase: "done", severity: "warning", code: "paste_permission_missing", message: L("Text liegt in der Zwischenablage.", "Text is on the clipboard."), detail: reason)
+            setState(.error)
+        }
+        onTranscript?(text, mode, paste)
+        if AppSettings.shared.sensitiveMode {
+            // The raw voice recording is the more sensitive artifact; the
+            // native pipeline leaves it in place until the next run.
+            try? FileManager.default.removeItem(at: RuntimePaths.resultFile)
+            try? FileManager.default.removeItem(at: RuntimePaths.recordingFile)
+        }
+        settleAfterResult()
+    }
+
+    /// Common tail after a run settles: surface any problem, log, and honor a
+    /// press that arrived while we were busy.
+    private func settleAfterResult() {
         if let problem = StatusStore.latestProblem(limit: 50) { onProblem?(problem) }
         AppLogger.log("transcription_finished state=\(state)")
 

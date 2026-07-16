@@ -74,6 +74,16 @@ enum StatusStore {
         }.reversed()
     }
 
+    /// Appends one run's metrics as a JSON line, matching the shell backend's
+    /// metrics.jsonl format so the menu tooltip and Status window can read the
+    /// native pipeline's timings the same way.
+    static func appendRunMetric(_ metric: RunMetric) {
+        RuntimePaths.ensureDirectory()
+        guard let data = try? JSONEncoder().encode(metric),
+              let line = String(data: data, encoding: .utf8) else { return }
+        LineJournal.append(line + "\n", to: RuntimePaths.metricsFile)
+    }
+
     static func writeAppStatus(event: String, phase: String, severity: String, code: String = "", message: String, detail: String = "") {
         RuntimePaths.ensureDirectory()
         let status = SttStatus(schema: 1,

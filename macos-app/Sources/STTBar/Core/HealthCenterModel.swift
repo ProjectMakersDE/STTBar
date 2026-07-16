@@ -75,12 +75,14 @@ final class HealthCenterModel: ObservableObject {
     }
 
     func clipboardTest() {
-        let result = NativePaste.copyAndPaste("STTBar Test")
-        switch result {
-        case .pasted: actionMessage = L("Testtext eingefügt", "Test text inserted")
-        case .clipboardOnly(let reason): actionMessage = reason
+        NativePaste.copyAndPaste("STTBar Test") { [weak self] result in
+            guard let self else { return }
+            switch result {
+            case .pasted: self.actionMessage = L("Testtext eingefügt", "Test text inserted")
+            case .clipboardOnly(let reason): self.actionMessage = reason
+            }
+            self.refresh()
         }
-        refresh()
     }
 
     func prewarmServers() {

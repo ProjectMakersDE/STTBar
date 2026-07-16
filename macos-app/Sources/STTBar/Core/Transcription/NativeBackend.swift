@@ -33,16 +33,25 @@ final class NativeBackend: TranscriptionBackend {
 
     func cancel() { recorder.cancel() }
 
-    func stop(mode: SttMode, completion: @escaping (Result<String, Error>) -> Void) {
+    func stop(mode: SttMode,
+              onPhase: @escaping (TranscriptionPhase) -> Void,
+              completion: @escaping (Result<String, Error>) -> Void) {
         guard let audioURL = recorder.stop() else { completion(.success("")); return }
         let config = configProvider()
+        let wavBytes = (try? FileManager.default.attributesOfItem(atPath: audioURL.path))?[.size] as? Int
         Task {
             do {
+                onPhase(.transcribing)
                 let source = TranscriptionSource(rawValue: config.source) ?? .server
                 let transcriber: Transcriber = Transcribers.isLocal(source) ? local : remote
+                let whisperStart = Date()
                 let raw = try await transcriber.transcribe(audioURL: audioURL, config: config)
+                let whisperMs = Int(Date().timeIntervalSince(whisperStart) * 1000)
                 var text = raw
+                var postprocessMs = 0
                 if Self.usesLLM(mode) && config.postprocessEnabled {
+                    onPhase(.postprocessing)
+                    let llmStart = Date()
                     do {
                         text = try await llm.clean(transcript: raw, config: config, translateTo: Self.translateTarget(mode))
                     } catch {
@@ -50,8 +59,21 @@ final class NativeBackend: TranscriptionBackend {
                         AppLogger.log("llm_cleanup_failed_fallback_raw \(error.localizedDescription)")
                         text = raw
                     }
+                    postprocessMs = Int(Date().timeIntervalSince(llmStart) * 1000)
                 }
                 let final = config.replacements.preview(text)
+                StatusStore.appendRunMetric(RunMetric(
+                    schema: 1,
+                    timestamp: ISO8601DateFormatter().string(from: Date()),
+                    runId: nil,
+                    mode: mode.rawValue,
+                    wavBytes: wavBytes,
+                    recordingMs: nil,
+                    whisperMs: whisperMs,
+                    whisperTextChars: raw.count,
+                    postprocessMs: postprocessMs > 0 ? postprocessMs : nil,
+                    outputChars: final.count,
+                    pasteStatus: nil))
                 completion(.success(final))
             } catch {
                 completion(.failure(error))

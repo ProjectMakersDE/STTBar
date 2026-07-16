@@ -52,26 +52,36 @@ enum NativePaste {
         return held
     }
 
-    /// Production wrapper: waits on the live session modifier state. Generous
-    /// timeout — the poll returns the instant the keys are released, so this only
-    /// elapses if the user deliberately keeps the chord down.
-    @discardableResult
-    static func waitForModifiersToClear(timeout: TimeInterval = 2.5) -> CGEventFlags {
-        waitForModifiersToClear(
-            timeout: timeout,
-            pollInterval: 0.01,
-            now: { ProcessInfo.processInfo.systemUptime },
-            currentFlags: { CGEventSource.flagsState(.combinedSessionState) },
-            sleep: { Thread.sleep(forTimeInterval: $0) }
-        )
+    /// Polls the live session modifier state off the main thread, invoking
+    /// `completion` on the main queue with whatever is still held (empty ==
+    /// cleared). Uses main-queue scheduling instead of a blocking sleep so the
+    /// HUD and menu stay responsive while a held chord is waited out. Generous
+    /// timeout — it returns the instant the keys are released, so it only runs
+    /// the full duration if the user deliberately keeps the chord down.
+    static func awaitModifiersClear(timeout: TimeInterval = 2.5,
+                                    pollInterval: TimeInterval = 0.01,
+                                    completion: @escaping (CGEventFlags) -> Void) {
+        let deadline = ProcessInfo.processInfo.systemUptime + timeout
+        func poll() {
+            let held = heldModifiers(CGEventSource.flagsState(.combinedSessionState))
+            if held.isEmpty || ProcessInfo.processInfo.systemUptime >= deadline {
+                completion(held)
+            } else {
+                DispatchQueue.main.asyncAfter(deadline: .now() + pollInterval) { poll() }
+            }
+        }
+        poll()
     }
 
-    static func copyAndPaste(_ text: String) -> NativePasteResult {
-        guard !text.isEmpty else { return .pasted }
+    /// Inserts `text` and delivers the outcome to `completion` on the main
+    /// queue. When the hotkey chord is still held, the wait is asynchronous so
+    /// the app never freezes.
+    static func copyAndPaste(_ text: String, completion: @escaping (NativePasteResult) -> Void) {
+        guard !text.isEmpty else { return completion(.pasted) }
 
         guard Permissions.accessibilityTrusted else {
             setClipboard(text)
-            return .clipboardOnly("Bedienungshilfen fehlen; Text liegt in der Zwischenablage.")
+            return completion(.clipboardOnly("Bedienungshilfen fehlen; Text liegt in der Zwischenablage."))
         }
 
         // A fast dictation can reach here while the hotkey chord (Raw =
@@ -82,8 +92,9 @@ enum NativePaste {
         // the user to lift the keys before injecting anything.
         let held = heldModifiers(CGEventSource.flagsState(.combinedSessionState))
         AppLogger.log("native_paste begin held_mods=\(describe(held)) chars=\(text.count)")
-        if !held.isEmpty {
-            let remaining = waitForModifiersToClear()
+        guard !held.isEmpty else { return completion(inject(text)) }
+
+        awaitModifiersClear { remaining in
             AppLogger.log("native_paste waited remaining_mods=\(describe(remaining))")
             if !remaining.isEmpty {
                 // Still held after the wait. Injecting now would type into the live
@@ -91,10 +102,16 @@ enum NativePaste {
                 // on the clipboard for a manual paste instead.
                 setClipboard(text)
                 AppLogger.log("native_paste stage=clipboard_only_modifiers_held")
-                return .clipboardOnly("Modifier-Tasten gehalten; Text liegt in der Zwischenablage (⌘V).")
+                return completion(.clipboardOnly("Modifier-Tasten gehalten; Text liegt in der Zwischenablage (⌘V)."))
             }
+            completion(inject(text))
         }
+    }
 
+    /// The staged, non-blocking injection: Accessibility, then Unicode typing,
+    /// then clipboard + Cmd+V. Assumes accessibility is granted and no modifier
+    /// chord is held (both checked by `copyAndPaste`).
+    private static func inject(_ text: String) -> NativePasteResult {
         // Stage 1 — Accessibility direct write (no clipboard).
         if insertViaAccessibility(text) { AppLogger.log("native_paste stage=ax"); return .pasted }
 
