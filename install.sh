@@ -223,6 +223,8 @@ install_linux() {
         elif [[ -f "$SCRIPT_DIR/.env.example" ]]; then
             cp "$SCRIPT_DIR/.env.example" "$INSTALL_DIR/.env"
         fi
+        # .env can hold API keys; keep it unreadable for other local users.
+        chmod 600 "$INSTALL_DIR/.env" 2>/dev/null || true
         info "Created config at $INSTALL_DIR/.env"
     else
         warn "Config already exists at $INSTALL_DIR/.env (not overwritten)"
@@ -295,7 +297,12 @@ install_macos() {
     echo "=== STTBar Installer (macOS) ==="
     echo ""
 
-    check_deps_macos || exit 1
+    # Missing sox/jq only disables the shell fallback; the native STTBar.app
+    # records and transcribes without them, so keep installing.
+    if ! check_deps_macos; then
+        warn "Shell-fallback dependencies missing; installing the native app anyway."
+        warn "Enable the shell fallback later with: brew install sox jq"
+    fi
 
     # Create install directory
     mkdir -p "$INSTALL_DIR"
@@ -329,6 +336,8 @@ install_macos() {
         elif [[ -f "$SCRIPT_DIR/.env.example" ]]; then
             cp "$SCRIPT_DIR/.env.example" "$INSTALL_DIR/.env"
         fi
+        # .env can hold API keys; keep it unreadable for other local users.
+        chmod 600 "$INSTALL_DIR/.env" 2>/dev/null || true
         info "Created config at $INSTALL_DIR/.env"
     else
         warn "Config already exists at $INSTALL_DIR/.env (not overwritten)"

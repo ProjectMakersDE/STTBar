@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches-ignore:
+      - master
+
+jobs:
+  test:
+    # macos-15 ships Xcode 16 / the macOS 15 SDK, required by WhisperKit's
+    # ArgmaxCore (uses the CoreML MLState API that the macos-14 SDK lacks).
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Swift tests
+        run: swift test --package-path macos-app
+
+      - name: Shell tests
+        run: |
+          for t in tests/*.sh; do
+            echo "== $t"
+            bash "$t"
+          done
+
+      - name: Build app bundle
+        run: bash macos-app/build-app.sh "$RUNNER_TEMP/sttbar-build-check"

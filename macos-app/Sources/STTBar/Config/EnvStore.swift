@@ -80,5 +80,7 @@ struct EnvStore {
         let tmp = url.appendingPathExtension("tmp")
         try text.write(to: tmp, atomically: true, encoding: .utf8)
         _ = try FileManager.default.replaceItemAt(url, withItemAt: tmp)
+        // .env can hold API keys; keep it unreadable for other local users.
+        try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
     }
 }

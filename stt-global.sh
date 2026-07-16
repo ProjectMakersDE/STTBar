@@ -44,8 +44,10 @@ if is_recording; then
         exit 1
     fi
 
-    text="$("$SCRIPT_DIR/stt-transcribe.sh" "$audio_file" 2>/dev/null)"
-    rc=$?
+    # Guard the substitution: under `set -e` a failing transcribe would kill
+    # the script here, before the error handling below can run.
+    rc=0
+    text="$("$SCRIPT_DIR/stt-transcribe.sh" "$audio_file" 2>/dev/null)" || rc=$?
     rm -f "$audio_file"
 
     if [[ $rc -ne 0 ]] || [[ -z "$text" ]]; then

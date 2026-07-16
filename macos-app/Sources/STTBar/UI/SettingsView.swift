@@ -375,6 +375,7 @@ private struct PrivacyTab: View {
                     .disabled(model.sensitiveMode)
                 TextField(L("Auto-Löschen nach Stunden", "Auto-delete after hours"), text: $model.historyRetentionHours)
                     .disabled(model.sensitiveMode || !model.historyEnabled)
+                Button(L("Verlauf jetzt löschen", "Clear history now")) { model.clearHistory() }
             }
             Section(L("Laufzeit", "Runtime")) {
                 TextField(L("Maximale Aufnahmedauer (s)", "Max recording duration (s)"), text: $model.maxRecordingSeconds)

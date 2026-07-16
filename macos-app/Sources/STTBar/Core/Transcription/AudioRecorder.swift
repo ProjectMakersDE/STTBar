@@ -61,12 +61,19 @@ final class AudioRecorder {
         guard let targetFormat = AVAudioFormat(settings: Self.targetSettings) else {
             throw AudioRecorderError.engineStart("invalid target format")
         }
-        converter = AVAudioConverter(from: inputFormat, to: targetFormat)
-        file = try AVAudioFile(forWriting: outputURL, settings: Self.targetSettings,
-                               commonFormat: .pcmFormatInt16, interleaved: true)
+        guard let converter = AVAudioConverter(from: inputFormat, to: targetFormat) else {
+            throw AudioRecorderError.engineStart("no converter for input format")
+        }
+        let file = try AVAudioFile(forWriting: outputURL, settings: Self.targetSettings,
+                                   commonFormat: .pcmFormatInt16, interleaved: true)
+        self.converter = converter
+        self.file = file
 
-        input.installTap(onBus: 0, bufferSize: 1024, format: inputFormat) { [weak self] buffer, _ in
-            guard let self, let converter = self.converter, let file = self.file else { return }
+        // The tap captures file/converter directly: the audio thread must not
+        // read `self.file`/`self.converter` while stop() nils them on the main
+        // thread (a torn read is undefined behavior). The WAV header is still
+        // finalized when the last reference — tap closure or property — drops.
+        input.installTap(onBus: 0, bufferSize: 1024, format: inputFormat) { buffer, _ in
             let ratio = targetFormat.sampleRate / inputFormat.sampleRate
             let capacity = AVAudioFrameCount(Double(buffer.frameLength) * ratio + 16)
             guard let out = AVAudioPCMBuffer(pcmFormat: targetFormat, frameCapacity: capacity) else { return }
@@ -86,8 +93,8 @@ final class AudioRecorder {
             try engine.start()
         } catch {
             input.removeTap(onBus: 0)
-            file = nil
-            converter = nil
+            self.file = nil
+            self.converter = nil
             // A failed start usually means the engine's device went away;
             // drop it so the next attempt resolves the current device fresh.
             engine = AVAudioEngine()

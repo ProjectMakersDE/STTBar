@@ -35,6 +35,12 @@ final class SttRunner {
     /// a fresh start once that run completes, so a press is never silently lost.
     private var pendingStart = false
     private var pendingMode: SttMode = .full
+    /// Mode of the recording currently in flight, so the watchdog can stop and
+    /// transcribe a runaway recording without knowing how it was started.
+    private var activeMode: SttMode = .full
+    /// Bumped by cancelRecording. A stop completion captured under an older
+    /// generation is stale (the user cancelled it) and must not paste.
+    private var runGeneration = 0
 
     init(backend: TranscriptionBackend = PlaceholderBackend()) {
         self.backend = backend
@@ -78,6 +84,7 @@ final class SttRunner {
 
     private func startRecording(mode: SttMode) {
         busy = true
+        activeMode = mode
         do {
             try backend.start(mode: mode)
             recordingStartedAt = Date()
@@ -96,12 +103,22 @@ final class SttRunner {
     private func stopRecording(mode: SttMode) {
         busy = true
         setState(.whisper)
+        let generation = runGeneration
         backend.stop(mode: mode) { [weak self] result in
-            DispatchQueue.main.async { self?.handleResult(result, mode: mode) }
+            DispatchQueue.main.async { self?.handleResult(result, mode: mode, generation: generation) }
         }
     }
 
+    /// Stops a live recording and transcribes what was captured. Used by the
+    /// max-duration watchdog: hitting the limit must not destroy the audio.
+    func stopAndTranscribe() {
+        guard isRecording, !busy else { return }
+        lastTriggerAt = Date()
+        stopRecording(mode: activeMode)
+    }
+
     func cancelRecording() {
+        runGeneration += 1
         backend.cancel()
         recordingStartedAt = nil
         busy = false
@@ -128,7 +145,11 @@ final class SttRunner {
         }
     }
 
-    private func handleResult(_ result: Result<String, Error>, mode: SttMode) {
+    private func handleResult(_ result: Result<String, Error>, mode: SttMode, generation: Int) {
+        guard generation == runGeneration else {
+            AppLogger.log("stale_result_dropped generation=\(generation) current=\(runGeneration)")
+            return
+        }
         busy = false
         recordingStartedAt = nil
         switch result {
@@ -144,7 +165,10 @@ final class SttRunner {
             }
             onTranscript?(text, mode, paste)
             if AppSettings.shared.sensitiveMode {
+                // The raw voice recording is the more sensitive artifact; the
+                // native pipeline leaves it in place until the next run.
                 try? FileManager.default.removeItem(at: RuntimePaths.resultFile)
+                try? FileManager.default.removeItem(at: RuntimePaths.recordingFile)
             }
         case .success:
             // Stop produced no transcript (nothing was recording). Settle quietly.

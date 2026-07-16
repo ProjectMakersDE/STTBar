@@ -46,6 +46,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.hotkeys.reload()
             self?.warmer?.reload()
         }
+        model.onClearHistory = { [weak self] in
+            self?.history.clear()
+            self?.lastTranscript = nil
+            self?.menu.setLastTranscriptAvailable(false)
+        }
 
         runner.onState = { [weak self] state in
             self?.menu.setState(state)
@@ -162,7 +167,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func startWatchdog() {
         watchdogTimer?.invalidate()
-        watchdogTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
+        let timer = Timer(timeInterval: 2, repeats: true) { [weak self] _ in
             guard let self else { return }
             let report = self.runner.watchdog(maxDuration: TimeInterval(AppSettings.shared.maxRecordingSeconds))
             if report.isRecording && self.runner.state == .idle {
@@ -170,14 +175,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self.hud.update(.recording)
             }
             if report.exceededLimit {
-                self.runner.cancelRecording()
-                StatusStore.writeAppStatus(event: "recording_max_duration_cancelled", phase: "idle", severity: "warning", code: "recording_max_duration", message: "Aufnahme wegen Maximaldauer abgebrochen.")
+                // Stop and transcribe: hitting the limit must not throw away
+                // everything the user just said.
+                self.runner.stopAndTranscribe()
+                StatusStore.writeAppStatus(event: "recording_max_duration_stopped", phase: "whisper", severity: "warning", code: "recording_max_duration", message: L("Maximale Aufnahmedauer erreicht - Aufnahme wird transkribiert.", "Max recording duration reached - transcribing what was captured."))
             }
             if report.stalePidRemoved || report.exceededLimit {
                 self.menu.setLastProblem(StatusStore.latestProblem())
             }
             self.healthModel?.refresh()
         }
+        // .common keeps the watchdog ticking while a menu or modal is open.
+        RunLoop.main.add(timer, forMode: .common)
+        watchdogTimer = timer
     }
 
     private func updateLastRunSummary() {

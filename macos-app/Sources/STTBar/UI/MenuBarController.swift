@@ -74,6 +74,9 @@ final class MenuBarController {
 
     private func buildMenu() {
         let menu = NSMenu()
+        // Manual enabling: with auto-enablement, NSMenu re-enables every item
+        // whose target responds, silently overriding the isEnabled flags below.
+        menu.autoenablesItems = false
         for mode in SttMode.allCases {
             let title = state == .recording
                 ? "\(L("Stoppen", "Stop")): \(mode.label)"

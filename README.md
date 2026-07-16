@@ -53,7 +53,6 @@ afterthought.
   dictations out of history and removes the transcript file after pasting.
 - German/English interface switch that also aligns the Whisper language and
   the active prompt.
-- One-click in-app updater fed by GitHub Releases.
 - Native Swift menu-bar app: fast, small, and quiet. No Electron.
 
 ## Install
@@ -96,11 +95,17 @@ Set `STT_DOCKER_PORT` and `STT_MODEL` in `.env` if needed.
 
 ## Updates
 
-`Settings → General → Check for updates` checks the latest GitHub Release in
-`ProjectMakersDE/STTBar`. When a newer version is found, `Update` downloads the
-release, swaps the running app in place, refreshes the backend scripts (without
-touching your config), and relaunches. Release builds attach `STTBar.app.zip`,
-`stt-scripts.zip`, and matching SHA256 files.
+Every push to `master` publishes a GitHub Release with `STTBar.app.zip`,
+`stt-scripts.zip`, and matching SHA256 files. To update, either download the
+latest release and replace `STTBar.app`, or pull the repository and rerun the
+installer:
+
+```bash
+git pull
+bash install.sh
+```
+
+Your configuration in `~/.local/share/stt/.env` is not touched by updates.
 
 ## Development
 

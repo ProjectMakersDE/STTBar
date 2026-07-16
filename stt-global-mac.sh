@@ -57,8 +57,10 @@ notify() {
     fi
 
     local body="$1"
-    # Escape double quotes for osascript's double-quoted string literal
-    local escaped="${body//\"/\\\"}"
+    # Escape for osascript's double-quoted string literal: backslashes first,
+    # then quotes — otherwise a backslash in the transcript re-arms the quote.
+    local escaped="${body//\\/\\\\}"
+    escaped="${escaped//\"/\\\"}"
     osascript -e "display notification \"$escaped\" with title \"STT\"" 2>/dev/null || true
 }
 

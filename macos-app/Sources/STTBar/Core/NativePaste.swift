@@ -181,5 +181,11 @@ enum NativePaste {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         pasteboard.setString(text, forType: .string)
+        if AppSettings.shared.sensitiveMode {
+            // nspasteboard.org convention: clipboard managers skip entries
+            // marked as concealed, so sensitive dictations stay out of their
+            // histories.
+            pasteboard.setString("", forType: NSPasteboard.PasteboardType("org.nspasteboard.ConcealedType"))
+        }
     }
 }

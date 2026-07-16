@@ -12,6 +12,11 @@ final class SettingsModel: ObservableObject {
     @Published var replacements: ReplacementStore
     let installDir: URL
     var onHotkeysChanged: (() -> Void)?
+    /// Wired by AppDelegate to the live TranscriptHistoryStore, so the
+    /// Settings privacy tab can wipe the stored transcripts.
+    var onClearHistory: (() -> Void)?
+
+    func clearHistory() { onClearHistory?() }
 
     @Published var whisperURL: String = ""
     @Published var whisperModel: String = ""
