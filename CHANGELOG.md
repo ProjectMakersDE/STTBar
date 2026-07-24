@@ -1,3 +1,12 @@
+## [1.2.2](https://github.com/ProjectMakersDE/STTBar/compare/v1.2.1...v1.2.2) (2026-07-24)
+
+### Bug Fixes
+
+* **audio:** survive input device changes after sleep or display swaps ([88ad476](https://github.com/ProjectMakersDE/STTBar/commit/88ad4761dec433651958c4a8f639d3a6030f4edf))
+* **core:** resolve confirmed findings from full-app review ([702a731](https://github.com/ProjectMakersDE/STTBar/commit/702a7311fe739561fd062d0410e3f97d8a3091e1))
+* **core:** resolve second batch of verified review findings ([e03820c](https://github.com/ProjectMakersDE/STTBar/commit/e03820c7b1020f23e37fb71fe5575407079d95a2))
+* **paste,hud:** unblock the main thread during paste and surface the LLM phase ([c53b54c](https://github.com/ProjectMakersDE/STTBar/commit/c53b54c37e3e539108d8111742af9ba98d2d0a78))
+
 ## [1.2.1](https://github.com/ProjectMakersDE/STTBar/compare/v1.2.0...v1.2.1) (2026-07-11)
 
 ### Bug Fixes
