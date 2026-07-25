@@ -12,7 +12,7 @@ final class MenuBarController {
     var onShowLastError: (() -> Void)?
     var onCopyLastTranscript: (() -> Void)?
     var onReinsertLastTranscript: (() -> Void)?
-    var onOpenLogs: (() -> Void)?
+    var onOpenDataFolder: ((DataLocation) -> Void)?
     var onSetLanguage: ((AppLanguage) -> Void)?
 
     private var state: SttState = .idle
@@ -97,8 +97,18 @@ final class MenuBarController {
         let error = NSMenuItem(title: L("Letzten Fehler anzeigen", "Show last error"), action: #selector(showLastError), keyEquivalent: "")
         error.target = self; error.isEnabled = lastProblem != nil
         menu.addItem(error)
-        let logs = NSMenuItem(title: L("Logs öffnen", "Open logs"), action: #selector(openLogs), keyEquivalent: "")
-        logs.target = self; menu.addItem(logs)
+        // One folder per entry: the old single item revealed files from two
+        // different directories, which made Finder open two windows.
+        let files = NSMenuItem(title: L("Dateien", "Files"), action: nil, keyEquivalent: "")
+        let filesMenu = NSMenu()
+        for location in DataLocation.allCases {
+            let fi = NSMenuItem(title: location.title, action: #selector(openDataFolder(_:)), keyEquivalent: "")
+            fi.target = self
+            fi.representedObject = location.rawValue
+            filesMenu.addItem(fi)
+        }
+        files.submenu = filesMenu
+        menu.addItem(files)
         menu.addItem(.separator())
         let status = NSMenuItem(title: L("Status & Diagnose…", "Status & diagnostics…"), action: #selector(openStatus), keyEquivalent: "")
         status.target = self; menu.addItem(status)
@@ -137,7 +147,11 @@ final class MenuBarController {
     @objc private func showLastError() { onShowLastError?() }
     @objc private func copyLastTranscript() { onCopyLastTranscript?() }
     @objc private func reinsertLastTranscript() { onReinsertLastTranscript?() }
-    @objc private func openLogs() { onOpenLogs?() }
+    @objc private func openDataFolder(_ sender: NSMenuItem) {
+        if let raw = sender.representedObject as? String, let location = DataLocation(rawValue: raw) {
+            onOpenDataFolder?(location)
+        }
+    }
     @objc private func selectLanguage(_ sender: NSMenuItem) {
         if let raw = sender.representedObject as? String, let lang = AppLanguage(rawValue: raw) {
             onSetLanguage?(lang)

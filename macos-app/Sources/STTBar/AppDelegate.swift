@@ -87,7 +87,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.onShowLastError = { [weak self] in self?.showLastError() }
         menu.onCopyLastTranscript = { [weak self] in self?.copyLastTranscript() }
         menu.onReinsertLastTranscript = { [weak self] in self?.reinsertLastTranscript() }
-        menu.onOpenLogs = { Self.openLogs() }
+        menu.onOpenDataFolder = { $0.reveal() }
         menu.onSetLanguage = { [weak self] lang in self?.model.setAppLanguage(lang) }
         Localization.shared.$language
             .receive(on: RunLoop.main)
@@ -162,12 +162,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             StatusStore.writeAppStatus(event: "last_transcript_clipboard_only", phase: "done", severity: "warning", code: "paste_permission_missing", message: "Letztes Transkript liegt in der Zwischenablage.", detail: reason)
             self?.menu.setLastProblem(StatusStore.latestProblem())
         }
-    }
-
-    private static func openLogs() {
-        NSWorkspace.shared.activateFileViewerSelecting([AppLogger.logURL, RuntimePaths.eventsFile, RuntimePaths.metricsFile].filter {
-            FileManager.default.fileExists(atPath: $0.path)
-        })
     }
 
     private func startWatchdog() {
