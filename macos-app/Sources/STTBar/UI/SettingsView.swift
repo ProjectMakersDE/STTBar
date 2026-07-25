@@ -4,6 +4,7 @@ import SwiftUI
 /// Native settings window content bound to `SettingsModel`.
 struct SettingsView: View {
     @ObservedObject var model: SettingsModel
+    @ObservedObject var dataFolders: DataFolderModel
     @ObservedObject private var loc = Localization.shared
     var openEditor: (String) -> Void
 
@@ -16,7 +17,7 @@ struct SettingsView: View {
             ShortcutsTab(model: model).tabItem { Label(L("Shortcuts", "Shortcuts"), systemImage: "command") }
             DisplayTab(model: model).tabItem { Label(L("Anzeige", "Display"), systemImage: "rectangle.on.rectangle") }
             PrivacyTab(model: model).tabItem { Label(L("Datenschutz", "Privacy"), systemImage: "lock") }
-            GeneralTab(model: model).tabItem { Label(L("Allgemein", "General"), systemImage: "gearshape") }
+            GeneralTab(model: model, dataFolders: dataFolders).tabItem { Label(L("Allgemein", "General"), systemImage: "gearshape") }
         }
         .frame(width: 780, height: 620)
         .padding()
@@ -427,6 +428,7 @@ private struct PermissionRow: View {
 
 private struct GeneralTab: View {
     @ObservedObject var model: SettingsModel
+    @ObservedObject var dataFolders: DataFolderModel
     @ObservedObject private var loc = Localization.shared
     @State private var autostart = LoginItem.isEnabled
 
@@ -471,6 +473,7 @@ private struct GeneralTab: View {
                     Button(L("Importieren", "Import")) { model.importBundle() }
                 }
             }
+            DataFolderSection(model: dataFolders)
             Section(L("Version", "Version")) {
                 Text("App: v\(version.appVersion) (Build \(version.appBuild))")
                 Text("App-Commit: \(version.appCommit)")

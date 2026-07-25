@@ -121,7 +121,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func showSettings() {
-        if settingsWindow == nil { settingsWindow = SettingsWindow(model: model) }
+        if settingsWindow == nil {
+            // Cleanup must stay locked during whisper/llm too: the backend is
+            // still reading recording.wav in those phases.
+            settingsWindow = SettingsWindow(model: model,
+                                            isIdle: { [weak self] in self?.runner.state == .idle })
+        }
         settingsWindow?.show()
     }
 
