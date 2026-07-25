@@ -23,6 +23,10 @@ final class SttRunner {
     private var recordingStartedAt: Date?
     private(set) var state: SttState = .idle
 
+    /// A run is in flight: the backend is recording or still reading its output.
+    /// Distinct from `state != .idle`, because `.error` is sticky until the next run.
+    var isRunActive: Bool { state == .recording || state == .whisper || state == .llm }
+
     /// Single source of truth for the start/stop decision. Replaces the old
     /// implicit toggle that re-derived start-vs-stop independently in Swift and
     /// in the shell (which could diverge and mis-fire).

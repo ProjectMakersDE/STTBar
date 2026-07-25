@@ -56,6 +56,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.menu.setState(state)
             self?.hud.update(state)
             self?.onboardingWindow?.flow.liveState = state
+            self?.settingsWindow?.setRunActive(self?.runner.isRunActive == true)
         }
         runner.onProblem = { [weak self] problem in
             guard let self else { return }
@@ -123,9 +124,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func showSettings() {
         if settingsWindow == nil {
             // Cleanup must stay locked during whisper/llm too: the backend is
-            // still reading recording.wav in those phases.
+            // still reading recording.wav in those phases. Gate on isRunActive,
+            // not `state == .idle` — `.error` is sticky (e.g. a clipboard-only
+            // paste fallback) and would lock the button for the rest of the
+            // session. With `self` nil this reads `nil == false`, i.e. `false`,
+            // so the gate fails closed.
             settingsWindow = SettingsWindow(model: model,
-                                            isIdle: { [weak self] in self?.runner.state == .idle })
+                                            isIdle: { [weak self] in self?.runner.isRunActive == false })
         }
         settingsWindow?.show()
     }

@@ -8,10 +8,25 @@ final class DataFolderModel: ObservableObject {
     @Published private(set) var isBusy = false
     @Published private(set) var lastCleanupMessage: String?
 
-    private let isIdle: () -> Bool
+    /// Resolved once at construction, not re-read from a SwiftUI body:
+    /// `.logs` resolves through `AppLogger.logURL`, which creates its
+    /// directory as a side effect on every read.
+    let urls: [DataLocation: URL]
 
-    init(isIdle: @escaping () -> Bool) {
+    private let isIdle: () -> Bool
+    private let confirm: () -> Bool
+    private let runtime: URL
+    private let logs: URL
+
+    init(isIdle: @escaping () -> Bool,
+         confirm: @escaping () -> Bool = DataFolderModel.confirmDeletionAlert,
+         runtime: URL = DataLocation.runtime.url,
+         logs: URL = DataLocation.logs.url) {
         self.isIdle = isIdle
+        self.confirm = confirm
+        self.runtime = runtime
+        self.logs = logs
+        self.urls = Dictionary(uniqueKeysWithValues: DataLocation.allCases.map { ($0, $0.url) })
     }
 
     /// Re-reads the busy flag right away and the folder sizes off the main
@@ -25,6 +40,12 @@ final class DataFolderModel: ObservableObject {
         }
     }
 
+    /// Pushed by the caller's `runner.onState` fan-out so the button reflects
+    /// the live run state even while the window stays open across a run.
+    /// The re-check inside `cleanUp()` remains the actual safety gate; this
+    /// only keeps the disabled hint from going stale.
+    func setRunActive(_ active: Bool) { isBusy = active }
+
     func reveal(_ location: DataLocation) { location.reveal() }
 
     func cleanUp() {
@@ -32,20 +53,27 @@ final class DataFolderModel: ObservableObject {
         // the current run started.
         isBusy = !isIdle()
         guard !isBusy else { return }
-        guard confirmDeletion() else { return }
+        guard confirm() else { return }
 
-        let result = TempFileCleanup.run(runtime: RuntimePaths.directory,
-                                         logs: DataLocation.logs.url)
+        let result = TempFileCleanup.run(runtime: runtime, logs: logs)
         AppLogger.log("temp_cleanup files=\(result.removedFiles) bytes=\(result.freedBytes)")
         let freed = ByteCountFormatter.string(fromByteCount: result.freedBytes, countStyle: .file)
-        lastCleanupMessage = result.removedFiles == 0
-            ? L("Nichts zu löschen.", "Nothing to delete.")
-            : L("\(result.removedFiles) Dateien gelöscht, \(freed) freigegeben.",
-                "Deleted \(result.removedFiles) files, freed \(freed).")
+        if result.removedFiles == 0 {
+            lastCleanupMessage = L("Nichts zu löschen.", "Nothing to delete.")
+        } else {
+            let files = result.removedFiles == 1
+                ? L("1 Datei", "1 file")
+                : L("\(result.removedFiles) Dateien", "\(result.removedFiles) files")
+            lastCleanupMessage = L("\(files) gelöscht, \(freed) freigegeben.",
+                                   "Deleted \(files), freed \(freed).")
+        }
         refresh()
     }
 
-    private func confirmDeletion() -> Bool {
+    /// The production confirmation flow: a blocking `NSAlert`. Kept as a
+    /// static default so tests can inject a stub without a modal appearing,
+    /// while every real caller gets the alert without asking for it.
+    private static func confirmDeletionAlert() -> Bool {
         let alert = NSAlert()
         alert.messageText = L("Temporäre Dateien löschen?", "Delete temporary files?")
         alert.informativeText = L(
@@ -66,6 +94,7 @@ struct DataFolderSection: View {
         Section(L("Dateien & Speicher", "Files & storage")) {
             ForEach(DataLocation.allCases) { location in
                 DataFolderRow(location: location,
+                              url: model.urls[location] ?? location.url,
                               byteCount: model.sizes[location],
                               reveal: { model.reveal(location) })
             }
@@ -87,6 +116,7 @@ struct DataFolderSection: View {
 
 private struct DataFolderRow: View {
     let location: DataLocation
+    let url: URL
     let byteCount: Int64?
     let reveal: () -> Void
 
@@ -103,8 +133,10 @@ private struct DataFolderRow: View {
                 Button(L("Im Finder öffnen", "Open in Finder"), action: reveal)
             }
             // The container path is unfindable by hand; showing it is half the
-            // point of this section.
-            Text(location.url.path)
+            // point of this section. `url` is resolved once by the parent
+            // model, not here — re-resolving `.logs` on every body
+            // evaluation would `mkdir` as a SwiftUI rendering side effect.
+            Text(url.path)
                 .font(.caption).foregroundStyle(.tertiary)
                 .textSelection(.enabled)
                 .lineLimit(2).truncationMode(.middle)

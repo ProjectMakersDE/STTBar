@@ -18,8 +18,8 @@ enum DataLocation: String, CaseIterable, Identifiable {
 
     var detail: String {
         switch self {
-        case .config: return L("Einstellungen, Prompts, Wörterbuch, Verlauf",
-                               "Settings, prompts, vocabulary, history")
+        case .config: return L("Einstellungen, Prompts, Wörterbuch, Verlauf, Whisper-Modelle",
+                               "Settings, prompts, vocabulary, history, Whisper models")
         case .runtime: return L("Aufnahme, Events, Metriken, Status",
                                 "Recording, events, metrics, status")
         case .logs: return L("Protokolldatei sttbar.log", "Log file sttbar.log")
@@ -46,7 +46,9 @@ enum DataLocation: String, CaseIterable, Identifiable {
     func reveal() {
         let url = self.url
         try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
-        NSWorkspace.shared.open(url)
+        if !NSWorkspace.shared.open(url) {
+            AppLogger.log("data_folder_open_failed location=\(rawValue) path=\(url.path)")
+        }
     }
 }
 
