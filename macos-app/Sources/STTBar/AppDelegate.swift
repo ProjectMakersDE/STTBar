@@ -203,11 +203,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 /// Support; `STT_INSTALL_DIR` overrides it for tests/dev.
 enum InstallPaths {
     static func resolve() -> URL {
-        if let p = ProcessInfo.processInfo.environment["STT_INSTALL_DIR"], !p.isEmpty {
-            return URL(fileURLWithPath: p)
-        }
+        resolve(override: ProcessInfo.processInfo.environment["STT_INSTALL_DIR"],
+                container: containerDirectory())
+    }
+
+    /// The sandbox container's Application Support — the only location a
+    /// sandboxed build can rely on.
+    static func containerDirectory() -> URL {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Library/Application Support")
         return base.appendingPathComponent("STTBar", isDirectory: true)
+    }
+
+    /// An override pointing outside the container is unreadable under the App
+    /// Sandbox, and `EnvStore` turns an unreadable `.env` into an empty one —
+    /// so the app would come up on default settings (a localhost whisper URL)
+    /// without a word of complaint. Only honor an override we can actually
+    /// read; that keeps `STT_INSTALL_DIR` working for unsandboxed dev runs.
+    static func resolve(override raw: String?,
+                        container: URL,
+                        isUsable: (URL) -> Bool = Self.isUsable) -> URL {
+        guard let raw, !raw.isEmpty else { return container }
+        let override = URL(fileURLWithPath: raw)
+        guard isUsable(override) else {
+            AppLogger.log("install_dir_override_unreadable path=\(override.path) falling_back_to_container")
+            return container
+        }
+        return override
+    }
+
+    static func isUsable(_ url: URL) -> Bool {
+        try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        return FileManager.default.isReadableFile(atPath: url.path)
     }
 }

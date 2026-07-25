@@ -88,8 +88,8 @@ check_deps_macos() {
 }
 
 # Build and install the native STTBar.app menu-bar front-end, then register a
-# login LaunchAgent that starts it (with STT_INSTALL_DIR pointing at the
-# install dir so it finds stt-global.sh + .env).
+# login LaunchAgent that starts it. The agent passes no STT_INSTALL_DIR — the
+# sandboxed app owns its config in its container.
 install_native_app() {
     # Prefer /Applications (the standard location the macOS file pickers — e.g.
     # the Accessibility "+" dialog — open by default) when it is writable;
@@ -124,9 +124,10 @@ install_native_app() {
   <key>ProgramArguments</key><array>
     <string>$app_path/Contents/MacOS/STTBar</string>
   </array>
-  <key>EnvironmentVariables</key><dict>
-    <key>STT_INSTALL_DIR</key><string>$INSTALL_DIR</string>
-  </dict>
+  <!-- Deliberately no STT_INSTALL_DIR: the app is sandboxed, so it keeps its
+       config in its own container. Pointing it at $INSTALL_DIR made every
+       login start read a path the sandbox denies, and the config silently
+       fell back to defaults (localhost whisper URL). -->
   <key>RunAtLoad</key><true/>
   <!-- Restart after crashes only. An unconditional KeepAlive would also undo
        a clean "Quit STTBar" (and fight the app's single-instance guard). -->
