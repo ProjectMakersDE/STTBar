@@ -1,3 +1,14 @@
+## [1.3.0](https://github.com/ProjectMakersDE/STTBar/compare/v1.2.2...v1.3.0) (2026-07-25)
+
+### Features
+
+* **audio:** apply the selected microphone and keep Bluetooth out of automatic ([154ed35](https://github.com/ProjectMakersDE/STTBar/commit/154ed35cd6da39933d25d509ed182769953a681b))
+
+### Bug Fixes
+
+* **audio:** record through a bare input unit so playback survives ([1abf5d1](https://github.com/ProjectMakersDE/STTBar/commit/1abf5d1358cddb569223778b7b4948e32a3ab46b))
+* **install:** keep the sandboxed app on its own config directory ([a5a76f2](https://github.com/ProjectMakersDE/STTBar/commit/a5a76f275a4f741c1eeaf743b48094ccf46a455d))
+
 ## [1.2.2](https://github.com/ProjectMakersDE/STTBar/compare/v1.2.1...v1.2.2) (2026-07-24)
 
 ### Bug Fixes
