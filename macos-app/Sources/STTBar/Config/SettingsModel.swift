@@ -37,6 +37,11 @@ final class SettingsModel: ObservableObject {
     @Published var sensitiveMode: Bool = false
     /// Recording input device, written to `STT_AUDIO_DEVICE`. Empty = automatic.
     @Published var audioInputDevice: String = ""
+    /// Keep Bluetooth headsets out of automatic input selection
+    /// (`STT_MACOS_AVOID_BLUETOOTH_PROFILE_SWITCH`, shared with the shell backend).
+    /// Recording from a headset drags it out of A2DP into the HFP profile, which
+    /// audibly degrades anything playing back at the same time.
+    @Published var avoidBluetoothMic: Bool = true
     /// Transcription source: "server" | "selfhost" | "local" (STT_SOURCE).
     @Published var transcriptionSource: String = "server"
     /// WhisperKit model name for local mode (STT_LOCAL_MODEL). Empty = auto.
@@ -112,6 +117,7 @@ final class SettingsModel: ObservableObject {
         write("STT_HISTORY_RETENTION_HOURS", historyRetentionHours)
         write("STT_SENSITIVE_MODE", sensitiveMode ? "1" : "0")
         write("STT_AUDIO_DEVICE", audioInputDevice)
+        write("STT_MACOS_AVOID_BLUETOOTH_PROFILE_SWITCH", avoidBluetoothMic ? "1" : "0")
         write("STT_SOURCE", transcriptionSource)
         write("STT_LOCAL_MODEL", localModel)
         do {
@@ -360,6 +366,7 @@ final class SettingsModel: ObservableObject {
         historyRetentionHours = env.value("STT_HISTORY_RETENTION_HOURS") ?? "\(AppSettings.shared.historyRetentionHours)"
         sensitiveMode = (env.value("STT_SENSITIVE_MODE") ?? (AppSettings.shared.sensitiveMode ? "1" : "0")) == "1"
         audioInputDevice = env.value("STT_AUDIO_DEVICE") ?? ""
+        avoidBluetoothMic = (env.value("STT_MACOS_AVOID_BLUETOOTH_PROFILE_SWITCH") ?? "1") != "0"
         transcriptionSource = env.value("STT_SOURCE") ?? "server"
         localModel = env.value("STT_LOCAL_MODEL") ?? ""
         syncAppSettingsFromDraft()
@@ -399,6 +406,7 @@ final class SettingsModel: ObservableObject {
             "STT_POSTPROCESS_TIMEOUT": postprocessTimeout,
             "STT_AUTO_RAW_FALLBACK": autoRawFallback ? "1" : "0",
             "STT_AUDIO_DEVICE": audioInputDevice,
+            "STT_MACOS_AVOID_BLUETOOTH_PROFILE_SWITCH": avoidBluetoothMic ? "1" : "0",
         ]
     }
 

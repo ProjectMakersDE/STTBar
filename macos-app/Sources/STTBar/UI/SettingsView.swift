@@ -48,8 +48,13 @@ private struct ServerTab: View {
                         Text(audioDeviceLabel(id)).tag(id)
                     }
                 }
-                Text(L("Automatisch nutzt das Standard-Mikrofon (Bluetooth-Headsets werden vermieden). Wird nach Anwenden aktiv.",
-                       "Automatic uses the default microphone (Bluetooth headsets are avoided). Takes effect after Apply."))
+                Text(L("Automatisch nutzt das Standard-Mikrofon. Wird nach Anwenden aktiv.",
+                       "Automatic uses the default microphone. Takes effect after Apply."))
+                    .font(.caption).foregroundStyle(.secondary)
+                Toggle(L("Bluetooth-Mikrofone vermeiden", "Avoid Bluetooth microphones"),
+                       isOn: $model.avoidBluetoothMic)
+                Text(L("Aufnahmen über AirPods & Co. schalten das Headset in den Konversationsmodus: Musik wird dumpf und die Lautstärke springt. Bei „Automatisch“ weicht STTBar dann auf das eingebaute Mikrofon aus. Ein bewusst gewähltes Bluetooth-Mikrofon wird trotzdem benutzt.",
+                       "Recording through AirPods & co. switches the headset into conversation mode: music turns dull and the volume jumps. On “Automatic” STTBar falls back to the built-in microphone instead. A Bluetooth microphone you pick yourself is still used."))
                     .font(.caption).foregroundStyle(.secondary)
             }
             if model.transcriptionSource != TranscriptionSource.local.rawValue {

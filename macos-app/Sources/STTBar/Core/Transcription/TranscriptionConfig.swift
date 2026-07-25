@@ -22,6 +22,13 @@ struct TranscriptionConfig {
     var source: String
     /// WhisperKit model name for local mode (empty = WhisperKit auto-select).
     var localModel: String
+    /// Recording input device name; empty means automatic. Only the recorder
+    /// reads these two, so they default to the safe automatic behavior for the
+    /// transcription-only call sites.
+    var audioInputDevice: String = ""
+    /// Keep Bluetooth headsets out of automatic input selection so they stay in
+    /// high-quality playback mode while dictating.
+    var avoidBluetoothMic: Bool = true
 
     /// The Whisper `language` form field, or nil when auto-detect is requested.
     static func languageParam(for language: String) -> String? {
@@ -45,6 +52,8 @@ struct TranscriptionConfig {
             reasoning: "off",
             replacements: model.replacements,
             source: model.transcriptionSource,
-            localModel: model.localModel)
+            localModel: model.localModel,
+            audioInputDevice: model.audioInputDevice,
+            avoidBluetoothMic: model.avoidBluetoothMic)
     }
 }

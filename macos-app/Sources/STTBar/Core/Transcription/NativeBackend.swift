@@ -28,7 +28,10 @@ final class NativeBackend: TranscriptionBackend {
 
     func start(mode: SttMode) throws {
         RuntimePaths.ensureDirectory()
-        try recorder.start(outputURL: RuntimePaths.recordingFile)
+        let config = configProvider()
+        let input = AudioInputResolver.resolveLive(selected: config.audioInputDevice,
+                                                   avoidBluetooth: config.avoidBluetoothMic)
+        try recorder.start(outputURL: RuntimePaths.recordingFile, input: input)
     }
 
     func cancel() { recorder.cancel() }
