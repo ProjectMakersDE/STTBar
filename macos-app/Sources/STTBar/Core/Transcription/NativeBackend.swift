@@ -29,9 +29,19 @@ final class NativeBackend: TranscriptionBackend {
     func start(mode: SttMode) throws {
         RuntimePaths.ensureDirectory()
         let config = configProvider()
+        // Both steps run synchronously on the main thread before the icon and
+        // HUD flip to .recording, so together they are the budget for the
+        // perceived start latency. resolveMs is CoreAudio device enumeration
+        // (one IPC to coreaudiod per device property); engineMs is
+        // AudioUnitInitialize + AudioOutputUnitStart opening the device.
+        let resolveStart = Date()
         let input = AudioInputResolver.resolveLive(selected: config.audioInputDevice,
                                                    avoidBluetooth: config.avoidBluetoothMic)
+        let resolveMs = Int(Date().timeIntervalSince(resolveStart) * 1000)
+        let engineStart = Date()
         try recorder.start(outputURL: RuntimePaths.recordingFile, input: input)
+        let engineMs = Int(Date().timeIntervalSince(engineStart) * 1000)
+        AppLogger.log("record_start resolveMs=\(resolveMs) engineMs=\(engineMs)")
     }
 
     func cancel() { recorder.cancel() }
@@ -39,7 +49,12 @@ final class NativeBackend: TranscriptionBackend {
     func stop(mode: SttMode,
               onPhase: @escaping (TranscriptionPhase) -> Void,
               completion: @escaping (Result<String, Error>) -> Void) {
-        guard let audioURL = recorder.stop() else { completion(.success("")); return }
+        // Same story on the way out: this blocks the main thread before the
+        // state flips to .whisper.
+        let stopStart = Date()
+        let stopped = recorder.stop()
+        AppLogger.log("record_stop engineMs=\(Int(Date().timeIntervalSince(stopStart) * 1000))")
+        guard let audioURL = stopped else { completion(.success("")); return }
         let config = configProvider()
         let wavBytes = (try? FileManager.default.attributesOfItem(atPath: audioURL.path))?[.size] as? Int
         Task {

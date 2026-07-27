@@ -27,6 +27,37 @@ final class LineJournalTests: XCTestCase {
         XCTAssertNil(LineJournal.tail(of: tempFile()))
     }
 
+    private func lines(_ data: [Data]) -> [String] {
+        data.map { String(decoding: $0, as: UTF8.self) }
+    }
+
+    func testTailLinesSplitsOnNewlineBytes() throws {
+        let url = tempFile()
+        defer { try? FileManager.default.removeItem(at: url) }
+        try "a\nb\nc\n".write(to: url, atomically: true, encoding: .utf8)
+        XCTAssertEqual(lines(LineJournal.tailLines(of: url)), ["a", "b", "c"])
+    }
+
+    func testTailLinesDropsPartialFirstLineWhenCapped() throws {
+        let url = tempFile()
+        defer { try? FileManager.default.removeItem(at: url) }
+        try "0123456789\nsecond\nthird\n".write(to: url, atomically: true, encoding: .utf8)
+        XCTAssertEqual(lines(LineJournal.tailLines(of: url, maxBytes: 10)), ["third"])
+    }
+
+    func testTailLinesOfMissingFileIsEmpty() {
+        XCTAssertTrue(LineJournal.tailLines(of: tempFile()).isEmpty)
+    }
+
+    /// The byte split must not cut multi-byte scalars, which is the whole risk
+    /// of replacing the grapheme-based `String.split`.
+    func testTailLinesKeepsMultiByteScalars() throws {
+        let url = tempFile()
+        defer { try? FileManager.default.removeItem(at: url) }
+        try "grüße\n😀\n".write(to: url, atomically: true, encoding: .utf8)
+        XCTAssertEqual(lines(LineJournal.tailLines(of: url)), ["grüße", "😀"])
+    }
+
     func testAppendCreatesAndAppends() throws {
         let url = tempFile()
         defer { try? FileManager.default.removeItem(at: url) }

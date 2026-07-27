@@ -187,7 +187,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if report.stalePidRemoved || report.exceededLimit {
                 self.menu.setLastProblem(StatusStore.latestProblem())
             }
-            self.healthModel?.refresh()
+            // Only when a window shows the result: the refresh reads the event
+            // journal and blocks on an XPC round-trip, which starved the 60 fps
+            // HUD redraw and menu tracking on every tick.
+            self.healthModel?.refreshIfObserved()
         }
         // .common keeps the watchdog ticking while a menu or modal is open.
         RunLoop.main.add(timer, forMode: .common)

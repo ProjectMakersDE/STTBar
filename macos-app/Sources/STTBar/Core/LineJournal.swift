@@ -26,6 +26,27 @@ enum LineJournal {
         return text
     }
 
+    /// The tail as complete lines, split on UTF-8 newline bytes. `String.split`
+    /// walks grapheme clusters, which made it the single hottest frame in the
+    /// 2 s status poll on a 256 KB journal; splitting the raw bytes is
+    /// equivalent for JSONL and far cheaper. Empty when the file cannot be read.
+    static func tailLines(of url: URL, maxBytes: UInt64 = defaultTailBytes) -> [Data] {
+        guard let handle = try? FileHandle(forReadingFrom: url) else { return [] }
+        defer { try? handle.close() }
+        guard let size = try? handle.seekToEnd() else { return [] }
+        let start = size > maxBytes ? size - maxBytes : 0
+        guard (try? handle.seek(toOffset: start)) != nil,
+              let data = try? handle.readToEnd() else { return [] }
+        var lines = data.split(separator: UInt8(ascii: "\n")).map { Data($0) }
+        // A capped window normally starts mid-line, so that first line is a
+        // fragment. Landing exactly on a newline is the one case where it is
+        // already complete and must be kept.
+        if start > 0, data.first != UInt8(ascii: "\n"), !lines.isEmpty {
+            lines.removeFirst()
+        }
+        return lines
+    }
+
     /// Appends `text` (callers pass complete lines ending in "\n") and trims
     /// the file back to `keepBytes` once it exceeds `maxBytes`. The trim is an
     /// atomic rewrite; a concurrent append from the shell backend could lose

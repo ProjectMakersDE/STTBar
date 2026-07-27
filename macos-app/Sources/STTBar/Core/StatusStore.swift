@@ -59,18 +59,16 @@ enum StatusStore {
     }
 
     static func readEvents(limit: Int = 200) -> [SttStatus] {
-        guard let text = LineJournal.tail(of: RuntimePaths.eventsFile) else { return [] }
-        let lines = text.split(separator: "\n").suffix(limit)
-        return lines.compactMap { line in
-            try? JSONDecoder().decode(SttStatus.self, from: Data(line.utf8))
+        let decoder = JSONDecoder()
+        return LineJournal.tailLines(of: RuntimePaths.eventsFile).suffix(limit).compactMap {
+            try? decoder.decode(SttStatus.self, from: $0)
         }
     }
 
     static func readMetrics(limit: Int = 20) -> [RunMetric] {
-        guard let text = LineJournal.tail(of: RuntimePaths.metricsFile) else { return [] }
-        let lines = text.split(separator: "\n").suffix(limit)
-        return lines.compactMap { line in
-            try? JSONDecoder().decode(RunMetric.self, from: Data(line.utf8))
+        let decoder = JSONDecoder()
+        return LineJournal.tailLines(of: RuntimePaths.metricsFile).suffix(limit).compactMap {
+            try? decoder.decode(RunMetric.self, from: $0)
         }.reversed()
     }
 

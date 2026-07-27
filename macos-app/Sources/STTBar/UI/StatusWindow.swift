@@ -1,12 +1,13 @@
 import AppKit
 import SwiftUI
 
-final class StatusWindow {
+final class StatusWindow: NSObject, NSWindowDelegate {
     private var window: NSWindow?
     private let model: HealthCenterModel
 
     init(model: HealthCenterModel) {
         self.model = model
+        super.init()
     }
 
     func show() {
@@ -16,12 +17,20 @@ final class StatusWindow {
             w.title = L("STTBar - Status & Diagnose", "STTBar - Status & diagnostics")
             w.styleMask = [.titled, .closable, .miniaturizable, .resizable]
             w.setContentSize(NSSize(width: 760, height: 560))
+            w.delegate = self
             window = w
         }
-        model.refresh()
+        // This window is the only observer of the health checks. Marking the
+        // model live both fills it now and re-arms the watchdog's periodic
+        // refresh, which stays asleep while nothing is on screen.
+        model.beginObserving()
         NSApp.activate(ignoringOtherApps: true)
         window?.center()
         window?.makeKeyAndOrderFront(nil)
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        model.endObserving()
     }
 }
 

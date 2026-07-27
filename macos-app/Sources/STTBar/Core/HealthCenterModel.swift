@@ -21,10 +21,29 @@ final class HealthCenterModel: ObservableObject {
     private let settings: SettingsModel
     private let runner: SttRunner
 
+    /// Set while a window actually displays these checks. `refresh()` reads the
+    /// event-journal tail and makes a synchronous XPC round-trip to `smd`, so
+    /// the 2 s watchdog must not pay for it when nothing is on screen.
+    private(set) var isObserved = false
+
     init(settings: SettingsModel, runner: SttRunner) {
         self.settings = settings
         self.runner = runner
+    }
+
+    /// Called from the 2 s watchdog tick.
+    func refreshIfObserved() {
+        guard isObserved else { return }
         refresh()
+    }
+
+    func beginObserving() {
+        isObserved = true
+        refresh()
+    }
+
+    func endObserving() {
+        isObserved = false
     }
 
     func refresh() {
