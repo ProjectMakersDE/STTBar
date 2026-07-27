@@ -1,3 +1,17 @@
+## [1.4.0](https://github.com/ProjectMakersDE/STTBar/compare/v1.3.0...v1.4.0) (2026-07-27)
+
+### Features
+
+* **data:** add data locations and directory size helper ([5ea543d](https://github.com/ProjectMakersDE/STTBar/commit/5ea543de579caa9fd9554b9dbb123c94b1935c21))
+* **data:** add temp file cleanup with an explicit allowlist ([b597eee](https://github.com/ProjectMakersDE/STTBar/commit/b597eeee774ee4e9830395f1a523180e176bfdb8))
+* **menu:** replace open logs with a files submenu ([67812f3](https://github.com/ProjectMakersDE/STTBar/commit/67812f333fec9e3647e972bd00e836f1b8e1df73))
+* **settings:** add files & storage section to the general tab ([4a54fbc](https://github.com/ProjectMakersDE/STTBar/commit/4a54fbca47ff026863b847c9b60e56e87aae5055))
+
+### Bug Fixes
+
+* **data:** close review findings on the data-folder access section ([50acfee](https://github.com/ProjectMakersDE/STTBar/commit/50acfee38cb89dd98b4c2e10c6c67f7630407095))
+* **perf:** stop the watchdog from blocking the main thread ([fe207fe](https://github.com/ProjectMakersDE/STTBar/commit/fe207fe231a2bf75b9b30fc84fb91ce5210de78d))
+
 ## [1.3.0](https://github.com/ProjectMakersDE/STTBar/compare/v1.2.2...v1.3.0) (2026-07-25)
 
 ### Features
