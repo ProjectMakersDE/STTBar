@@ -16,7 +16,7 @@ enum AudioRecorderError: LocalizedError {
 /// Everything the render callback touches, created before the unit starts and
 /// released only after it stops. The audio thread must never race the main
 /// thread over these references, so ownership is handed over wholesale.
-private final class CaptureSink {
+final class CaptureSink {
     let deviceFormat: AVAudioFormat
     let targetFormat: AVAudioFormat
     let converter: AVAudioConverter
@@ -25,6 +25,10 @@ private final class CaptureSink {
     private let capacityFrames: Int
     private let storage: UnsafeMutableRawPointer
     private let list: UnsafeMutableAudioBufferListPointer
+    /// Written on the audio thread, read on the main thread only after the unit
+    /// has stopped — by then the callback has returned for good.
+    private(set) var callbacks = 0
+    private(set) var dropped = 0
 
     init?(deviceFormat: AVAudioFormat, targetFormat: AVAudioFormat, file: AVAudioFile, maxFrames: Int) {
         guard let converter = AVAudioConverter(from: deviceFormat, to: targetFormat) else { return nil }
@@ -47,19 +51,29 @@ private final class CaptureSink {
         free(list.unsafeMutablePointer)
     }
 
+    /// Whether a callback of this size has room to land in. A callback larger
+    /// than the buffer cannot be rendered at all, so it becomes a hole in the
+    /// recording — one that has to be counted rather than ignored.
+    func accepts(frames: UInt32) -> Bool { Int(frames) <= capacityFrames }
+
+    func noteDropped() { dropped += 1 }
+
     func render(unit: AudioUnit,
                 flags: UnsafeMutablePointer<AudioUnitRenderActionFlags>,
                 timestamp: UnsafePointer<AudioTimeStamp>,
                 frames: UInt32) {
-        guard Int(frames) <= capacityFrames else { return }
+        callbacks += 1
+        guard accepts(frames: frames) else { noteDropped(); return }
         list[0].mDataByteSize = UInt32(Int(frames) * bytesPerFrame)
         guard AudioUnitRender(unit, flags, timestamp, 1, frames, list.unsafeMutablePointer) == noErr,
               let input = AVAudioPCMBuffer(pcmFormat: deviceFormat, bufferListNoCopy: list.unsafeMutablePointer)
-        else { return }
+        else { noteDropped(); return }
 
         let ratio = targetFormat.sampleRate / deviceFormat.sampleRate
         let capacity = AVAudioFrameCount(Double(input.frameLength) * ratio + 16)
-        guard let out = AVAudioPCMBuffer(pcmFormat: targetFormat, frameCapacity: capacity) else { return }
+        guard let out = AVAudioPCMBuffer(pcmFormat: targetFormat, frameCapacity: capacity) else {
+            noteDropped(); return
+        }
         var supplied = false
         var error: NSError?
         converter.convert(to: out, error: &error) { _, status in
@@ -68,7 +82,9 @@ private final class CaptureSink {
             status.pointee = .haveData
             return input
         }
-        if error == nil, out.frameLength > 0 { try? file.write(from: out) }
+        // A zero-length result is the converter buffering for the next call, not
+        // a loss — only a real error costs samples.
+        if error != nil { noteDropped() } else if out.frameLength > 0 { try? file.write(from: out) }
     }
 }
 
@@ -151,6 +167,13 @@ final class AudioRecorder {
         return Int(frames)
     }
 
+    /// The unit reports the slice size it intends to use, but the HAL is free to
+    /// hand the callback a larger block — when another client raises the device
+    /// buffer size, for instance. Sizing to a floor well above the usual 512
+    /// frames costs a few kilobytes and keeps those callbacks from becoming
+    /// holes in the recording.
+    static func captureCapacity(reported: Int) -> Int { max(reported, 4096) }
+
     // MARK: Recording
 
     func start(outputURL: URL, input: AudioInputResolution = .systemDefault) throws {
@@ -200,7 +223,8 @@ final class AudioRecorder {
             throw error
         }
         guard let sink = CaptureSink(deviceFormat: deviceFormat, targetFormat: targetFormat,
-                                     file: file, maxFrames: Self.maximumFrames(unit)) else {
+                                     file: file,
+                                     maxFrames: Self.captureCapacity(reported: Self.maximumFrames(unit))) else {
             AudioComponentInstanceDispose(unit)
             throw AudioRecorderError.engineStart("no converter for input format")
         }
@@ -243,6 +267,11 @@ final class AudioRecorder {
         AudioOutputUnitStop(unit)
         AudioUnitUninitialize(unit)
         isRecording = false
+        // Safe to read now: the unit is stopped, so the audio thread is done
+        // with the sink. A non-zero drop count means the WAV has holes in it.
+        if let sink {
+            AppLogger.log("capture_stats callbacks=\(sink.callbacks) dropped=\(sink.dropped)")
+        }
         teardown()          // releasing the AVAudioFile flushes + finalizes the header
         return outputURL
     }
