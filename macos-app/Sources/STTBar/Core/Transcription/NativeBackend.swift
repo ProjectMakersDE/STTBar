@@ -35,13 +35,13 @@ final class NativeBackend: TranscriptionBackend {
         // (one IPC to coreaudiod per device property); engineMs is
         // AudioUnitInitialize + AudioOutputUnitStart opening the device.
         let resolveStart = Date()
-        let input = AudioInputResolver.resolveLive(selected: config.audioInputDevice,
-                                                   avoidBluetooth: config.avoidBluetoothMic)
+        let (input, inputLabel) = AudioInputResolver.resolveLiveWithLabel(
+            selected: config.audioInputDevice, avoidBluetooth: config.avoidBluetoothMic)
         let resolveMs = Int(Date().timeIntervalSince(resolveStart) * 1000)
         let engineStart = Date()
         try recorder.start(outputURL: RuntimePaths.recordingFile, input: input)
         let engineMs = Int(Date().timeIntervalSince(engineStart) * 1000)
-        AppLogger.log("record_start resolveMs=\(resolveMs) engineMs=\(engineMs)")
+        AppLogger.log("record_start resolveMs=\(resolveMs) engineMs=\(engineMs) \(inputLabel)")
     }
 
     func cancel() { recorder.cancel() }
