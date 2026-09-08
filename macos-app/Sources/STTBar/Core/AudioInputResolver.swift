@@ -51,4 +51,33 @@ enum AudioInputResolver {
                 devices: AudioDevices.inputs(),
                 defaultInput: AudioDevices.defaultInput())
     }
+
+    /// Names the microphone a run actually recorded from. Without this the log
+    /// only shows how long resolution took, so after the fact there is no way
+    /// to tell which input a bad transcript came through.
+    static func logLabel(for resolution: AudioInputResolution,
+                         devices: [AudioInputDeviceInfo],
+                         defaultInput: AudioInputDeviceInfo?) -> String {
+        func describe(_ device: AudioInputDeviceInfo?, fallback: String, source: String) -> String {
+            guard let device else { return "device=\(fallback) transport=unknown source=\(source)" }
+            return "device=\"\(device.name)\" transport=\(device.transport.logName) source=\(source)"
+        }
+        switch resolution {
+        case .device(let id):
+            return describe(devices.first { $0.id == id }, fallback: "id:\(id)", source: "pinned")
+        case .systemDefault:
+            return describe(defaultInput, fallback: "unknown", source: "systemDefault")
+        }
+    }
+
+    /// Resolves and labels in one pass so the log names the same device list the
+    /// recorder binds to.
+    static func resolveLiveWithLabel(selected: String,
+                                     avoidBluetooth: Bool) -> (AudioInputResolution, String) {
+        let devices = AudioDevices.inputs()
+        let defaultInput = AudioDevices.defaultInput()
+        let resolution = resolve(selected: selected, avoidBluetooth: avoidBluetooth,
+                                 devices: devices, defaultInput: defaultInput)
+        return (resolution, logLabel(for: resolution, devices: devices, defaultInput: defaultInput))
+    }
 }

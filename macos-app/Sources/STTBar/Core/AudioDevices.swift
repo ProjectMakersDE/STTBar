@@ -18,6 +18,17 @@ enum AudioInputTransport: Equatable {
         default: self = .other
         }
     }
+
+    /// Log-friendly name. Kept separate from the localized UI strings so log
+    /// lines stay greppable regardless of the app language.
+    var logName: String {
+        switch self {
+        case .builtIn: return "builtIn"
+        case .usb: return "usb"
+        case .bluetooth: return "bluetooth"
+        case .other: return "other"
+        }
+    }
 }
 
 /// A recordable input device. A value type so `AudioInputResolver` can be

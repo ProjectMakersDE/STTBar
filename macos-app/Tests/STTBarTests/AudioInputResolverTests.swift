@@ -97,4 +97,36 @@ final class AudioInputResolverTests: XCTestCase {
         let result = resolve(devices: [builtIn], defaultInput: nil)
         XCTAssertEqual(result, .systemDefault)
     }
+
+    // MARK: Log label — which microphone a run actually recorded from
+
+    func testLabelNamesThePinnedDevice() {
+        let label = AudioInputResolver.logLabel(for: .device(builtIn.id),
+                                               devices: [airpods, builtIn],
+                                               defaultInput: airpods)
+        XCTAssertEqual(label, #"device="MacBook Pro-Mikrofon" transport=builtIn source=pinned"#)
+    }
+
+    func testLabelNamesTheDeviceBehindSystemDefault() {
+        let label = AudioInputResolver.logLabel(for: .systemDefault,
+                                               devices: [airpods, usb],
+                                               defaultInput: usb)
+        XCTAssertEqual(label, #"device="Scarlett 2i2 4th Gen" transport=usb source=systemDefault"#)
+    }
+
+    /// A pinned device that vanished between resolution and logging still has
+    /// to leave a trace — the id is what identifies it afterwards.
+    func testLabelFallsBackToTheIdWhenTheDeviceIsGone() {
+        let label = AudioInputResolver.logLabel(for: .device(99),
+                                                devices: [builtIn],
+                                                defaultInput: builtIn)
+        XCTAssertEqual(label, "device=id:99 transport=unknown source=pinned")
+    }
+
+    func testLabelMarksAnUnknownSystemDefault() {
+        let label = AudioInputResolver.logLabel(for: .systemDefault,
+                                                devices: [builtIn],
+                                                defaultInput: nil)
+        XCTAssertEqual(label, "device=unknown transport=unknown source=systemDefault")
+    }
 }
