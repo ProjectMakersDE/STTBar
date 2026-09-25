@@ -22,6 +22,14 @@ final class SettingsModel: ObservableObject {
     @Published var whisperModel: String = ""
     @Published var language: String = "de"
     @Published var transcribeTimeout: String = "30"
+    /// Whisper style prompt (STT_PROMPT). Empty = language default, "off" = none.
+    @Published var whisperPrompt: String = ""
+    /// Silero VAD on the server (STT_VAD_FILTER).
+    @Published var vadFilter: Bool = true
+    /// Beam search width (STT_BEAM_SIZE). Empty = server default.
+    @Published var beamSize: String = "5"
+    /// Temperature fallback on uncertain audio (STT_TEMPERATURE_FALLBACK).
+    @Published var temperatureFallback: Bool = false
     @Published var postprocessEnabled: Bool = false
     @Published var lmStudioURL: String = ""
     @Published var llmModel: String = ""
@@ -103,6 +111,10 @@ final class SettingsModel: ObservableObject {
         write("STT_MODEL", whisperModel)
         write("STT_LANGUAGE", language)
         write("STT_TRANSCRIBE_TIMEOUT", transcribeTimeout)
+        write("STT_PROMPT", whisperPrompt)
+        write("STT_VAD_FILTER", vadFilter ? "1" : "0")
+        write("STT_BEAM_SIZE", beamSize)
+        write("STT_TEMPERATURE_FALLBACK", temperatureFallback ? "1" : "0")
         write("STT_POSTPROCESS_ENABLED", postprocessEnabled ? "1" : "0")
         write("STT_POSTPROCESS_URL", lmStudioURL)
         write("STT_POSTPROCESS_MODEL", llmModel)
@@ -352,6 +364,10 @@ final class SettingsModel: ObservableObject {
         whisperModel = env.value("STT_MODEL") ?? "Systran/faster-whisper-large-v3-turbo"
         language = env.value("STT_LANGUAGE") ?? "de"
         transcribeTimeout = env.value("STT_TRANSCRIBE_TIMEOUT") ?? "30"
+        whisperPrompt = env.value("STT_PROMPT") ?? ""
+        vadFilter = (env.value("STT_VAD_FILTER") ?? "1") != "0"
+        beamSize = env.value("STT_BEAM_SIZE") ?? "5"
+        temperatureFallback = (env.value("STT_TEMPERATURE_FALLBACK") ?? "0") == "1"
         postprocessEnabled = (env.value("STT_POSTPROCESS_ENABLED") ?? "0") == "1"
         lmStudioURL = env.value("STT_POSTPROCESS_URL") ?? "http://localhost:1234/api/v1/chat"
         llmModel = env.value("STT_POSTPROCESS_MODEL") ?? "qwen/qwen3.5-9b"
@@ -399,6 +415,10 @@ final class SettingsModel: ObservableObject {
             "STT_MODEL": whisperModel,
             "STT_LANGUAGE": language,
             "STT_TRANSCRIBE_TIMEOUT": transcribeTimeout,
+            "STT_PROMPT": whisperPrompt,
+            "STT_VAD_FILTER": vadFilter ? "1" : "0",
+            "STT_BEAM_SIZE": beamSize,
+            "STT_TEMPERATURE_FALLBACK": temperatureFallback ? "1" : "0",
             "STT_POSTPROCESS_ENABLED": postprocessEnabled ? "1" : "0",
             "STT_POSTPROCESS_URL": lmStudioURL,
             "STT_POSTPROCESS_MODEL": llmModel,

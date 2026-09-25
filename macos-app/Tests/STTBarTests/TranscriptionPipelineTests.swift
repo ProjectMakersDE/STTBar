@@ -39,7 +39,7 @@ final class WhisperClientTests: XCTestCase {
     func testBodyIncludesModelResponseFormatAndLanguage() {
         let body = WhisperClient().multipartBody(audioData: Data([0x52, 0x49, 0x46, 0x46]),
             filename: "recording.wav", config: makeConfig(language: "de"), boundary: "B")
-        let s = String(data: body, encoding: .ascii) ?? ""
+        let s = String(decoding: body, as: UTF8.self)
         XCTAssertTrue(s.contains("name=\"model\"\r\n\r\nSystran/faster-whisper-base"))
         XCTAssertTrue(s.contains("name=\"response_format\"\r\n\r\njson"))
         XCTAssertTrue(s.contains("name=\"language\"\r\n\r\nde"))
@@ -49,7 +49,7 @@ final class WhisperClientTests: XCTestCase {
     func testBodyOmitsLanguageWhenAuto() {
         let body = WhisperClient().multipartBody(audioData: Data([0x00]),
             filename: "r.wav", config: makeConfig(language: "auto"), boundary: "B")
-        let s = String(data: body, encoding: .ascii) ?? ""
+        let s = String(decoding: body, as: UTF8.self)
         XCTAssertFalse(s.contains("name=\"language\""))
     }
 
@@ -153,5 +153,84 @@ final class NativeBackendModeTests: XCTestCase {
         XCTAssertEqual(NativeBackend.translateTarget(.english), "English")
         XCTAssertNil(NativeBackend.translateTarget(.full))
         XCTAssertNil(NativeBackend.translateTarget(.raw))
+    }
+}
+
+// STT_PROMPT: a formatted sentence sent as Whisper `prompt` so the decoder keeps
+// casing and punctuation even on poor audio. It must never leak into the output.
+final class WhisperPromptTests: XCTestCase {
+    func testPromptParamFallsBackToLanguageDefault() {
+        let de = TranscriptionConfig.promptParam(for: "", language: "de")
+        XCTAssertNotNil(de)
+        XCTAssertTrue(de!.contains("."), "default prompt must carry punctuation")
+        XCTAssertNotNil(TranscriptionConfig.promptParam(for: "  ", language: "en"))
+        XCTAssertNotEqual(TranscriptionConfig.promptParam(for: "", language: "de"),
+                          TranscriptionConfig.promptParam(for: "", language: "en"))
+        XCTAssertNil(TranscriptionConfig.promptParam(for: "", language: "auto"))
+        XCTAssertNil(TranscriptionConfig.promptParam(for: "", language: "fr"))
+    }
+
+    func testPromptParamHonoursExplicitValueAndOff() {
+        XCTAssertEqual(TranscriptionConfig.promptParam(for: " Hallo Welt. ", language: "de"), "Hallo Welt.")
+        XCTAssertNil(TranscriptionConfig.promptParam(for: "off", language: "de"))
+        XCTAssertNil(TranscriptionConfig.promptParam(for: " OFF ", language: "en"))
+    }
+
+    func testBodyIncludesPrompt() {
+        var config = makeConfig(language: "de")
+        config.whisperPrompt = "Hallo, das ist ein Test."
+        let s = String(decoding: WhisperClient().multipartBody(audioData: Data([1]), filename: "r.wav", config: config, boundary: "B"), as: UTF8.self)
+        XCTAssertTrue(s.contains("name=\"prompt\"\r\n\r\nHallo, das ist ein Test."))
+    }
+
+    func testBodyOmitsPromptWhenOff() {
+        var config = makeConfig(language: "de")
+        config.whisperPrompt = "off"
+        let s = String(decoding: WhisperClient().multipartBody(audioData: Data([1]), filename: "r.wav", config: config, boundary: "B"), as: UTF8.self)
+        XCTAssertFalse(s.contains("name=\"prompt\""))
+    }
+
+    func testEchoedPromptIsStrippedFromTranscript() {
+        let p = "Hallo, das ist ein Test."
+        XCTAssertEqual(WhisperClient.stripEchoedPrompt("Hallo, das ist ein Test. Bitte Milch kaufen.", prompt: p), "Bitte Milch kaufen.")
+        XCTAssertEqual(WhisperClient.stripEchoedPrompt("hallo, das ist ein test.\nBitte Milch kaufen.", prompt: p), "Bitte Milch kaufen.")
+        XCTAssertEqual(WhisperClient.stripEchoedPrompt("Bitte Milch kaufen.", prompt: p), "Bitte Milch kaufen.")
+        XCTAssertEqual(WhisperClient.stripEchoedPrompt("Bitte Milch kaufen.", prompt: nil), "Bitte Milch kaufen.")
+        // A transcript that is only the echoed prompt yields nothing (caller reports noText).
+        XCTAssertEqual(WhisperClient.stripEchoedPrompt("Hallo, das ist ein Test.", prompt: p), "")
+    }
+}
+
+// Decoding fields understood by the ProjectMakers whisper.cpp server:
+// Silero VAD, beam search and disabling the temperature fallback.
+final class WhisperDecodeFieldTests: XCTestCase {
+    private func body(_ edit: (inout TranscriptionConfig) -> Void) -> String {
+        var config = makeConfig(language: "de")
+        edit(&config)
+        return String(decoding: WhisperClient().multipartBody(audioData: Data([1]), filename: "r.wav", config: config, boundary: "B"), as: UTF8.self)
+    }
+
+    func testDefaultsRequestVadBeamAndNoFallback() {
+        let s = body { _ in }
+        XCTAssertTrue(s.contains("name=\"vad_filter\"\r\n\r\ntrue"))
+        XCTAssertTrue(s.contains("name=\"beam_size\"\r\n\r\n5"))
+        XCTAssertTrue(s.contains("name=\"temperature\"\r\n\r\n0"))
+        XCTAssertTrue(s.contains("name=\"temperature_inc\"\r\n\r\n0"))
+    }
+
+    func testFieldsCanBeTurnedOff() {
+        let s = body { $0.vadFilter = false; $0.beamSize = ""; $0.temperatureFallback = true }
+        XCTAssertFalse(s.contains("name=\"vad_filter\""))
+        XCTAssertFalse(s.contains("name=\"beam_size\""))
+        XCTAssertFalse(s.contains("name=\"temperature\""))
+        XCTAssertFalse(s.contains("name=\"temperature_inc\""))
+    }
+
+    func testBeamSizeIsValidated() {
+        XCTAssertEqual(TranscriptionConfig.beamSizeParam(for: " 3 "), "3")
+        XCTAssertNil(TranscriptionConfig.beamSizeParam(for: ""))
+        XCTAssertNil(TranscriptionConfig.beamSizeParam(for: "0"))
+        XCTAssertNil(TranscriptionConfig.beamSizeParam(for: "abc"))
+        XCTAssertEqual(TranscriptionConfig.beamSizeParam(for: "99"), "8")
     }
 }

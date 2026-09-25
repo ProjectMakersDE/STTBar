@@ -31,6 +31,13 @@ struct WhisperClient {
         field("model", config.whisperModel)
         field("response_format", "json")
         if let lang = TranscriptionConfig.languageParam(for: config.language) { field("language", lang) }
+        if let prompt = TranscriptionConfig.promptParam(for: config.whisperPrompt, language: config.language) { field("prompt", prompt) }
+        if config.vadFilter { field("vad_filter", "true") }
+        if let beam = TranscriptionConfig.beamSizeParam(for: config.beamSize) { field("beam_size", beam) }
+        if !config.temperatureFallback {
+            field("temperature", "0")
+            field("temperature_inc", "0")
+        }
         body.append("--\(boundary)--\r\n".data(using: .utf8)!)
         return body
     }
@@ -50,6 +57,16 @@ struct WhisperClient {
         return (text?.isEmpty == false) ? text : nil
     }
 
+    /// Some servers echo the `prompt` at the start of the transcript. Drop it
+    /// (case-insensitively) so the conditioning sentence never gets pasted.
+    static func stripEchoedPrompt(_ text: String, prompt: String?) -> String {
+        guard let prompt, !prompt.isEmpty else { return text }
+        guard text.count >= prompt.count else { return text }
+        let head = String(text.prefix(prompt.count))
+        guard head.compare(prompt, options: [.caseInsensitive, .diacriticInsensitive]) == .orderedSame else { return text }
+        return String(text.dropFirst(prompt.count)).trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     func transcribe(audioURL: URL, config: TranscriptionConfig) async throws -> String {
         let boundary = "STTBar-\(UUID().uuidString)"
         guard var req = makeRequest(config: config, boundary: boundary) else { throw WhisperError.badURL }
@@ -58,7 +75,9 @@ struct WhisperClient {
         let (data, response) = try await session.data(for: req)
         let code = (response as? HTTPURLResponse)?.statusCode ?? 0
         guard code == 200 else { throw WhisperError.http(code, String(data: data, encoding: .utf8) ?? "") }
-        guard let text = Self.parseText(data) else { throw WhisperError.noText }
+        guard let raw = Self.parseText(data) else { throw WhisperError.noText }
+        let text = Self.stripEchoedPrompt(raw, prompt: TranscriptionConfig.promptParam(for: config.whisperPrompt, language: config.language))
+        guard !text.isEmpty else { throw WhisperError.noText }
         return text
     }
 }

@@ -70,6 +70,18 @@ private struct ServerTab: View {
                     TextField(L("Whisper-Modell", "Whisper model"), text: $model.whisperModel)
                     TextField(L("Sprache", "Language"), text: $model.language)
                     TextField(L("Whisper-Timeout (s)", "Whisper timeout (s)"), text: $model.transcribeTimeout)
+                    TextField(L("Stil-Prompt", "Style prompt"), text: $model.whisperPrompt,
+                              prompt: Text(TranscriptionConfig.defaultPrompt(language: model.language) ?? L("leer = kein Prompt", "empty = no prompt")))
+                    Text(L("Ein sauber formatierter Satz, den Whisper als Vorkontext sieht. Hält Groß-/Kleinschreibung und Satzzeichen auch bei schlechtem Ton stabil und landet nie im Text. Leer = Standard für die Sprache, „off“ = kein Prompt.",
+                           "A well-formed sentence Whisper sees as preceding context. Keeps casing and punctuation stable on poor audio and never ends up in the text. Empty = default for the language, “off” = no prompt."))
+                        .font(.caption).foregroundStyle(.secondary)
+                    Toggle(L("Stille und Geräusche entfernen (VAD)", "Remove silence and noise (VAD)"), isOn: $model.vadFilter)
+                    TextField(L("Beam-Search-Breite", "Beam search width"), text: $model.beamSize,
+                              prompt: Text(L("leer = Server-Standard", "empty = server default")))
+                    Toggle(L("Temperatur-Fallback", "Temperature fallback"), isOn: $model.temperatureFallback)
+                    Text(L("Für den whisper.cpp-Server. VAD schneidet Stille weg, Beam Search stabilisiert die ersten Wörter, ohne Fallback bleibt die Schreibweise gleichmäßiger. Andere Endpunkte kennen diese Felder eventuell nicht.",
+                           "For the whisper.cpp server. VAD trims silence, beam search steadies the first words, and without fallback the formatting stays consistent. Other endpoints may not know these fields."))
+                        .font(.caption).foregroundStyle(.secondary)
                     if model.transcriptionSource == TranscriptionSource.selfHost.rawValue {
                         Button(L("localhost einsetzen + Anleitung öffnen", "Use localhost + open guide")) {
                             model.whisperURL = "http://localhost:8000/v1/audio/transcriptions"

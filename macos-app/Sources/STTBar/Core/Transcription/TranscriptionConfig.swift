@@ -29,6 +29,38 @@ struct TranscriptionConfig {
     /// Keep Bluetooth headsets out of automatic input selection so they stay in
     /// high-quality playback mode while dictating.
     var avoidBluetoothMic: Bool = true
+    /// Whisper `prompt` form field (STT_PROMPT). Empty = language default,
+    /// "off" = none. Context only; it never appears in the transcript.
+    var whisperPrompt: String = ""
+    /// Ask the server to trim non-speech with Silero VAD (STT_VAD_FILTER).
+    var vadFilter: Bool = true
+    /// Beam search width (STT_BEAM_SIZE). Empty = server default.
+    var beamSize: String = "5"
+    /// Allow re-decoding at higher temperatures (STT_TEMPERATURE_FALLBACK).
+    var temperatureFallback: Bool = false
+
+    static let maxBeamSize = 8
+
+    /// The `beam_size` form field, or nil when it should not be sent.
+    static func beamSizeParam(for value: String) -> String? {
+        guard let n = Int(value.trimmingCharacters(in: .whitespacesAndNewlines)), n >= 1 else { return nil }
+        return String(min(n, maxBeamSize))
+    }
+
+    static func defaultPrompt(language: String) -> String? {
+        switch languageParam(for: language)?.lowercased() {
+        case "de": return "Guten Tag, das ist ein Diktat. Ich spreche jetzt einen Text mit Satzzeichen, Groß- und Kleinschreibung ein."
+        case "en": return "Hello, this is a dictation. I am now speaking a text with punctuation and proper capitalization."
+        default: return nil
+        }
+    }
+
+    /// The Whisper `prompt` form field, or nil when none should be sent.
+    static func promptParam(for prompt: String, language: String) -> String? {
+        let v = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        if v.lowercased() == "off" { return nil }
+        return v.isEmpty ? defaultPrompt(language: language) : v
+    }
 
     /// The Whisper `language` form field, or nil when auto-detect is requested.
     static func languageParam(for language: String) -> String? {
@@ -54,6 +86,10 @@ struct TranscriptionConfig {
             source: model.transcriptionSource,
             localModel: model.localModel,
             audioInputDevice: model.audioInputDevice,
-            avoidBluetoothMic: model.avoidBluetoothMic)
+            avoidBluetoothMic: model.avoidBluetoothMic,
+            whisperPrompt: model.whisperPrompt,
+            vadFilter: model.vadFilter,
+            beamSize: model.beamSize,
+            temperatureFallback: model.temperatureFallback)
     }
 }

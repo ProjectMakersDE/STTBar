@@ -14,6 +14,45 @@ STT_SERVER_URL="${STT_SERVER_URL:-http://localhost:8000/v1/audio/transcriptions}
 STT_LANGUAGE="${STT_LANGUAGE:-de}"
 STT_MODEL="${STT_MODEL:-Systran/faster-whisper-base}"
 STT_TRANSCRIBE_TIMEOUT="${STT_TRANSCRIBE_TIMEOUT:-30}"
+STT_PROMPT="${STT_PROMPT:-}"
+# Decode fields for the whisper.cpp server (ignored by servers that lack them).
+STT_VAD_FILTER="${STT_VAD_FILTER:-1}"
+STT_BEAM_SIZE="${STT_BEAM_SIZE-5}"
+STT_TEMPERATURE_FALLBACK="${STT_TEMPERATURE_FALLBACK:-0}"
+
+# Whisper "prompt": a well-formed sentence the decoder sees as preceding
+# context. It steers casing and punctuation on poor audio and is never part of
+# the returned text. Empty = built-in default for the language, "off" = none.
+stt_default_prompt() {
+    case "$1" in
+        de) printf '%s' "Guten Tag, das ist ein Diktat. Ich spreche jetzt einen Text mit Satzzeichen, Groß- und Kleinschreibung ein." ;;
+        en) printf '%s' "Hello, this is a dictation. I am now speaking a text with punctuation and proper capitalization." ;;
+        *) printf '' ;;
+    esac
+}
+stt_resolve_prompt() {
+    local value trimmed
+    value="$1"
+    trimmed="$(printf '%s' "$value" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+    case "$(printf '%s' "$trimmed" | tr '[:upper:]' '[:lower:]')" in
+        off) printf '' ;;
+        "") stt_default_prompt "$2" ;;
+        *) printf '%s' "$trimmed" ;;
+    esac
+}
+# Drops a leading copy of the prompt some servers echo back into the transcript.
+stt_strip_echoed_prompt() {
+    local text prompt head
+    text="$1"; prompt="$2"
+    [[ -n "$prompt" ]] || { printf '%s' "$text"; return; }
+    head="${text:0:${#prompt}}"
+    if [[ "$(printf '%s' "$head" | tr '[:upper:]' '[:lower:]')" == "$(printf '%s' "$prompt" | tr '[:upper:]' '[:lower:]')" ]]; then
+        text="${text:${#prompt}}"
+        text="$(printf '%s' "$text" | sed -e 's/^[[:space:]]*//')"
+    fi
+    printf '%s' "$text"
+}
+whisper_prompt="$(stt_resolve_prompt "$STT_PROMPT" "$STT_LANGUAGE")"
 
 audio_file="${1:-}"
 
@@ -43,6 +82,26 @@ curl_args=(
 # Only send language param if it's not "auto" (omitting it triggers auto-detection)
 if [[ "$STT_LANGUAGE" != "auto" ]]; then
     curl_args+=(-F "language=$STT_LANGUAGE")
+fi
+
+if [[ -n "$whisper_prompt" ]]; then
+    curl_args+=(-F "prompt=$whisper_prompt")
+fi
+
+# Silero VAD trims silence and noise before decoding.
+if [[ "$STT_VAD_FILTER" == "1" ]]; then
+    curl_args+=(-F "vad_filter=true")
+fi
+# Beam search instead of greedy decoding; empty or invalid = server default.
+beam_size="$(printf '%s' "$STT_BEAM_SIZE" | tr -d '[:space:]')"
+if [[ "$beam_size" =~ ^[0-9]+$ ]] && (( beam_size >= 1 )); then
+    (( beam_size > 8 )) && beam_size=8
+    curl_args+=(-F "beam_size=$beam_size")
+fi
+# Without fallback the decoder never re-samples at higher temperatures, which
+# is where the lowercase, unpunctuated style tends to appear.
+if [[ "$STT_TEMPERATURE_FALLBACK" != "1" ]]; then
+    curl_args+=(-F "temperature=0" -F "temperature_inc=0")
 fi
 
 # POST to OpenAI-compatible transcription endpoint
@@ -76,6 +135,7 @@ fi
 
 # Extract text from JSON response {"text": "..."}
 text="$(echo "$body" | jq -r '.text // empty')"
+text="$(stt_strip_echoed_prompt "$text" "$whisper_prompt")"
 
 if [[ -z "$text" ]]; then
     stt_status_event "whisper_empty_text" "error" "error" "whisper_empty_text" "Whisper returned no text."
