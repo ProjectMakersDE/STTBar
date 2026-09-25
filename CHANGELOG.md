@@ -1,3 +1,15 @@
+## [1.5.0](https://github.com/ProjectMakersDE/STTBar/compare/v1.4.0...v1.5.0) (2026-09-25)
+
+### Features
+
+* **audio:** log which microphone a run recorded from ([e8b5d01](https://github.com/ProjectMakersDE/STTBar/commit/e8b5d0135302807df3b2dc8541359f79aa964c48))
+* **whisper:** keep casing and punctuation stable on poor audio ([a12acf9](https://github.com/ProjectMakersDE/STTBar/commit/a12acf9d4e56a5460689bdfd5ef0f62097e52632))
+
+### Bug Fixes
+
+* Agent-Router aus workspace-wiki/meta/routers.yml erzeugt ([#4](https://github.com/ProjectMakersDE/STTBar/issues/4)) ([175030d](https://github.com/ProjectMakersDE/STTBar/commit/175030d39e91467112a31229ef40eacd56cdf205))
+* **audio:** stop the capture sink from dropping callbacks silently ([0ee7188](https://github.com/ProjectMakersDE/STTBar/commit/0ee718862005ac15fed2455e1b16ac0ecf688686))
+
 ## [1.4.0](https://github.com/ProjectMakersDE/STTBar/compare/v1.3.0...v1.4.0) (2026-07-27)
 
 ### Features
