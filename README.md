@@ -108,7 +108,8 @@ Key settings:
 - Prompt presets and active prompt.
 - Hotkeys and HUD position.
 
-The same values are stored in `~/.local/share/stt/.env`.
+The app stores these values in its sandbox container:
+`~/Library/Containers/de.projectmakers.sttbar/Data/Library/Application Support/STTBar/.env`.
 
 ## Local Whisper Server (NVIDIA GPU only)
 
@@ -126,7 +127,7 @@ URL in STTBar to `http://your-whisper-host:8082/v1/audio/transcriptions`.
 
 ## Updates
 
-Every push to `master` publishes a GitHub Release with `STTBar.app.zip`,
+Every `feat`, `fix` or `perf` commit on `master` publishes a GitHub Release with `STTBar.app.zip`,
 `stt-scripts.zip`, and matching SHA256 files. To update, either download the
 latest release and replace `STTBar.app`, or pull the repository and rerun the
 installer:
@@ -136,7 +137,7 @@ git pull
 bash install.sh
 ```
 
-Your configuration in `~/.local/share/stt/.env` is not touched by updates.
+Your configuration in the app container is not touched by updates.
 
 ## Development
 
