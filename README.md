@@ -33,6 +33,24 @@ afterthought.
 3. **Press again.** Whisper transcribes, the optional LLM pass strips filler
    words and tightens the structure, and the result lands in the focused app.
 
+## Screenshots
+
+<p align="center">
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/hud-recording-dark.png"><img src="docs/screenshots/hud-recording-light.png" width="342" alt="HUD while recording, with a live waveform and the recording time"></picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/hud-cleanup-dark.png"><img src="docs/screenshots/hud-cleanup-light.png" width="342" alt="HUD during the LLM cleanup, with the time spent in each phase"></picture>
+</p>
+
+<table>
+  <tr>
+    <td><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/settings-transcription-dark.png"><img src="docs/screenshots/settings-transcription-light.png" width="400" alt="Settings: on-device transcription with WhisperKit and the recommended model for this Mac"></picture></td>
+    <td><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/settings-llm-cleanup-dark.png"><img src="docs/screenshots/settings-llm-cleanup-light.png" width="400" alt="Settings: optional LLM cleanup with LM Studio and raw fallback"></picture></td>
+  </tr>
+  <tr>
+    <td><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/settings-hotkeys-dark.png"><img src="docs/screenshots/settings-hotkeys-light.png" width="400" alt="Settings: three hotkeys for cleaned, raw and English output"></picture></td>
+    <td><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/settings-vocabulary-dark.png"><img src="docs/screenshots/settings-vocabulary-light.png" width="400" alt="Settings: vocabulary replacements for names and jargon"></picture></td>
+  </tr>
+</table>
+
 ## Features
 
 - Three dictation modes on separate global hotkeys: full cleanup, raw
