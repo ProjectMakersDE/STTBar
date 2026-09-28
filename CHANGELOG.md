@@ -1,3 +1,13 @@
+## [1.6.0](https://github.com/ProjectMakersDE/STTBar/compare/v1.5.0...v1.6.0) (2026-09-28)
+
+### Features
+
+* **app:** add an app icon ([8226517](https://github.com/ProjectMakersDE/STTBar/commit/8226517f1adec6748d484b3650aee29d3db92615))
+
+### Bug Fixes
+
+* **i18n:** translate the remaining German texts in the English UI ([7f67fc4](https://github.com/ProjectMakersDE/STTBar/commit/7f67fc411a3c425a41fbd48d2c1ece3564d9badd))
+
 ## [1.5.0](https://github.com/ProjectMakersDE/STTBar/compare/v1.4.0...v1.5.0) (2026-09-25)
 
 ### Features
