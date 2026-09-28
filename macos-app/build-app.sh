@@ -22,6 +22,7 @@ if command -v git >/dev/null 2>&1 && git -C "$HERE/.." rev-parse --is-inside-wor
     COMMIT="$(git -C "$HERE/.." rev-parse --short HEAD 2>/dev/null || echo unknown)"
 fi
 VERSION="unknown"
+cp "$HERE/Resources/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
 BUILD="unknown"
 if command -v /usr/libexec/PlistBuddy >/dev/null 2>&1; then
     VERSION="$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP/Contents/Info.plist" 2>/dev/null || echo unknown)"
