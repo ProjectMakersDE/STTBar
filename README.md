@@ -151,4 +151,10 @@ Releases use Conventional Commits and Semantic Release on `master`.
 
 ## License
 
-STTBar is released under the [MIT License](LICENSE).
+STTBar is free to use and its source code is public, under the
+[PolyForm Shield License 1.0.0](LICENSE). You may use it at home and at work,
+build it yourself, change it and share copies together with the license.
+You may not sell STTBar or offer it, or a version built from it, as a product
+that competes with STTBar, even for free.
+
+This makes STTBar source-available rather than open source in the OSI sense.
