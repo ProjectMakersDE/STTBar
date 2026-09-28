@@ -36,6 +36,8 @@ cp "$ROOT/macos-app/Resources/STTBar.entitlements" "$tmp/app/Resources/STTBar.en
   printf '<?xml version="1.0"?><plist version="1.0"><dict/></plist>' > "$tmp/app/Resources/STTBar.entitlements"
 cp "$ROOT/macos-app/Resources/PrivacyInfo.xcprivacy" "$tmp/app/Resources/PrivacyInfo.xcprivacy" 2>/dev/null || \
   printf '<?xml version="1.0"?><plist version="1.0"><dict/></plist>' > "$tmp/app/Resources/PrivacyInfo.xcprivacy"
+cp "$ROOT/macos-app/Resources/AppIcon.icns" "$tmp/app/Resources/AppIcon.icns" 2>/dev/null || \
+  : > "$tmp/app/Resources/AppIcon.icns"
 # A setup-signing-cert.sh that would hand back a self-signed identity name.
 cat > "$tmp/app/setup-signing-cert.sh" <<'EOF'
 #!/usr/bin/env bash
