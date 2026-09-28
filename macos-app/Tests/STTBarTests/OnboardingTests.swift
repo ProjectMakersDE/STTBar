@@ -38,7 +38,7 @@ final class OnboardingReadinessTests: XCTestCase {
     }
 
     func testValidHTTPURL() {
-        XCTAssertTrue(OnboardingReadiness.isValidHTTPURL("http://192.168.30.30:8082/v1/audio/transcriptions"))
+        XCTAssertTrue(OnboardingReadiness.isValidHTTPURL("http://192.168.1.50:8082/v1/audio/transcriptions"))
         XCTAssertTrue(OnboardingReadiness.isValidHTTPURL("https://example.com/x"))
         XCTAssertFalse(OnboardingReadiness.isValidHTTPURL(""))
         XCTAssertFalse(OnboardingReadiness.isValidHTTPURL("ftp://example.com"))
@@ -58,7 +58,7 @@ final class OnboardingReadinessTests: XCTestCase {
         // A deliberately configured LAN/remote server is kept, not overridden.
         XCTAssertEqual(
             OnboardingReadiness.preferredInitialSource(localModelDownloaded: false,
-                                                       whisperURL: "http://192.168.30.30:8082/v1/audio/transcriptions",
+                                                       whisperURL: "http://192.168.1.50:8082/v1/audio/transcriptions",
                                                        currentSource: "server"),
             "server")
     }
@@ -66,7 +66,7 @@ final class OnboardingReadinessTests: XCTestCase {
     func testPreferredInitialSourcePrefersDownloadedLocalModel() {
         XCTAssertEqual(
             OnboardingReadiness.preferredInitialSource(localModelDownloaded: true,
-                                                       whisperURL: "http://192.168.30.30:8082/x",
+                                                       whisperURL: "http://192.168.1.50:8082/x",
                                                        currentSource: "server"),
             "local")
     }
