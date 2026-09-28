@@ -396,7 +396,7 @@ install_macos() {
     echo "  Configure the whisper server:"
     echo "       nano $INSTALL_DIR/.env"
     echo "     Set STT_SERVER_URL to your whisper endpoint, e.g."
-    echo "     http://192.168.30.30:8082/v1/audio/transcriptions"
+    echo "     http://your-whisper-host:8082/v1/audio/transcriptions"
     echo ""
     echo "  Reload your shell for the in-terminal Ctrl+T widget:"
     echo "       source $ZSHRC"
