@@ -116,3 +116,7 @@ bash macos-app/build-app.sh /tmp/sttbar-build-check
 ```
 
 Releases use Conventional Commits and Semantic Release on `master`.
+
+## License
+
+STTBar is released under the [MIT License](LICENSE).
