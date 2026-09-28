@@ -5,8 +5,14 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEST="${1:-$HOME/Applications}"
 APP="$DEST/STTBar.app"
 
-swift build -c release --package-path "$HERE"
-BIN="$(swift build -c release --package-path "$HERE" --show-bin-path)/STTBar"
+# STT_APPSTORE=1 builds the Mac App Store variant: compiled with -DAPPSTORE and
+# left unsigned, because build-appstore.sh signs it with the store identity.
+APPSTORE="${STT_APPSTORE:-0}"
+SWIFT_FLAGS=""
+if [[ "$APPSTORE" == "1" ]]; then SWIFT_FLAGS="-Xswiftc -DAPPSTORE"; fi
+
+swift build -c release --package-path "$HERE" $SWIFT_FLAGS
+BIN="$(swift build -c release --package-path "$HERE" $SWIFT_FLAGS --show-bin-path)/STTBar"
 
 mkdir -p "$DEST"
 rm -rf "$APP"
@@ -16,13 +22,13 @@ cp "$HERE/Resources/Info.plist" "$APP/Contents/Info.plist"
 # App Store / privacy manifest. Must sit at Contents/Resources and be copied
 # before codesign so the signature covers it (required-reason API: UserDefaults).
 cp "$HERE/Resources/PrivacyInfo.xcprivacy" "$APP/Contents/Resources/PrivacyInfo.xcprivacy"
+cp "$HERE/Resources/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
 
 COMMIT="unknown"
 if command -v git >/dev/null 2>&1 && git -C "$HERE/.." rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     COMMIT="$(git -C "$HERE/.." rev-parse --short HEAD 2>/dev/null || echo unknown)"
 fi
 VERSION="unknown"
-cp "$HERE/Resources/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
 BUILD="unknown"
 if command -v /usr/libexec/PlistBuddy >/dev/null 2>&1; then
     VERSION="$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP/Contents/Info.plist" 2>/dev/null || echo unknown)"
@@ -32,6 +38,11 @@ printf 'version=%s\nbuild=%s\ncommit=%s\nbuilt_at=%s\n' "$VERSION" "$BUILD" "$CO
 if command -v /usr/libexec/PlistBuddy >/dev/null 2>&1; then
     /usr/libexec/PlistBuddy -c "Delete :STTGitCommit" "$APP/Contents/Info.plist" >/dev/null 2>&1 || true
     /usr/libexec/PlistBuddy -c "Add :STTGitCommit string $COMMIT" "$APP/Contents/Info.plist" >/dev/null 2>&1 || true
+fi
+
+if [[ "$APPSTORE" == "1" ]]; then
+    echo "Built $APP (App Store variant, unsigned)"
+    exit 0
 fi
 
 ENTITLEMENTS="$HERE/Resources/STTBar.entitlements"

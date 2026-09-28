@@ -3,6 +3,7 @@
 *.wav
 /tmp/
 /dist/
+/dist-appstore/
 /node_modules/
 __pycache__/
 /.superpowers/

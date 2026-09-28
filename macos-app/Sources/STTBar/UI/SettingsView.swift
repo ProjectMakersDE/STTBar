@@ -489,6 +489,9 @@ private struct GeneralTab: View {
             Section(L("Version", "Version")) {
                 Text("App: v\(version.appVersion) (Build \(version.appBuild))")
                 Text("App-Commit: \(version.appCommit)")
+                // The App Store build ships without the backend scripts and must not
+                // point to another download or update channel (App Review 2.4.5).
+                #if !APPSTORE
                 Text(L("Scripts-Commit: ", "Scripts commit: ") + version.scriptCommit)
                 Text(L("Installiert: ", "Installed: ") + version.installedAt)
                 HStack {
@@ -498,6 +501,7 @@ private struct GeneralTab: View {
                          destination: URL(string: "https://github.com/ProjectMakersDE/STTBar/releases")!)
                 }
                 .font(.caption)
+                #endif
             }
             Section(L("Lizenzen", "Acknowledgements")) {
                 DisclosureGroup(L("Open-Source-Lizenzen (MIT)", "Open-source licenses (MIT)")) {
