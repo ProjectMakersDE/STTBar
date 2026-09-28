@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/icon/sttbar-icon-256.png" width="128" alt="STTBar app icon"></p>
+
 # STTBar
 
 **Talk instead of type. Anywhere on your Mac.**
@@ -166,6 +168,15 @@ bash macos-app/build-app.sh /tmp/sttbar-build-check
 ```
 
 Releases use Conventional Commits and Semantic Release on `master`.
+
+## Privacy
+
+STTBar has no account, no analytics and no tracking. Audio and text stay on your Mac unless you
+enter your own Whisper server or LLM endpoint. Details: [Privacy Policy](PRIVACY.md).
+
+## Support
+
+Questions and bug reports: [GitHub Issues](https://github.com/ProjectMakersDE/STTBar/issues).
 
 ## License
 
