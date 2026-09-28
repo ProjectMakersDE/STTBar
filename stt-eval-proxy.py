@@ -17,13 +17,13 @@ LOESUNG:
   und API dieselbe Origin -> kein CORS, kein Private-Network-Block, kein
   Mixed-Content. Der Sprung ins LAN passiert in Python, nicht im Browser.
 
-START (Defaults passen zu deinem Setup):
+START (Default-Ziel ist LM Studio auf localhost:1234):
     python3 stt-eval-proxy.py
   dann im Browser oeffnen:
     http://127.0.0.1:1235/
 
 EIGENES ZIEL / PORT:
-    python3 stt-eval-proxy.py http://192.168.30.30:1234 1235
+    python3 stt-eval-proxy.py http://your-llm-host:1234 1235
 """
 import os
 import sys
@@ -33,7 +33,7 @@ import urllib.error
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 # ---- Konfiguration ----
-TARGET = os.environ.get("STT_PROXY_TARGET", "http://192.168.30.30:1234")
+TARGET = os.environ.get("STT_PROXY_TARGET", "http://localhost:1234")
 LISTEN_HOST = os.environ.get("STT_PROXY_HOST", "127.0.0.1")
 LISTEN_PORT = int(os.environ.get("STT_PROXY_PORT", "1235"))
 PAGE = os.environ.get("STT_PROXY_PAGE", "stt-postprocess-eval.html")

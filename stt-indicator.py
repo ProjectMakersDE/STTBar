@@ -6,6 +6,7 @@ import os
 import re
 import signal
 import subprocess
+from urllib.parse import urlparse
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("AppIndicator3", "0.1")
@@ -23,7 +24,9 @@ ICON_TRANSCRIBING = "emblem-synchronizing-symbolic"
 
 INDICATOR_ID = "stt-indicator"
 
-SERVER_REMOTE = "http://192.168.30.30:8082/v1/audio/transcriptions"
+SERVER_REMOTE = os.environ.get(
+    "STT_REMOTE_SERVER_URL", "http://your-whisper-host:8082/v1/audio/transcriptions"
+)
 SERVER_LOCAL = "http://localhost:8014/v1/audio/transcriptions"
 
 
@@ -54,7 +57,8 @@ class STTIndicator:
         return SERVER_REMOTE
 
     def _is_remote(self):
-        return "192.168.30.30" in self._get_current_server_url()
+        host = urlparse(self._get_current_server_url()).hostname or ""
+        return host not in ("localhost", "127.0.0.1", "::1")
 
     def _set_server_url(self, new_url):
         try:
@@ -73,7 +77,8 @@ class STTIndicator:
         menu = Gtk.Menu()
 
         is_remote = self._is_remote()
-        label = "Server (192.168.30.30)" if is_remote else "Lokal (localhost)"
+        remote_host = urlparse(self._get_current_server_url()).hostname
+        label = f"Server ({remote_host})" if is_remote else "Lokal (localhost)"
         self.item_server = Gtk.MenuItem(label=f"Whisper: {label}")
         self.item_server.connect("activate", self._toggle_server)
         menu.append(self.item_server)
