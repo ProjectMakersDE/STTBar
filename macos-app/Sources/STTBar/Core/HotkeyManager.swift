@@ -49,7 +49,7 @@ final class HotkeyManager {
         for (i, mode) in SttMode.allCases.enumerated() {
             let hk = AppSettings.shared.hotkey(mode)
             if let other = seen[hk] {
-                statuses.append(HotkeyRegistrationStatus(mode: mode, hotkey: hk, state: .duplicate, message: "Doppelt mit \(other.label)"))
+                statuses.append(HotkeyRegistrationStatus(mode: mode, hotkey: hk, state: .duplicate, message: L("Doppelt mit \(other.label)", "Same as \(other.label)")))
                 continue
             }
             seen[hk] = mode
@@ -58,9 +58,9 @@ final class HotkeyManager {
             let err = RegisterEventHotKey(hk.keyCode, hk.carbonModifiers, id, GetEventDispatcherTarget(), 0, &ref)
             if err == noErr {
                 refs.append(ref); idToMode[UInt32(i + 1)] = mode
-                statuses.append(HotkeyRegistrationStatus(mode: mode, hotkey: hk, state: .registered, message: "Registriert"))
+                statuses.append(HotkeyRegistrationStatus(mode: mode, hotkey: hk, state: .registered, message: L("Registriert", "Registered")))
             } else {
-                statuses.append(HotkeyRegistrationStatus(mode: mode, hotkey: hk, state: .conflict, message: "Carbon-Fehler \(err)"))
+                statuses.append(HotkeyRegistrationStatus(mode: mode, hotkey: hk, state: .conflict, message: L("Carbon-Fehler \(err)", "Carbon error \(err)")))
             }
         }
         onStatusesChanged?(statuses)

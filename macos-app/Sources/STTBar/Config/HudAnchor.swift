@@ -7,10 +7,10 @@ enum HudAnchor: String, CaseIterable, Codable {
 
     var label: String {
         switch self {
-        case .topCenter: return "Oben Mitte";    case .topRight: return "Oben Rechts"
-        case .bottomRight: return "Unten Rechts"; case .bottomLeft: return "Unten Links"
-        case .leftBottom: return "Links Unten";   case .leftTop: return "Links Oben"
-        case .rightBottom: return "Rechts Unten"; case .rightTop: return "Rechts Oben"
+        case .topCenter: return L("Oben Mitte", "Top center");    case .topRight: return L("Oben Rechts", "Top edge, right")
+        case .bottomRight: return L("Unten Rechts", "Bottom edge, right"); case .bottomLeft: return L("Unten Links", "Bottom edge, left")
+        case .leftBottom: return L("Links Unten", "Left edge, bottom");   case .leftTop: return L("Links Oben", "Left edge, top")
+        case .rightBottom: return L("Rechts Unten", "Right edge, bottom"); case .rightTop: return L("Rechts Oben", "Right edge, top")
         }
     }
 

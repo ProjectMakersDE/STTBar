@@ -5,7 +5,7 @@ struct ReplacementEntry: Identifiable, Equatable, Codable {
     var enabled: Bool = true
     var from: String
     var to: String
-    var category: String = "Allgemein"
+    var category: String = L("Allgemein", "General")
     var comment: String = ""
 }
 
@@ -29,7 +29,7 @@ struct ReplacementStore {
     }
 
     mutating func add() throws {
-        entries.append(ReplacementEntry(from: "", to: "", category: "Allgemein", comment: ""))
+        entries.append(ReplacementEntry(from: "", to: "", category: L("Allgemein", "General"), comment: ""))
         try persist()
     }
 
@@ -78,11 +78,11 @@ struct ReplacementStore {
                 return ReplacementEntry(enabled: ["1", "true", "on"].contains(parts[0].lowercased()),
                                         from: parts[1],
                                         to: parts[2],
-                                        category: parts.count > 3 ? parts[3] : "Allgemein",
+                                        category: parts.count > 3 ? parts[3] : L("Allgemein", "General"),
                                         comment: parts.count > 4 ? parts[4] : "")
             }
             if parts.count >= 2 {
-                return ReplacementEntry(enabled: true, from: parts[0], to: parts[1], category: "Allgemein", comment: "")
+                return ReplacementEntry(enabled: true, from: parts[0], to: parts[1], category: L("Allgemein", "General"), comment: "")
             }
             return nil
         }

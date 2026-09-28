@@ -81,7 +81,8 @@ enum NativePaste {
 
         guard Permissions.accessibilityTrusted else {
             setClipboard(text)
-            return completion(.clipboardOnly("Bedienungshilfen fehlen; Text liegt in der Zwischenablage."))
+            return completion(.clipboardOnly(L("Bedienungshilfen fehlen; Text liegt in der Zwischenablage.",
+                                                "Accessibility permission is missing; the text is on the clipboard.")))
         }
 
         // A fast dictation can reach here while the hotkey chord (Raw =
@@ -102,7 +103,8 @@ enum NativePaste {
                 // on the clipboard for a manual paste instead.
                 setClipboard(text)
                 AppLogger.log("native_paste stage=clipboard_only_modifiers_held")
-                return completion(.clipboardOnly("Modifier-Tasten gehalten; Text liegt in der Zwischenablage (⌘V)."))
+                return completion(.clipboardOnly(L("Modifier-Tasten gehalten; Text liegt in der Zwischenablage (⌘V).",
+                                                    "Modifier keys were held; the text is on the clipboard (⌘V).")))
             }
             completion(inject(text))
         }
@@ -174,7 +176,8 @@ enum NativePaste {
               let down = CGEvent(keyboardEventSource: source, virtualKey: CGKeyCode(kVK_ANSI_V), keyDown: true),
               let up = CGEvent(keyboardEventSource: source, virtualKey: CGKeyCode(kVK_ANSI_V), keyDown: false)
         else {
-            return .clipboardOnly("Paste-Event konnte nicht erzeugt werden; Text liegt in der Zwischenablage.")
+            return .clipboardOnly(L("Paste-Event konnte nicht erzeugt werden; Text liegt in der Zwischenablage.",
+                                "Could not create the paste event; the text is on the clipboard."))
         }
         down.flags = .maskCommand
         up.flags = .maskCommand

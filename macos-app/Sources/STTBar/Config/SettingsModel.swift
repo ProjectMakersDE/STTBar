@@ -136,16 +136,16 @@ final class SettingsModel: ObservableObject {
             try env.save()
             syncAppSettingsFromDraft()
             validationMessage = nil
-            saveMessage = "Gespeichert"
+            saveMessage = L("Gespeichert", "Saved")
         } catch {
-            validationMessage = "Speichern fehlgeschlagen: \(error.localizedDescription)"
+            validationMessage = L("Speichern fehlgeschlagen: ", "Saving failed: ") + error.localizedDescription
         }
     }
 
     func revertEnvChanges() {
         env = (try? EnvStore(url: installDir.appendingPathComponent(".env"))) ?? env
         loadEnvDraft()
-        saveMessage = "Zurückgesetzt"
+        saveMessage = L("Zurückgesetzt", "Reverted")
     }
 
     @discardableResult
@@ -155,34 +155,34 @@ final class SettingsModel: ObservableObject {
             return ["http", "https"].contains(scheme)
         }
         if !validURL(whisperURL) {
-            validationMessage = "Whisper-URL muss mit http:// oder https:// beginnen."
+            validationMessage = L("Whisper-URL muss mit http:// oder https:// beginnen.", "The Whisper URL must start with http:// or https://.")
             return false
         }
         if whisperModel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            validationMessage = "Whisper-Modell darf nicht leer sein."
+            validationMessage = L("Whisper-Modell darf nicht leer sein.", "The Whisper model must not be empty.")
             return false
         }
         if Int(transcribeTimeout).map({ $0 > 0 }) != true {
-            validationMessage = "Whisper-Timeout muss eine positive Zahl sein."
+            validationMessage = L("Whisper-Timeout muss eine positive Zahl sein.", "The Whisper timeout must be a positive number.")
             return false
         }
         if postprocessEnabled {
             if !validURL(lmStudioURL) {
-                validationMessage = "LLM-URL muss mit http:// oder https:// beginnen."
+                validationMessage = L("LLM-URL muss mit http:// oder https:// beginnen.", "The LLM URL must start with http:// or https://.")
                 return false
             }
             if llmModel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                validationMessage = "LLM-Modell darf nicht leer sein."
+                validationMessage = L("LLM-Modell darf nicht leer sein.", "The LLM model must not be empty.")
                 return false
             }
         }
         if !["lmstudio", "openai"].contains(provider) {
-            validationMessage = "Provider muss lmstudio oder openai sein."
+            validationMessage = L("Provider muss lmstudio oder openai sein.", "The provider must be lmstudio or openai.")
             return false
         }
         for value in [postprocessTimeout, postprocessWarnSeconds, keepModelWarmSeconds, maxRecordingSeconds, historyRetentionHours] {
             if Int(value).map({ $0 >= 0 }) != true {
-                validationMessage = "Timeouts und Zeitwerte müssen Zahlen sein."
+                validationMessage = L("Timeouts und Zeitwerte müssen Zahlen sein.", "Timeouts and time values must be numbers.")
                 return false
             }
         }
@@ -212,7 +212,7 @@ final class SettingsModel: ObservableObject {
             objectWillChange.send()
             saveMessage = "Profil gespeichert"
         } catch {
-            validationMessage = "Profil konnte nicht gespeichert werden: \(error.localizedDescription)"
+            validationMessage = L("Profil konnte nicht gespeichert werden: ", "Could not save the profile: ") + error.localizedDescription
         }
     }
 
@@ -258,9 +258,9 @@ final class SettingsModel: ObservableObject {
         do {
             try replacements.update(entries)
             objectWillChange.send()
-            saveMessage = "Wörterbuch gespeichert"
+            saveMessage = L("Wörterbuch gespeichert", "Vocabulary saved")
         } catch {
-            validationMessage = "Wörterbuch konnte nicht gespeichert werden: \(error.localizedDescription)"
+            validationMessage = L("Wörterbuch konnte nicht gespeichert werden: ", "Could not save the vocabulary: ") + error.localizedDescription
         }
     }
 
@@ -350,7 +350,7 @@ final class SettingsModel: ObservableObject {
     func hotkeyWarning(for mode: SttMode) -> String? {
         let hk = hotkey(mode)
         if SttMode.allCases.contains(where: { $0 != mode && hotkey($0) == hk }) {
-            return "Doppelt belegt"
+            return L("Doppelt belegt", "Already in use")
         }
         return hk.systemWarning
     }

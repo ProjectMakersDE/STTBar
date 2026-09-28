@@ -164,7 +164,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let lastTranscript else { return }
         NativePaste.copyAndPaste(lastTranscript) { [weak self] result in
             guard case .clipboardOnly(let reason) = result else { return }
-            StatusStore.writeAppStatus(event: "last_transcript_clipboard_only", phase: "done", severity: "warning", code: "paste_permission_missing", message: "Letztes Transkript liegt in der Zwischenablage.", detail: reason)
+            StatusStore.writeAppStatus(event: "last_transcript_clipboard_only", phase: "done", severity: "warning", code: "paste_permission_missing", message: L("Letztes Transkript liegt in der Zwischenablage.", "The last transcript is on the clipboard."), detail: reason)
             self?.menu.setLastProblem(StatusStore.latestProblem())
         }
     }

@@ -24,10 +24,10 @@ struct Hotkey: Codable, Equatable, Hashable {
         let cmd = carbonModifiers & UInt32(cmdKey) != 0
         let shift = carbonModifiers & UInt32(shiftKey) != 0
         let control = carbonModifiers & UInt32(controlKey) != 0
-        if cmd && keyCode == UInt32(kVK_Space) { return "macOS/Spotlight-nahe Kombination" }
-        if cmd && keyCode == UInt32(kVK_Tab) { return "macOS-App-Wechsel" }
-        if control && keyCode == UInt32(kVK_Space) { return "Input-Source-nahe Kombination" }
-        if cmd && shift && ["3", "4", "5"].contains(Self.keyName(keyCode)) { return "macOS-Screenshot-nahe Kombination" }
+        if cmd && keyCode == UInt32(kVK_Space) { return L("macOS/Spotlight-nahe Kombination", "Close to a macOS/Spotlight shortcut") }
+        if cmd && keyCode == UInt32(kVK_Tab) { return L("macOS-App-Wechsel", "macOS app switcher") }
+        if control && keyCode == UInt32(kVK_Space) { return L("Input-Source-nahe Kombination", "Close to the input source shortcut") }
+        if cmd && shift && ["3", "4", "5"].contains(Self.keyName(keyCode)) { return L("macOS-Screenshot-nahe Kombination", "Close to a macOS screenshot shortcut") }
         return nil
     }
 
