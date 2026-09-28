@@ -55,7 +55,34 @@ afterthought.
   the active prompt.
 - Native Swift menu-bar app: fast, small, and quiet. No Electron.
 
+## System Requirements
+
+- macOS 14 Sonoma or later.
+- A Mac with Apple silicon for the prebuilt release (it is built for arm64).
+- To build from source: Xcode 16 or later (WhisperKit needs the macOS 15 SDK).
+- Optional: a Whisper-compatible server instead of on-device transcription,
+  and an LM Studio or OpenAI-compatible endpoint for the LLM cleanup.
+
 ## Install
+
+### Download the release (recommended)
+
+1. Download `STTBar.app.zip` from the
+   [latest release](https://github.com/ProjectMakersDE/STTBar/releases/latest).
+   The app is signed with a Developer ID and notarized by Apple.
+2. Optional: compare the checksum with `STTBar.app.zip.sha256` from the same
+   release:
+
+   ```bash
+   shasum -a 256 STTBar.app.zip
+   ```
+
+3. Unzip the file and move `STTBar.app` to `/Applications`.
+4. Open STTBar. Allow microphone access when asked, and enable STTBar under
+   System Settings > Privacy & Security > Accessibility so it can paste the
+   text into the focused app.
+
+### Build from source
 
 ```bash
 git clone https://github.com/ProjectMakersDE/STTBar.git
@@ -83,15 +110,19 @@ Key settings:
 
 The same values are stored in `~/.local/share/stt/.env`.
 
-## Local Whisper Server
+## Local Whisper Server (NVIDIA GPU only)
 
-The included `docker-compose.yml` starts a Speaches/faster-whisper server:
+The included `docker-compose.yml` starts a Speaches/faster-whisper server from
+the CUDA image and reserves one NVIDIA GPU. It needs a host with an NVIDIA GPU
+and the NVIDIA Container Toolkit, so it does not run on a Mac. On a Mac, use the
+on-device WhisperKit transcription instead.
 
 ```bash
 docker compose up -d
 ```
 
-Set `STT_DOCKER_PORT` and `STT_MODEL` in `.env` if needed.
+Set `STT_DOCKER_PORT` and `STT_MODEL` in `.env` if needed, then set the Whisper
+URL in STTBar to `http://your-whisper-host:8082/v1/audio/transcriptions`.
 
 ## Updates
 
