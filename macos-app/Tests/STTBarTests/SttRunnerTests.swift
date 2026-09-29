@@ -125,12 +125,17 @@ final class SttRunnerTests: XCTestCase {
         XCTAssertEqual(runner.state, .llm)
     }
 
-    // A non-empty transcript is delivered through the now-async paste path.
-    // (Accessibility is not granted to the test binary, so paste settles as
-    // clipboard-only, but onTranscript must still fire with the text.)
+    // A non-empty transcript is delivered through the async paste path. The
+    // paste is stubbed: when the test process has Accessibility access, the
+    // real one would type the transcript into the frontmost app.
     func testNonEmptyTranscriptIsDeliveredThroughAsyncPaste() {
         let backend = MockBackend()
         let runner = SttRunner(backend: backend)
+        var pasted: [String] = []
+        runner.paste = { text, done in
+            pasted.append(text)
+            DispatchQueue.main.async { done(.clipboardOnly("stubbed")) }
+        }
         var got: [String] = []
         runner.onTranscript = { text, _, _ in got.append(text) }
 
@@ -140,6 +145,7 @@ final class SttRunnerTests: XCTestCase {
         backend.stopCompletion?(.success("HELLO"))
         drainMainQueue(0.3)
 
+        XCTAssertEqual(pasted, ["HELLO"])
         XCTAssertEqual(got, ["HELLO"])
     }
 }

@@ -19,6 +19,10 @@ final class SttRunner {
     var onState: ((SttState) -> Void)?
     var onTranscript: ((String, SttMode, NativePasteResult) -> Void)?
     var onProblem: ((SttStatus) -> Void)?
+    /// Inserts the finished text into the focused app. Tests replace it: a test
+    /// process with Accessibility access would otherwise really paste into
+    /// whatever app is in front.
+    var paste: (String, @escaping (NativePasteResult) -> Void) -> Void = NativePaste.copyAndPaste
     private var busy = false
     private var recordingStartedAt: Date?
     private(set) var state: SttState = .idle
@@ -170,7 +174,7 @@ final class SttRunner {
             // Paste runs asynchronously (it may wait for a still-held hotkey
             // chord to clear). Stay busy across that wait so a press meanwhile
             // is queued as a fresh start rather than raced into a new recording.
-            NativePaste.copyAndPaste(text) { [weak self] paste in
+            paste(text) { [weak self] paste in
                 self?.finishPaste(text: text, mode: mode, paste: paste, generation: generation)
             }
         case .success:
