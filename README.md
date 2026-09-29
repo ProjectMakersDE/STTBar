@@ -58,10 +58,12 @@ afterthought.
 - Three dictation modes on separate global hotkeys: full cleanup, raw
   transcript, and English output (speak German, paste English).
 - Transcription your way: fully on-device with WhisperKit (model
-  recommendations matched to your Mac's RAM), self-hosted via the included
-  Docker Compose file, or any Whisper-compatible endpoint.
-- Optional LLM cleanup via LM Studio or any OpenAI-compatible chat endpoint.
-  If the LLM is unreachable, STTBar falls back to the raw transcript instead
+  recommendations matched to your Mac's RAM), on your own server via the
+  included Docker Compose file, or any Whisper-compatible endpoint, in your
+  network or on the internet, with an optional API key.
+- Optional LLM cleanup with a local model (LM Studio, Ollama) or a hosted one
+  through any OpenAI-compatible API such as OpenRouter, with an optional API
+  key. If the LLM is unreachable, STTBar falls back to the raw transcript instead
   of failing the dictation.
 - Built-in Agent V4 prompt presets for German and English-output workflows,
   plus a full prompt editor with profiles for your own presets.
@@ -81,7 +83,7 @@ afterthought.
 - A Mac with Apple silicon for the prebuilt release (it is built for arm64).
 - To build from source: Xcode 16 or later (WhisperKit needs the macOS 15 SDK).
 - Optional: a Whisper-compatible server instead of on-device transcription,
-  and an LM Studio or OpenAI-compatible endpoint for the LLM cleanup.
+  and a local or hosted OpenAI-compatible endpoint for the LLM cleanup.
 
 ## Install
 
@@ -125,11 +127,28 @@ Key settings:
 - Whisper URL, for example `http://localhost:8082/v1/audio/transcriptions`.
 - Whisper model, for example `Systran/faster-whisper-large-v3-turbo`.
 - Optional LLM cleanup URL, model, provider, and timeout.
+- Optional API keys for the Whisper server and the LLM endpoint.
 - Prompt presets and active prompt.
 - Hotkeys and HUD position.
 
 The app stores these values in its sandbox container:
 `~/Library/Containers/de.projectmakers.sttbar/Data/Library/Application Support/STTBar/.env`.
+
+API keys are the exception. STTBar keeps them in the macOS keychain, filed under
+the server's host name, and sends a key only to that host. They never go into
+`.env`, its backups, profiles or exports.
+
+### Hosted cleanup with OpenRouter
+
+1. Create an API key at [openrouter.ai](https://openrouter.ai/keys).
+2. In Settings > Server, click `Use OpenRouter`. This sets the LLM URL to
+   `https://openrouter.ai/api/v1/chat/completions` and the provider to
+   OpenAI-compatible.
+3. Paste the key into `API key`, enter an OpenRouter model ID and click
+   `Apply`.
+
+Any other OpenAI-compatible service works the same way: its
+`/v1/chat/completions` URL, its model ID and, if it needs one, its key.
 
 ## Local Whisper Server (NVIDIA GPU only)
 

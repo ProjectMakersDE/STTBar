@@ -18,7 +18,12 @@ final class SettingsModel: ObservableObject {
 
     func clearHistory() { onClearHistory?() }
 
-    @Published var whisperURL: String = ""
+    @Published var whisperURL: String = "" {
+        didSet { if ApiKeyStore.account(for: whisperURL) != ApiKeyStore.account(for: oldValue) { whisperAPIKey = ApiKeyStore.key(for: whisperURL) } }
+    }
+    /// Optional bearer key for the Whisper endpoint. Lives in the keychain under
+    /// the URL's host (ApiKeyStore), so it follows the host, not the field.
+    @Published var whisperAPIKey: String = ""
     @Published var whisperModel: String = ""
     @Published var language: String = "de"
     @Published var transcribeTimeout: String = "30"
@@ -31,7 +36,14 @@ final class SettingsModel: ObservableObject {
     /// Temperature fallback on uncertain audio (STT_TEMPERATURE_FALLBACK).
     @Published var temperatureFallback: Bool = false
     @Published var postprocessEnabled: Bool = false
-    @Published var lmStudioURL: String = ""
+    @Published var lmStudioURL: String = "" {
+        didSet {
+            if ApiKeyStore.account(for: lmStudioURL) != ApiKeyStore.account(for: oldValue) { llmAPIKey = ApiKeyStore.key(for: lmStudioURL) }
+            if let inferred = LLMClient.inferredProvider(for: lmStudioURL) { provider = inferred }
+        }
+    }
+    /// Optional bearer key for the LLM endpoint, e.g. OpenRouter.
+    @Published var llmAPIKey: String = ""
     @Published var llmModel: String = ""
     @Published var provider: String = "lmstudio"
     @Published var postprocessTimeout: String = "60"
@@ -134,6 +146,7 @@ final class SettingsModel: ObservableObject {
         write("STT_LOCAL_MODEL", localModel)
         do {
             try env.save()
+            saveApiKeys()
             syncAppSettingsFromDraft()
             validationMessage = nil
             saveMessage = L("Gespeichert", "Saved")
@@ -385,7 +398,23 @@ final class SettingsModel: ObservableObject {
         avoidBluetoothMic = (env.value("STT_MACOS_AVOID_BLUETOOTH_PROFILE_SWITCH") ?? "1") != "0"
         transcriptionSource = env.value("STT_SOURCE") ?? "server"
         localModel = env.value("STT_LOCAL_MODEL") ?? ""
+        whisperAPIKey = ApiKeyStore.key(for: whisperURL)
+        llmAPIKey = ApiKeyStore.key(for: lmStudioURL)
         syncAppSettingsFromDraft()
+    }
+
+    /// Whisper and LLM can share a host (one OpenAI key for both); then one
+    /// keychain entry backs both fields and a blank field must not delete it.
+    private func saveApiKeys() {
+        if ApiKeyStore.account(for: whisperURL) == ApiKeyStore.account(for: lmStudioURL) {
+            let shared = llmAPIKey.isEmpty ? whisperAPIKey : llmAPIKey
+            ApiKeyStore.setKey(shared, for: lmStudioURL)
+            whisperAPIKey = shared
+            llmAPIKey = shared
+        } else {
+            ApiKeyStore.setKey(whisperAPIKey, for: whisperURL)
+            ApiKeyStore.setKey(llmAPIKey, for: lmStudioURL)
+        }
     }
 
     private func syncAppSettingsFromDraft() {

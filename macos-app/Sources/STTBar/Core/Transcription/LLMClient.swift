@@ -16,6 +16,15 @@ enum LLMError: LocalizedError {
 struct LLMClient {
     var session: URLSession = .shared
 
+    static let openRouterURL = "https://openrouter.ai/api/v1/chat/completions"
+
+    /// `/chat/completions` is the OpenAI route by definition (LM Studio serves
+    /// it too), so such a URL always wants the `messages` shape.
+    static func inferredProvider(for urlString: String) -> String? {
+        guard let path = URLComponents(string: urlString)?.path.lowercased() else { return nil }
+        return path.hasSuffix("/chat/completions") ? "openai" : nil
+    }
+
     static func body(provider: String, model: String, prompt: String, transcript: String, temperature: Double, reasoning: String) -> Data {
         let obj: [String: Any]
         if provider == "openai" {
@@ -51,8 +60,8 @@ struct LLMClient {
         return (trimmed?.isEmpty == false) ? trimmed : nil
     }
 
-    func clean(transcript: String, config: TranscriptionConfig, translateTo: String?) async throws -> String {
-        guard let url = URL(string: config.lmStudioURL) else { throw LLMError.badURL }
+    static func makeRequest(transcript: String, config: TranscriptionConfig, translateTo: String?) -> URLRequest? {
+        guard let url = URL(string: config.lmStudioURL) else { return nil }
         var prompt = config.promptBody
         if let lang = translateTo {
             prompt += "\n\n" + L("Übersetze die Ausgabe nach \(lang). Behalte alle anderen Regeln bei.",
@@ -62,8 +71,14 @@ struct LLMClient {
         req.httpMethod = "POST"
         req.timeoutInterval = config.postprocessTimeout
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        req.httpBody = Self.body(provider: config.provider, model: config.llmModel, prompt: prompt,
-                                 transcript: transcript, temperature: config.temperature, reasoning: config.reasoning)
+        ApiKeyStore.authorize(&req, key: config.llmAPIKey)
+        req.httpBody = body(provider: config.provider, model: config.llmModel, prompt: prompt,
+                            transcript: transcript, temperature: config.temperature, reasoning: config.reasoning)
+        return req
+    }
+
+    func clean(transcript: String, config: TranscriptionConfig, translateTo: String?) async throws -> String {
+        guard let req = Self.makeRequest(transcript: transcript, config: config, translateTo: translateTo) else { throw LLMError.badURL }
         let (data, response) = try await session.data(for: req)
         let code = (response as? HTTPURLResponse)?.statusCode ?? 0
         guard code == 200 else { throw LLMError.http(code) }

@@ -1,6 +1,6 @@
 # Privacy Policy for STTBar
 
-Last updated: 2026-09-28
+Last updated: 2026-09-29
 
 STTBar is an app by ProjectMakers, Simon Daniel März, Steinweg 2, 34376 Immenhausen, Germany.
 Contact: info@projectmakers.de
@@ -26,9 +26,13 @@ tracking. We receive neither your recordings nor your texts.
 
 - **Model download:** When you load a Whisper model, STTBar downloads the files from Hugging Face
   (huggingface.co). Hugging Face sees your IP address. The Hugging Face privacy policy applies.
-- **Your own Whisper server:** If you enter a server, STTBar sends the recording there.
+- **Whisper server:** If you enter a server, in your network or on the internet, STTBar sends
+  the recording there.
 - **Cleanup with a language model:** If you turn on the cleanup, STTBar sends the recognized text
-  to the address you enter, for example to LM Studio on your Mac.
+  to the address you enter, for example to LM Studio on your Mac or to a hosted service such as
+  OpenRouter.
+- **API keys:** Keys you enter stay in the keychain on your Mac. STTBar sends each key only to
+  the server it belongs to.
 
 You choose and run these servers yourself, or a provider of your choice does. We have no access
 to them.
@@ -42,7 +46,7 @@ about it. If you have questions, write to info@projectmakers.de.
 
 # Datenschutzerklärung für STTBar
 
-Stand: 2026-09-28
+Stand: 2026-09-29
 
 STTBar ist eine App von ProjectMakers, Simon Daniel März, Steinweg 2, 34376 Immenhausen.
 Kontakt: info@projectmakers.de
@@ -67,9 +71,13 @@ Tracking. Wir erhalten weder Ihre Aufnahmen noch Ihre Texte.
 - **Modell-Download:** Beim Laden eines Whisper-Modells ruft STTBar die Dateien von Hugging Face
   (huggingface.co) ab. Dabei sieht Hugging Face Ihre IP-Adresse. Es gilt die Datenschutzerklärung
   von Hugging Face.
-- **Eigener Whisper-Server:** Tragen Sie einen Server ein, schickt STTBar die Aufnahme dorthin.
+- **Whisper-Server:** Tragen Sie einen Server ein, in Ihrem Netzwerk oder im Internet, schickt
+  STTBar die Aufnahme dorthin.
 - **Bereinigung mit einem Sprachmodell:** Schalten Sie die Bereinigung ein, schickt STTBar den
-  erkannten Text an die Adresse, die Sie eintragen, zum Beispiel an LM Studio auf Ihrem Mac.
+  erkannten Text an die Adresse, die Sie eintragen, zum Beispiel an LM Studio auf Ihrem Mac oder an
+  einen Dienst wie OpenRouter.
+- **API-Keys:** Eingetragene Keys bleiben im Schlüsselbund auf Ihrem Mac. STTBar schickt jeden Key
+  nur an den Server, zu dem er gehört.
 
 Diese Server wählen und betreiben Sie selbst oder ein Anbieter Ihrer Wahl. Wir haben darauf keinen
 Zugriff.

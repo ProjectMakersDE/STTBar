@@ -48,6 +48,7 @@ struct WhisperClient {
         req.httpMethod = "POST"
         req.timeoutInterval = config.transcribeTimeout
         req.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        ApiKeyStore.authorize(&req, key: config.whisperAPIKey)
         return req
     }
 

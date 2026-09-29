@@ -61,6 +61,10 @@ private struct ServerTab: View {
             if model.transcriptionSource != TranscriptionSource.local.rawValue {
                 Section("Whisper") {
                     TextField(L("Whisper-URL", "Whisper URL"), text: $model.whisperURL)
+                    SecureField(L("API-Key (optional)", "API key (optional)"), text: $model.whisperAPIKey)
+                    Text(L("Nur nötig, wenn der Server einen Key verlangt. STTBar legt ihn im Schlüsselbund ab und schickt ihn nur an diesen Server.",
+                           "Only needed if the server asks for a key. STTBar keeps it in the keychain and sends it only to this server."))
+                        .font(.caption).foregroundStyle(.secondary)
                     Picker(L("Whisper-Modell", "Whisper model"), selection: $model.whisperModel) {
                         ForEach(SettingsModel.whisperPresets, id: \.self) { Text($0).tag($0) }
                         if !SettingsModel.whisperPresets.contains(model.whisperModel) {
@@ -119,7 +123,18 @@ private struct ServerTab: View {
                     Text(L("OpenAI-kompatibel", "OpenAI-compatible")).tag("openai")
                 }
                 TextField(L("LLM-URL", "LLM URL"), text: $model.lmStudioURL)
+                SecureField(L("API-Key (optional)", "API key (optional)"), text: $model.llmAPIKey)
                 TextField(L("LLM-Modell", "LLM model"), text: $model.llmModel)
+                HStack {
+                    Text(L("Lokal zum Beispiel LM Studio oder Ollama, gehostet zum Beispiel OpenRouter. Der Key liegt im Schlüsselbund und geht nur an den Server dieser URL.",
+                           "Local, for example LM Studio or Ollama; hosted, for example OpenRouter. The key stays in the keychain and only goes to the server of this URL."))
+                        .font(.caption).foregroundStyle(.secondary)
+                    Spacer()
+                    Button(L("OpenRouter einsetzen", "Use OpenRouter")) {
+                        model.lmStudioURL = LLMClient.openRouterURL
+                        model.provider = "openai"
+                    }
+                }
                 TextField(L("LLM-Timeout (s)", "LLM timeout (s)"), text: $model.postprocessTimeout)
                 TextField(L("Warnschwelle (s)", "Warn threshold (s)"), text: $model.postprocessWarnSeconds)
                 Toggle(L("Raw-Fallback bei LLM-Fehler", "Raw fallback on LLM error"), isOn: $model.autoRawFallback)

@@ -189,6 +189,7 @@ struct OnboardingView: View {
                 Text(L("Whisper-Endpunkt", "Whisper endpoint")).font(.callout)
             }
             TextField("http://…/v1/audio/transcriptions", text: $model.whisperURL)
+            SecureField(L("API-Key (optional)", "API key (optional)"), text: $model.whisperAPIKey)
             TextField(L("Whisper-Modell", "Whisper model"), text: $model.whisperModel)
             TextField(L("Sprache", "Language"), text: $model.language)
             if model.transcriptionSource == TranscriptionSource.selfHost.rawValue {
@@ -203,6 +204,7 @@ struct OnboardingView: View {
             Toggle(L("LLM-Cleanup aktiv", "LLM cleanup enabled"), isOn: $model.postprocessEnabled)
             if model.postprocessEnabled {
                 TextField(L("LLM-URL", "LLM URL"), text: $model.lmStudioURL)
+                SecureField(L("API-Key (optional)", "API key (optional)"), text: $model.llmAPIKey)
                 TextField(L("LLM-Modell", "LLM model"), text: $model.llmModel)
             }
             Spacer(minLength: 0)

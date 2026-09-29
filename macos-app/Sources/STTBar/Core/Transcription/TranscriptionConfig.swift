@@ -38,6 +38,9 @@ struct TranscriptionConfig {
     var beamSize: String = "5"
     /// Allow re-decoding at higher temperatures (STT_TEMPERATURE_FALLBACK).
     var temperatureFallback: Bool = false
+    /// Bearer keys for hosted endpoints (see ApiKeyStore). Empty = no header.
+    var whisperAPIKey: String = ""
+    var llmAPIKey: String = ""
 
     static let maxBeamSize = 8
 
@@ -90,6 +93,8 @@ struct TranscriptionConfig {
             whisperPrompt: model.whisperPrompt,
             vadFilter: model.vadFilter,
             beamSize: model.beamSize,
-            temperatureFallback: model.temperatureFallback)
+            temperatureFallback: model.temperatureFallback,
+            whisperAPIKey: model.whisperAPIKey,
+            llmAPIKey: model.llmAPIKey)
     }
 }
