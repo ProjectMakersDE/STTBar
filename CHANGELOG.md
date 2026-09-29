@@ -1,3 +1,9 @@
+## [1.7.0](https://github.com/ProjectMakersDE/STTBar/compare/v1.6.0...v1.7.0) (2026-09-29)
+
+### Features
+
+* **server:** support API keys for hosted Whisper and LLM endpoints ([9d1bd03](https://github.com/ProjectMakersDE/STTBar/commit/9d1bd03ce354df6c13be410c3e0b65d78adf46bb))
+
 ## [1.6.0](https://github.com/ProjectMakersDE/STTBar/compare/v1.5.0...v1.6.0) (2026-09-28)
 
 ### Features
