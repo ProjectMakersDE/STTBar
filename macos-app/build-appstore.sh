@@ -53,6 +53,14 @@ cp "$HERE/Resources/STTBar.entitlements" "$TMPD/appstore.entitlements"
 /usr/libexec/PlistBuddy -c "Add :com.apple.developer.team-identifier string $TEAM_ID" "$TMPD/appstore.entitlements"
 
 cp "$PROFILE" "$APP/Contents/embedded.provisionprofile"
+# A profile downloaded with a browser carries com.apple.quarantine, and the
+# App Store rejects any file with that attribute (ITMS 91109). Clear all
+# extended attributes before signing.
+xattr -cr "$APP"
+if xattr -r "$APP" 2>/dev/null | grep -q com.apple.quarantine; then
+    echo "ERROR: com.apple.quarantine is still set inside $APP." >&2
+    exit 1
+fi
 codesign --force --options runtime --timestamp \
     --entitlements "$TMPD/appstore.entitlements" --sign "$APP_IDENTITY" "$APP"
 codesign --verify --strict --verbose=2 "$APP"
