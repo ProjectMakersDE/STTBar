@@ -1,3 +1,16 @@
+## [1.8.0](https://github.com/ProjectMakersDE/STTBar/compare/v1.7.0...v1.8.0) (2026-10-13)
+
+### Features
+
+* **local:** add Parakeet on-device transcription and preload the local model ([0a3ec01](https://github.com/ProjectMakersDE/STTBar/commit/0a3ec01ef8140e7b9fbeda4c8c91f750e44e5f1e))
+* **local:** explain the one-time first load of a local model ([6e11c07](https://github.com/ProjectMakersDE/STTBar/commit/6e11c071ee1ee642bdd93fb71d81c86b17170f28))
+
+### Bug Fixes
+
+* apply the release and app review corrections of 2026-10-03 ([45579a6](https://github.com/ProjectMakersDE/STTBar/commit/45579a6889b1ff3d3878dcadbfff68cc04fd3d4f))
+* **launch:** read API keys off the main thread ([bd1e382](https://github.com/ProjectMakersDE/STTBar/commit/bd1e38241b5bd16aaf36da1df0743265c65634ee))
+* **privacy:** declare file metadata and boot time API reasons ([2879fda](https://github.com/ProjectMakersDE/STTBar/commit/2879fda0d4ba313a6b10951c830558787bde580c))
+
 ## [1.7.0](https://github.com/ProjectMakersDE/STTBar/compare/v1.6.0...v1.7.0) (2026-09-29)
 
 ### Features
