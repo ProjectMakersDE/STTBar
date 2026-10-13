@@ -34,7 +34,7 @@ enum LocalModels {
     static func label(_ name: String) -> String {
         switch name {
         case parakeetV3: return L("Parakeet TDT v3 (sehr schnell, 25 Sprachen)", "Parakeet TDT v3 (very fast, 25 languages)")
-        case parakeetUltra: return L("Parakeet Ultra (sehr schnell, genauer, 25 Sprachen)", "Parakeet Ultra (very fast, more accurate, 25 languages)")
+        case parakeetUltra: return L("Parakeet Ultra (empfohlen: sehr schnell, genau, 25 Sprachen)", "Parakeet Ultra (recommended: very fast, accurate, 25 languages)")
         case "large-v3-v20240930_626MB": return "Whisper Large V3 Turbo (626 MB)"
         case "large-v3-v20240930": return "Whisper Large V3 Turbo"
         case "large-v3": return "Whisper Large V3"
@@ -43,6 +43,13 @@ enum LocalModels {
         default: return name
         }
     }
+
+    /// Shown wherever a model is chosen: the first load compiles the model for
+    /// the Neural Engine once (102 s for Parakeet Ultra on an M1 Max), every
+    /// later app start finds it ready in about a second (0.25 s measured).
+    static let firstLoadNotice = L(
+        "Wichtig: Das erste Laden dauert einmalig 1 bis 5 Minuten. Das Modell wird heruntergeladen und für diesen Mac vorbereitet. Danach ist es bei jedem App-Start in etwa 1 Sekunde wieder bereit.",
+        "Important: the first load takes 1 to 5 minutes, once. The model is downloaded and prepared for this Mac. After that it is ready again in about 1 second on every app start.")
 
     /// Download folder of a Parakeet model inside the container. FluidAudio
     /// stores each model in a folder named after the model (`Repo.folderName`).
@@ -72,13 +79,17 @@ final class LocalModelStatus: ObservableObject {
 
     var isLoading: Bool { if case .loading = state { return true } else { return false } }
 
+    func isReady(_ model: String) -> Bool {
+        if case .ready(let loaded, _) = state { return loaded == model } else { return false }
+    }
+
     /// One line for the UI, nil before the first load.
     var text: String? {
         switch state {
         case .idle: return nil
         case .loading(let model):
-            return L("Lade \(LocalModels.label(model))… (beim ersten Mal mit Download)",
-                     "Loading \(LocalModels.label(model))… (downloads on first use)")
+            return L("Lade \(LocalModels.label(model))… Beim ersten Mal 1 bis 5 Minuten, danach etwa 1 Sekunde.",
+                     "Loading \(LocalModels.label(model))… 1 to 5 minutes the first time, about 1 second after that.")
         case .ready(let model, let seconds):
             return L("\(LocalModels.label(model)) ist bereit (geladen in \(String(format: "%.1f", seconds)) s).",
                      "\(LocalModels.label(model)) is ready (loaded in \(String(format: "%.1f", seconds)) s).")

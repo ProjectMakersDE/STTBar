@@ -109,6 +109,11 @@ private struct ServerTab: View {
                     }
                     Text(L("Empfehlung für diesen Mac: ", "Recommended for this Mac: ") + LocalModels.label(models.recommendedForThisMac()))
                         .font(.caption).foregroundStyle(.secondary)
+                    if !localStatus.isReady(OnboardingReadiness.requestedLocalModel(model.localModel)) {
+                        Text(LocalModels.firstLoadNotice)
+                            .font(.callout.weight(.semibold)).foregroundStyle(.red)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                     HStack {
                         Button(L("Modell laden", "Load model")) { models.loadModel(model.localModel) }
                             .disabled(models.working || localStatus.isLoading)

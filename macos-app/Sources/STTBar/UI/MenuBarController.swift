@@ -68,7 +68,7 @@ final class MenuBarController {
 
     private var localModelLine: String? {
         switch localModel {
-        case .loading(let model): return L("Lade lokales Modell: ", "Loading local model: ") + LocalModels.label(model) + "…"
+        case .loading: return L("Lade lokales Modell… (beim ersten Mal 1 bis 5 Minuten)", "Loading local model… (1 to 5 minutes the first time)")
         case .failed(let model, _): return L("Lokales Modell nicht geladen: ", "Local model not loaded: ") + LocalModels.label(model)
         case .idle, .ready: return nil
         }

@@ -62,7 +62,9 @@ afterthought.
 - Transcription your way: fully on-device with NVIDIA Parakeet (default, about
   one second for three minutes of speech on an M1 Max, 25 European languages)
   or a WhisperKit model, loaded and warmed at app launch so the first dictation
-  does not wait; on your own server via the
+  does not wait. The very first load takes 1 to 5 minutes once (download and
+  preparation for the Neural Engine); after that the model is ready in about a
+  second on every app start. Or transcribe on your own server via the
   included Docker Compose file, or any Whisper-compatible endpoint, in your
   network or on the internet, with an optional API key.
 - Optional LLM cleanup with a local model (LM Studio, Ollama) or a hosted one
