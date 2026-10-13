@@ -9,4 +9,3 @@ Optional cleanup needs a language model endpoint such as LM Studio, Ollama, or a
 Version 1.8.0 (build 24) adds Parakeet on-device transcription and model preloading, explains the one-time model preparation, moves API key loading off the main thread, and updates required-reason API declarations in the privacy manifest.
 
 China mainland remains excluded from distribution, as agreed in the review of version 1.7.0. The configurable transcription and optional AI cleanup endpoints remain available in the other selected storefronts.
-

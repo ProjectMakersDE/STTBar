@@ -27,4 +27,3 @@ Neu in 1.8.0:
 • Klarere Hinweise zum einmaligen Herunterladen und Vorbereiten eines Modells.
 • Flüssigerer App-Start beim Laden von API-Schlüsseln.
 • Aktualisierte Angaben im Datenschutzmanifest.
-

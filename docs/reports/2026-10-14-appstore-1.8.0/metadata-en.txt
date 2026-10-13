@@ -27,4 +27,3 @@ New in 1.8.0:
 • Clearer guidance during the one-time model download and preparation.
 • Improved launch responsiveness when loading API keys.
 • Updated privacy manifest declarations.
-

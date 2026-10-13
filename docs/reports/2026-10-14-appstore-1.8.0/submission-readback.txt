@@ -10,22 +10,22 @@ Warten auf Prüfung
 
 Übermittelte Elemente (1)
 ELEMENT
-	
+
 TYP
-	
+
 PRÜFUNGSSTATUS
-	
-	
+
+
 
 
 macOS-App 1.8.0
 
-	
+
 App-Version
-	
+
 Warten auf Prüfung
-	
-	
+
+
 Übermittlungsdatum
 14. Okt. 2026 um 01:32 Uhr
 Übermittlungskennung
