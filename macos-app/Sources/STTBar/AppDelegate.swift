@@ -57,6 +57,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.menu.setLastTranscriptAvailable(false)
         }
         model.onPrivacySettingsChanged = { [weak self] in self?.history.purgeExpired() }
+        model.onEnvApplied = { [weak self] in self?.preloadLocalModel() }
+        LocalModelStatus.shared.$state
+            .sink { [weak self] state in self?.menu.setLocalModelStatus(state) }
+            .store(in: &cancellables)
+        preloadLocalModel()
 
         runner.onState = { [weak self] state in
             self?.menu.setState(state)
@@ -116,6 +121,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         watchdogTimer?.invalidate()
         if runner?.isRunActive == true { runner?.cancelRecording() }
+    }
+
+    /// Loads and warms the local model in the background at launch and after a
+    /// settings save, so the first dictation does not wait for it.
+    private func preloadLocalModel() {
+        guard model.transcriptionSource == TranscriptionSource.local.rawValue, model.localPreload else { return }
+        let name = model.localModel
+        Task { try? await LocalTranscriber.shared.prepare(model: name) }
     }
 
     private func showOnboarding(force: Bool = false) {

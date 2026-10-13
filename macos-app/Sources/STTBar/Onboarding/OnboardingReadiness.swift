@@ -1,5 +1,6 @@
 import AVFoundation
 import Foundation
+import FluidAudio
 
 /// Decides whether the first-run wizard should appear and why. The core is a
 /// pure predicate (`blockingReasons`) so it is fully unit-testable; thin wrappers
@@ -82,6 +83,10 @@ enum OnboardingReadiness {
 
     static func cachedLocalModelFolder(_ name: String, in dir: URL = LocalTranscriber.modelsDirectory) -> URL? {
         let requested = requestedLocalModel(name)
+        if case .parakeet(let version) = LocalModels.engine(for: requested) {
+            let folder = LocalModels.parakeetDirectory(version, in: dir)
+            return AsrModels.modelsExist(at: folder, version: version) ? folder : nil
+        }
         guard let it = FileManager.default.enumerator(at: dir,
                                                       includingPropertiesForKeys: [.isDirectoryKey],
                                                       options: [.skipsHiddenFiles]) else { return nil }

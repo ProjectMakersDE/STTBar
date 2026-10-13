@@ -1,7 +1,7 @@
 # STTBar Developer Notes
 
 STTBar is a native macOS menu-bar app for speech-to-text dictation. It records
-audio locally, transcribes on-device with WhisperKit or through a Whisper-compatible endpoint, can run
+audio locally, transcribes on-device with Parakeet (FluidAudio) or WhisperKit or through a Whisper-compatible endpoint, can run
 an optional LLM cleanup pass, and pastes the final text into the focused app.
 
 ## Main Paths
@@ -37,6 +37,17 @@ Install the current checkout locally:
 ```bash
 bash install.sh
 ```
+
+## Local models
+
+`LocalModels` maps a model name to its engine: `parakeet-ultra` (default) and
+`parakeet-v3` run through FluidAudio, every other name is a WhisperKit model.
+`LocalTranscriber.shared` keeps one model in memory. It loads, downloads and
+warms the model at launch and after a settings save when `STT_LOCAL_PRELOAD`
+is on (default). The first CoreML inference compiles for the Neural Engine,
+which took 90 to 110 s for Parakeet on an M1 Max; afterwards three minutes of
+speech transcribe in about one second. `LocalModelStatus` drives the menu-bar
+hourglass and the status line in settings and onboarding.
 
 ## Prompts
 

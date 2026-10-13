@@ -21,7 +21,7 @@ coding agents without touching the keyboard. That is why STTBar ships with
 agent-ready cleanup prompts that turn rambling speech into precise, structured
 instructions, in German or with English output.
 
-Your audio stays under your control. Run everything on-device with WhisperKit,
+Your audio stays under your control. Run everything on-device with Parakeet or WhisperKit,
 point STTBar at your own self-hosted Whisper server, or use any
 Whisper-compatible API. Fully offline operation is a first-class setup, not an
 afterthought.
@@ -59,8 +59,10 @@ afterthought.
   transcript, and English output (speak German, paste English). English output
   requires an enabled, working LLM endpoint; unavailable translation is reported
   instead of silently inserting the original language.
-- Transcription your way: fully on-device with WhisperKit (model
-  recommendations matched to your Mac's RAM), on your own server via the
+- Transcription your way: fully on-device with NVIDIA Parakeet (default, about
+  one second for three minutes of speech on an M1 Max, 25 European languages)
+  or a WhisperKit model, loaded and warmed at app launch so the first dictation
+  does not wait; on your own server via the
   included Docker Compose file, or any Whisper-compatible endpoint, in your
   network or on the internet, with an optional API key.
 - Optional LLM cleanup with a local model (LM Studio, Ollama) or a hosted one
@@ -161,7 +163,7 @@ Any other OpenAI-compatible service works the same way: its
 The included `docker-compose.yml` starts a Speaches/faster-whisper server from
 the CUDA image and reserves one NVIDIA GPU. It needs a host with an NVIDIA GPU
 and the NVIDIA Container Toolkit, so it does not run on a Mac. On a Mac, use the
-on-device WhisperKit transcription instead.
+on-device transcription instead.
 
 ```bash
 docker compose up -d

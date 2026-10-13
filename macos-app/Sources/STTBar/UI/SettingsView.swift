@@ -28,6 +28,8 @@ private struct ServerTab: View {
     @ObservedObject var model: SettingsModel
     @ObservedObject private var loc = Localization.shared
     @StateObject private var models = WhisperModelManager()
+    @ObservedObject private var localStatus = LocalModelStatus.shared
+    @State private var autostart = LoginItem.isEnabled
     @State private var audioDevices: [String] = []
 
     var body: some View {
@@ -97,22 +99,30 @@ private struct ServerTab: View {
                 }
             }
             if model.transcriptionSource == TranscriptionSource.local.rawValue {
-                Section(L("Lokales Modell (WhisperKit)", "Local model (WhisperKit)")) {
+                Section(L("Lokales Modell", "Local model")) {
                     Picker(L("Modell", "Model"), selection: $model.localModel) {
                         Text(L("Automatisch (empfohlen)", "Automatic (recommended)")).tag("")
-                        ForEach(WhisperModelManager.presets, id: \.self) { Text($0).tag($0) }
+                        ForEach(WhisperModelManager.presets, id: \.self) { Text(LocalModels.label($0)).tag($0) }
                         if !model.localModel.isEmpty && !WhisperModelManager.presets.contains(model.localModel) {
                             Text(model.localModel).tag(model.localModel)
                         }
                     }
-                    Text(L("Empfehlung für diesen Mac: ", "Recommended for this Mac: ") + models.recommendedForThisMac())
+                    Text(L("Empfehlung für diesen Mac: ", "Recommended for this Mac: ") + LocalModels.label(models.recommendedForThisMac()))
                         .font(.caption).foregroundStyle(.secondary)
                     HStack {
                         Button(L("Modell laden", "Load model")) { models.loadModel(model.localModel) }
-                            .disabled(models.working)
-                        if models.working { ProgressView().controlSize(.small) }
-                        if let s = models.status { Text(s).font(.caption).foregroundStyle(.secondary) }
+                            .disabled(models.working || localStatus.isLoading)
+                        if models.working || localStatus.isLoading { ProgressView().controlSize(.small) }
+                        if let s = localStatus.text ?? models.status { Text(s).font(.caption).foregroundStyle(.secondary) }
                     }
+                    Toggle(L("Modell beim App-Start laden", "Load model when the app starts"), isOn: $model.localPreload)
+                    Toggle(L("STTBar beim Login starten", "Launch STTBar at login"), isOn: $autostart)
+                        .onChange(of: autostart) { _, on in
+                            if !LoginItem.setEnabled(on) { autostart = LoginItem.isEnabled }
+                        }
+                    Text(L("Beides zusammen lädt das Modell direkt nach dem Systemstart, damit das erste Diktat nicht warten muss.",
+                           "Together they load the model right after the system starts, so the first dictation does not wait."))
+                        .font(.caption).foregroundStyle(.secondary)
                     TextField(L("Sprache", "Language"), text: $model.language)
                 }
             }

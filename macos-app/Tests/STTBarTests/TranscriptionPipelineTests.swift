@@ -137,11 +137,10 @@ final class TranscriptionSourceTests: XCTestCase {
 }
 
 final class WhisperModelManagerTests: XCTestCase {
-    func testRecommendationScalesWithRAM() {
+    func testRecommendsParakeetOnEveryMac() {
         let m = WhisperModelManager()
-        XCTAssertEqual(m.recommendedModel(physicalMemoryBytes: 8 * 1_073_741_824), "base")
-        XCTAssertEqual(m.recommendedModel(physicalMemoryBytes: 16 * 1_073_741_824), "small")
-        XCTAssertEqual(m.recommendedModel(physicalMemoryBytes: 32 * 1_073_741_824), "large-v3-v20240930_626MB")
+        XCTAssertEqual(m.recommendedModel(physicalMemoryBytes: 8 * 1_073_741_824), "parakeet-ultra")
+        XCTAssertEqual(m.recommendedModel(physicalMemoryBytes: 32 * 1_073_741_824), "parakeet-ultra")
     }
 }
 

@@ -41,7 +41,7 @@ final class NativeBackend: TranscriptionBackend {
     init(config: @escaping () -> TranscriptionConfig,
          recorder: AudioRecording = AudioRecorder(),
          remote: Transcriber = RemoteTranscriber(),
-         local: Transcriber = LocalTranscriber(),
+         local: Transcriber = LocalTranscriber.shared,
          llm: TranscriptCleaning = LLMClient(),
          resolveInput: @escaping (TranscriptionConfig) -> (AudioInputResolution, String) = {
              AudioInputResolver.resolveLiveWithLabel(selected: $0.audioInputDevice, avoidBluetooth: $0.avoidBluetoothMic)

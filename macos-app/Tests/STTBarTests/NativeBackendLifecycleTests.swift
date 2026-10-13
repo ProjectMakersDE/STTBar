@@ -199,6 +199,37 @@ final class LocalDecodingOptionsTests: XCTestCase {
         XCTAssertEqual(OnboardingReadiness.requestedLocalModel("distil-large-v3"), "distil-whisper_distil-large-v3")
     }
 
+    func testAutomaticSelectsParakeetAndNamesPickTheirEngine() {
+        XCTAssertEqual(LocalTranscriber.requestedModelName("  "), LocalModels.parakeetUltra)
+        XCTAssertEqual(OnboardingReadiness.requestedLocalModel(""), LocalModels.parakeetUltra)
+        XCTAssertEqual(LocalModels.engine(for: LocalModels.parakeetUltra), .parakeet(.ultra))
+        XCTAssertEqual(LocalModels.engine(for: LocalModels.parakeetV3), .parakeet(.v3))
+        XCTAssertEqual(LocalModels.engine(for: "large-v3-v20240930_626MB"), .whisper)
+    }
+
+    func testParakeetLanguageHintOnlyForKnownCodes() {
+        XCTAssertEqual(LocalTranscriber.parakeetLanguage(" DE "), .german)
+        XCTAssertNil(LocalTranscriber.parakeetLanguage("auto"))
+        XCTAssertNil(LocalTranscriber.parakeetLanguage(""))
+        XCTAssertNil(LocalTranscriber.parakeetLanguage("xx"))
+    }
+
+    /// File names checked against FluidAudio 0.17.7 `AsrModels.modelsExist`
+    /// and a real Ultra download (2026-10-14).
+    func testParakeetCacheIsReadyOnlyWhenComplete() throws {
+        let base = FileManager.default.temporaryDirectory.appendingPathComponent("sttbar-parakeet-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: base) }
+        let folder = LocalModels.parakeetDirectory(.ultra, in: base)
+        let files = ["Preprocessor.mlmodelc", "Encoder.mlmodelc", "Decoder.mlmodelc", "JointDecisionv3.mlmodelc"]
+        for name in files {
+            try FileManager.default.createDirectory(at: folder.appendingPathComponent(name), withIntermediateDirectories: true)
+        }
+        XCTAssertNil(OnboardingReadiness.cachedLocalModelFolder(LocalModels.parakeetUltra, in: base))
+        try Data("{}".utf8).write(to: folder.appendingPathComponent("parakeet_vocab.json"))
+        XCTAssertEqual(OnboardingReadiness.cachedLocalModelFolder(LocalModels.parakeetUltra, in: base), folder)
+        XCTAssertNil(OnboardingReadiness.cachedLocalModelFolder(LocalModels.parakeetV3, in: base))
+    }
+
     func testConfiguredLanguageAndAutoReachDecoder() {
         let german = LocalTranscriber.decodingOptions(language: " DE ")
         XCTAssertEqual(german.language, "de")

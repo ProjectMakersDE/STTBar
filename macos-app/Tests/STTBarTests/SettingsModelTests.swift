@@ -83,6 +83,7 @@ final class SettingsModelTests: XCTestCase {
         let original = model()
         original.transcriptionSource = "local"
         original.localModel = "small"
+        original.localPreload = false
         original.whisperAPIKey = "fixture-secret-whisper"
         original.llmAPIKey = "fixture-secret-llm"
         let data = try original.makeExportData()
@@ -95,6 +96,11 @@ final class SettingsModelTests: XCTestCase {
         XCTAssertTrue(restored.importBundle(data: data))
         XCTAssertEqual(restored.transcriptionSource, "local")
         XCTAssertEqual(restored.localModel, "small")
+        XCTAssertFalse(restored.localPreload)
+    }
+
+    func testLocalPreloadDefaultsOn() {
+        XCTAssertTrue(model().localPreload)
     }
 
     func testLegacyBundleWithoutVersionPreservesMissingLocalSelection() throws {

@@ -20,6 +20,9 @@ final class SettingsModel: ObservableObject {
     var onClearHistory: (() -> Void)?
     /// Lets history expiry react immediately to applied retention changes.
     var onPrivacySettingsChanged: (() -> Void)?
+    /// Called after transcription settings were saved, so a newly selected
+    /// local model loads in the background right away.
+    var onEnvApplied: (() -> Void)?
 
     func clearHistory() { onClearHistory?() }
 
@@ -69,8 +72,11 @@ final class SettingsModel: ObservableObject {
     @Published var avoidBluetoothMic: Bool = true
     /// Transcription source: "server" | "selfhost" | "local" (STT_SOURCE).
     @Published var transcriptionSource: String = "server"
-    /// WhisperKit model name for local mode (STT_LOCAL_MODEL). Empty = auto.
+    /// Local model name (STT_LOCAL_MODEL): Parakeet or a WhisperKit model. Empty = auto.
     @Published var localModel: String = ""
+    /// Load and warm the local model at app launch (STT_LOCAL_PRELOAD), so the
+    /// first dictation after a restart does not wait for it.
+    @Published var localPreload: Bool = true
 
     @Published var hudAnchor: HudAnchor { didSet { appSettings.hudAnchor = hudAnchor } }
     @Published var hudBackground: Bool { didSet { appSettings.hudBackground = hudBackground } }
@@ -140,6 +146,7 @@ final class SettingsModel: ObservableObject {
             syncAppSettingsFromDraft()
             validationMessage = nil
             saveMessage = L("Gespeichert", "Saved")
+            onEnvApplied?()
             return true
         } catch {
             validationMessage = L("Speichern fehlgeschlagen: ", "Saving failed: ") + error.localizedDescription
@@ -502,6 +509,7 @@ final class SettingsModel: ObservableObject {
         avoidBluetoothMic = (env.value("STT_MACOS_AVOID_BLUETOOTH_PROFILE_SWITCH") ?? "1") != "0"
         transcriptionSource = env.value("STT_SOURCE") ?? "server"
         localModel = env.value("STT_LOCAL_MODEL") ?? ""
+        localPreload = (env.value("STT_LOCAL_PRELOAD") ?? "1") != "0"
         whisperAPIKey = apiKeyReader(whisperURL)
         llmAPIKey = apiKeyReader(lmStudioURL)
         syncAppSettingsFromDraft()
@@ -547,6 +555,7 @@ final class SettingsModel: ObservableObject {
         [
             "STT_SOURCE": transcriptionSource,
             "STT_LOCAL_MODEL": localModel,
+            "STT_LOCAL_PRELOAD": localPreload ? "1" : "0",
             "STT_SERVER_URL": whisperURL,
             "STT_MODEL": whisperModel,
             "STT_LANGUAGE": language,
@@ -591,7 +600,7 @@ struct SettingsBundle: Codable {
 /// Pure serialization: no file panels, preferences or Keychain access.
 enum SettingsBundleCodec {
     static let allowedEnvKeys: Set<String> = [
-        "STT_SOURCE", "STT_LOCAL_MODEL", "STT_SERVER_URL", "STT_MODEL", "STT_LANGUAGE",
+        "STT_SOURCE", "STT_LOCAL_MODEL", "STT_LOCAL_PRELOAD", "STT_SERVER_URL", "STT_MODEL", "STT_LANGUAGE",
         "STT_TRANSCRIBE_TIMEOUT", "STT_PROMPT", "STT_VAD_FILTER", "STT_BEAM_SIZE", "STT_TEMPERATURE_FALLBACK",
         "STT_POSTPROCESS_ENABLED", "STT_POSTPROCESS_URL", "STT_POSTPROCESS_MODEL", "STT_POSTPROCESS_PROVIDER",
         "STT_POSTPROCESS_TIMEOUT", "STT_POSTPROCESS_WARN_SECONDS", "STT_AUTO_RAW_FALLBACK",

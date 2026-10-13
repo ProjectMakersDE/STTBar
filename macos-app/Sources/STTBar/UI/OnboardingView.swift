@@ -9,6 +9,7 @@ struct OnboardingView: View {
     @ObservedObject var flow: OnboardingModel
     @ObservedObject private var loc = Localization.shared
     @StateObject private var models = WhisperModelManager()
+    @ObservedObject private var localStatus = LocalModelStatus.shared
     /// Forces re-read of live permission/model status on a slow tick.
     @State private var refreshTick = 0
     private let tick = Timer.publish(every: 1.5, on: .main, in: .common).autoconnect()
@@ -167,11 +168,11 @@ struct OnboardingView: View {
                      : L("Das gewählte Modell muss noch geladen werden.", "The selected model still needs to be downloaded."))
                     .foregroundStyle(.secondary)
             }
-            Text(L("Automatische Auswahl: ", "Automatic selection: ") + OnboardingReadiness.requestedLocalModel(""))
+            Text(L("Automatische Auswahl: ", "Automatic selection: ") + LocalModels.label(OnboardingReadiness.requestedLocalModel("")))
                 .font(.caption).foregroundStyle(.secondary)
             Picker(L("Modell", "Model"), selection: $model.localModel) {
                 Text(L("Automatisch (empfohlen)", "Automatic (recommended)")).tag("")
-                ForEach(WhisperModelManager.presets, id: \.self) { Text($0).tag($0) }
+                ForEach(WhisperModelManager.presets, id: \.self) { Text(LocalModels.label($0)).tag($0) }
                 if !model.localModel.isEmpty && !WhisperModelManager.presets.contains(model.localModel) {
                     Text(model.localModel).tag(model.localModel)
                 }
@@ -181,16 +182,16 @@ struct OnboardingView: View {
                 models.status = nil
                 models.lastSucceeded = nil
             }
-            Text(L("Empfehlung für diesen Mac: ", "Recommended for this Mac: ") + models.recommendedForThisMac())
+            Text(L("Empfehlung für diesen Mac: ", "Recommended for this Mac: ") + LocalModels.label(models.recommendedForThisMac()))
                 .font(.caption).foregroundStyle(.secondary)
             HStack {
                 Button(L("Modell laden", "Download model")) { models.loadModel(model.localModel) }
                     .disabled(models.working)
                 if models.working { ProgressView().controlSize(.small) }
-                if let s = models.status { Text(s).font(.caption).foregroundStyle(.secondary) }
+                if let s = localStatus.text ?? models.status { Text(s).font(.caption).foregroundStyle(.secondary) }
             }
-            Text(L("Größere Modelle sind genauer, brauchen aber mehr RAM und laden länger.",
-                   "Larger models are more accurate but need more RAM and take longer to download."))
+            Text(L("Parakeet ist auf Apple Silicon am schnellsten. Whisper-Modelle decken mehr Sprachen ab, sind aber deutlich langsamer.",
+                   "Parakeet is the fastest on Apple Silicon. Whisper models cover more languages but are much slower."))
                 .font(.caption).foregroundStyle(.secondary)
             Spacer(minLength: 0)
         }

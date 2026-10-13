@@ -19,6 +19,7 @@ final class MenuBarController {
     private var lastProblem: SttStatus?
     private var hasLastTranscript = false
     private var lastRunSummary = ""
+    private var localModel: LocalModelStatus.State = .idle
 
     init() { setState(.idle); buildMenu() }
 
@@ -26,7 +27,7 @@ final class MenuBarController {
         self.state = state
         let name: String
         switch state {
-        case .idle: name = "mic"
+        case .idle: name = localModelLoading ? "hourglass" : "mic"
         case .recording: name = "mic.fill"
         case .whisper: name = "waveform"
         case .llm: name = "sparkles"
@@ -54,6 +55,25 @@ final class MenuBarController {
         buildMenu()
     }
 
+    /// Shows the local model load in the icon and menu, so a first launch does
+    /// not look idle while the model downloads and warms up.
+    func setLocalModelStatus(_ status: LocalModelStatus.State) {
+        localModel = status
+        setState(state)
+    }
+
+    private var localModelLoading: Bool {
+        if case .loading = localModel { return true } else { return false }
+    }
+
+    private var localModelLine: String? {
+        switch localModel {
+        case .loading(let model): return L("Lade lokales Modell: ", "Loading local model: ") + LocalModels.label(model) + "…"
+        case .failed(let model, _): return L("Lokales Modell nicht geladen: ", "Local model not loaded: ") + LocalModels.label(model)
+        case .idle, .ready: return nil
+        }
+    }
+
     /// Rebuild the menu + tooltip (e.g. after a language change).
     func rebuild() {
         item.button?.toolTip = tooltip
@@ -63,7 +83,7 @@ final class MenuBarController {
     private var tooltip: String {
         let stateText: String
         switch state {
-        case .idle: stateText = L("Bereit", "Ready")
+        case .idle: stateText = localModelLine ?? L("Bereit", "Ready")
         case .recording: stateText = L("Aufnahme", "Recording")
         case .whisper: stateText = "Whisper"
         case .llm: stateText = "LLM"
@@ -77,6 +97,12 @@ final class MenuBarController {
         // Manual enabling: with auto-enablement, NSMenu re-enables every item
         // whose target responds, silently overriding the isEnabled flags below.
         menu.autoenablesItems = false
+        if let line = localModelLine {
+            let info = NSMenuItem(title: line, action: nil, keyEquivalent: "")
+            info.isEnabled = false
+            menu.addItem(info)
+            menu.addItem(.separator())
+        }
         for mode in SttMode.allCases {
             let title = state == .recording
                 ? "\(L("Stoppen", "Stop")): \(mode.label)"

@@ -1,9 +1,7 @@
 import Foundation
-import WhisperKit
 
-/// Backs the local-model UI: a RAM-based recommendation, the preset list, and a
-/// one-shot "load/download model" action that triggers WhisperKit's download
-/// into the sandbox container.
+/// Backs the local-model UI: the recommendation, the preset list, and a
+/// one-shot "load/download model" action into the sandbox container.
 final class WhisperModelManager: ObservableObject {
     @Published var status: String?
     @Published var working = false
@@ -13,36 +11,28 @@ final class WhisperModelManager: ObservableObject {
     /// Called on the main actor when a load finishes (success flag).
     var onFinished: ((Bool) -> Void)?
 
-    /// Common WhisperKit model names; free text is still allowed in the field.
-    static let presets = ["tiny", "base", "small", "medium", "large-v3", "large-v3-v20240930_626MB"]
+    /// Picker entries; free text still selects any WhisperKit model.
+    static let presets = LocalModels.presets
 
-    /// Pure RAM→model heuristic (testable). Bigger models need more memory.
+    /// Parakeet needs about 1 GB of memory and beats every Whisper size on
+    /// speed, so it is the recommendation for every Apple Silicon Mac.
     func recommendedModel(physicalMemoryBytes: UInt64) -> String {
-        let gb = Double(physicalMemoryBytes) / 1_073_741_824
-        if gb <= 8 { return "base" }
-        if gb <= 16 { return "small" }
-        return "large-v3-v20240930_626MB"
+        LocalModels.defaultModel
     }
 
     func recommendedForThisMac() -> String {
         recommendedModel(physicalMemoryBytes: ProcessInfo.processInfo.physicalMemory)
     }
 
-    /// Build a WhisperKit pipeline for `name`, which downloads + loads the model
-    /// into the container. Used by the "Modell laden" button.
+    /// Downloads, loads and warms `name` in the shared transcriber, so the
+    /// model stays in memory for the next dictation. Used by "Modell laden".
     func loadModel(_ name: String) {
         guard !working else { return }
         working = true
         status = L("Lade Modell… (kann beim ersten Mal dauern)", "Loading model… (first time can take a while)")
-        let dir = LocalTranscriber.modelsDirectory
         Task {
             do {
-                try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-                let cached = OnboardingReadiness.cachedLocalModelFolder(name, in: dir)
-                let cfg = WhisperKitConfig(model: OnboardingReadiness.requestedLocalModel(name),
-                                           downloadBase: dir, modelFolder: cached?.path,
-                                           load: true, download: cached == nil)
-                _ = try await WhisperKit(cfg)
+                try await LocalTranscriber.shared.prepare(model: name)
                 await finish(L("Modell bereit.", "Model ready."), success: true)
             } catch {
                 await finish(L("Fehler: ", "Error: ") + error.localizedDescription, success: false)
