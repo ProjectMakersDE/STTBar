@@ -31,13 +31,17 @@ final class WhisperModelManager: ObservableObject {
     /// Build a WhisperKit pipeline for `name`, which downloads + loads the model
     /// into the container. Used by the "Modell laden" button.
     func loadModel(_ name: String) {
+        guard !working else { return }
         working = true
         status = L("Lade Modell… (kann beim ersten Mal dauern)", "Loading model… (first time can take a while)")
         let dir = LocalTranscriber.modelsDirectory
         Task {
             do {
                 try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-                let cfg = WhisperKitConfig(model: name.isEmpty ? nil : name, downloadBase: dir)
+                let cached = OnboardingReadiness.cachedLocalModelFolder(name, in: dir)
+                let cfg = WhisperKitConfig(model: OnboardingReadiness.requestedLocalModel(name),
+                                           downloadBase: dir, modelFolder: cached?.path,
+                                           load: true, download: cached == nil)
                 _ = try await WhisperKit(cfg)
                 await finish(L("Modell bereit.", "Model ready."), success: true)
             } catch {

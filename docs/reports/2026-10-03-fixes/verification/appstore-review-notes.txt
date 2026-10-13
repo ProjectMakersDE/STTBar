@@ -1,0 +1,12 @@
+STTBar is a menu bar app (no Dock icon). After launch, click the microphone icon in the menu bar.
+
+1. The onboarding asks for microphone access and Accessibility. Accessibility is used only to insert the transcribed text into the focused text field. STTBar does not read or store the content of other apps.
+2. Choose on-device transcription. STTBar downloads the recommended Whisper model (Core ML files, data only, no executable code) from huggingface.co into its sandbox container. This happens once.
+3. Put the cursor into any text field, for example in TextEdit. Press Control+Shift+Space, speak a sentence, press Control+Shift+Space again. The text appears in the text field.
+
+The optional cleanup step needs a language model endpoint: a local server such as LM Studio, or a hosted OpenAI-compatible service such as OpenRouter with your own API key (Settings > Server > Use OpenRouter). It is off by default. Without it, STTBar inserts the raw transcript.
+
+No login is required.
+
+Update for resubmission (build 23):
+We have removed the China mainland storefront from STTBar's App Store availability, as suggested in your review message under Guideline 5. STTBar will not be distributed on the China mainland App Store. Its configurable transcription and optional AI cleanup endpoints remain available in the other selected storefronts. Please review the corrected submission with this updated availability.

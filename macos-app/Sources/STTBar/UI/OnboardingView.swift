@@ -45,28 +45,36 @@ struct OnboardingView: View {
     }
 
     private var footer: some View {
-        HStack {
-            if flow.canBack {
-                Button(L("Zurück", "Back")) { flow.back() }
+        let _ = refreshTick
+        let reasons = flow.blockingReasons(OnboardingReadiness.currentInputs(model: model))
+        return VStack(alignment: .leading, spacing: 8) {
+            if let message = model.validationMessage {
+                Text(message).font(.caption).foregroundStyle(.red)
+            } else if let reason = reasons.first {
+                Text(blockingMessage(reason)).font(.caption).foregroundStyle(.secondary)
             }
-            Spacer()
-            if flow.isLast {
-                Button(L("Fertig", "Finish")) { onFinish() }
-                    .keyboardShortcut(.defaultAction)
-            } else {
-                Button(L("Weiter", "Next")) { advance() }
-                    .keyboardShortcut(.defaultAction)
+            HStack {
+                if flow.canBack {
+                    Button(L("Zurück", "Back")) { flow.back() }.disabled(models.working)
+                }
+                Spacer()
+                if flow.isLast {
+                    Button(L("Fertig", "Finish")) { onFinish() }
+                        .keyboardShortcut(.defaultAction)
+                        .disabled(!reasons.isEmpty || models.working)
+                } else {
+                    Button(L("Weiter", "Next")) { advance() }
+                        .keyboardShortcut(.defaultAction)
+                        .disabled(!reasons.isEmpty || models.working)
+                }
             }
         }
         .padding(.horizontal, 22).padding(.vertical, 14)
     }
 
-    /// Persist source/endpoint choices to `.env` before leaving those steps.
+    /// Persist the complete configuration before proceeding to hotkeys/test.
     private func advance() {
-        if flow.step == .source || flow.step == .configure {
-            model.applyEnvChanges()
-        }
-        flow.next()
+        flow.advance(inputs: OnboardingReadiness.currentInputs(model: model), apply: model.applyEnvChanges)
     }
 
     // MARK: Steps
@@ -148,22 +156,30 @@ struct OnboardingView: View {
     }
 
     private var localConfigure: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        let downloaded = OnboardingReadiness.localModelDownloaded(model.localModel)
+        return VStack(alignment: .leading, spacing: 12) {
             Text(L("Lokales Modell laden", "Download local model")).font(.title3).bold()
             HStack {
-                Image(systemName: OnboardingReadiness.localModelDownloaded() ? "checkmark.circle.fill" : "arrow.down.circle")
-                    .foregroundStyle(OnboardingReadiness.localModelDownloaded() ? .green : .secondary)
-                Text(OnboardingReadiness.localModelDownloaded()
-                     ? L("Ein Modell ist bereits geladen.", "A model is already downloaded.")
-                     : L("Noch kein Modell geladen.", "No model downloaded yet."))
+                Image(systemName: downloaded ? "checkmark.circle.fill" : "arrow.down.circle")
+                    .foregroundStyle(downloaded ? .green : .secondary)
+                Text(downloaded
+                     ? L("Die Komponenten und der Tokenizer des gewählten Modells sind vorhanden.", "The selected model's components and tokenizer are cached.")
+                     : L("Das gewählte Modell muss noch geladen werden.", "The selected model still needs to be downloaded."))
                     .foregroundStyle(.secondary)
             }
+            Text(L("Automatische Auswahl: ", "Automatic selection: ") + OnboardingReadiness.requestedLocalModel(""))
+                .font(.caption).foregroundStyle(.secondary)
             Picker(L("Modell", "Model"), selection: $model.localModel) {
                 Text(L("Automatisch (empfohlen)", "Automatic (recommended)")).tag("")
                 ForEach(WhisperModelManager.presets, id: \.self) { Text($0).tag($0) }
                 if !model.localModel.isEmpty && !WhisperModelManager.presets.contains(model.localModel) {
                     Text(model.localModel).tag(model.localModel)
                 }
+            }
+            .disabled(models.working)
+            .onChange(of: model.localModel) { _, _ in
+                models.status = nil
+                models.lastSucceeded = nil
             }
             Text(L("Empfehlung für diesen Mac: ", "Recommended for this Mac: ") + models.recommendedForThisMac())
                 .font(.caption).foregroundStyle(.secondary)
@@ -194,8 +210,8 @@ struct OnboardingView: View {
             TextField(L("Sprache", "Language"), text: $model.language)
             if model.transcriptionSource == TranscriptionSource.selfHost.rawValue {
                 Button(L("localhost einsetzen + Anleitung öffnen", "Use localhost + open guide")) {
-                    model.whisperURL = "http://localhost:8000/v1/audio/transcriptions"
-                    if let url = URL(string: "https://github.com/ProjectMakersDE/STTBar#self-hosting") {
+                    model.whisperURL = "http://localhost:8082/v1/audio/transcriptions"
+                    if let url = URL(string: "https://github.com/ProjectMakersDE/STTBar#local-whisper-server-nvidia-gpu-only") {
                         NSWorkspace.shared.open(url)
                     }
                 }
@@ -264,7 +280,8 @@ struct OnboardingView: View {
     private var doneStep: some View {
         VStack(alignment: .leading, spacing: 14) {
             Image(systemName: "checkmark.seal.fill").font(.system(size: 40)).foregroundStyle(.green)
-            Text(L("Fertig eingerichtet", "All set")).font(.title2).bold()
+            Text(L("Bereit zum Abschließen", "Ready to finish setup")).font(.title2).bold()
+            Text(L("Mit »Fertig« wird die Einrichtung gespeichert.", "Press \"Finish\" to save your setup."))
             Text(L("Du kannst jederzeit über das Menüleisten-Symbol → »Einrichtung erneut starten« hierher zurück.",
                    "You can return anytime via the menu-bar icon → \"Run setup again\"."))
                 .foregroundStyle(.secondary)
@@ -275,6 +292,15 @@ struct OnboardingView: View {
     }
 
     // MARK: Helpers
+
+    private func blockingMessage(_ reason: String) -> String {
+        switch reason {
+        case "microphone": return L("Erlaube zuerst den Mikrofonzugriff.", "Grant microphone access to continue.")
+        case "localModel": return L("Lade zuerst das gewählte lokale Modell vollständig.", "Download the selected local model completely to continue.")
+        case "serverURL": return L("Gib einen gültigen Whisper-Endpunkt mit http:// oder https:// an.", "Enter a valid Whisper endpoint starting with http:// or https://.")
+        default: return L("Wähle eine Transkriptionsquelle.", "Choose a transcription source.")
+        }
+    }
 
     private func stateLabel(_ s: SttState) -> String {
         switch s {

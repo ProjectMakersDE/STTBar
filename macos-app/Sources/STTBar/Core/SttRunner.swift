@@ -22,7 +22,8 @@ final class SttRunner {
     /// Inserts the finished text into the focused app. Tests replace it: a test
     /// process with Accessibility access would otherwise really paste into
     /// whatever app is in front.
-    var paste: (String, @escaping (NativePasteResult) -> Void) -> Void = NativePaste.copyAndPaste
+    var paste: ((String, @escaping (NativePasteResult) -> Void) -> Void)?
+    private(set) var currentRunSensitive = false
     private var busy = false
     private var recordingStartedAt: Date?
     private(set) var state: SttState = .idle
@@ -57,6 +58,7 @@ final class SttRunner {
     }
 
     var isRecording: Bool { backend.isRecording }
+    var recordingURL: URL? { backend.recordingURL }
 
     var recordingDuration: TimeInterval {
         guard let started = recordingStartedAt else { return 0 }
@@ -91,10 +93,13 @@ final class SttRunner {
     }
 
     private func startRecording(mode: SttMode) {
+        runGeneration += 1
         busy = true
         activeMode = mode
+        currentRunSensitive = AppSettings.shared.sensitiveMode
         do {
             try backend.start(mode: mode)
+            currentRunSensitive = currentRunSensitive || backend.isSensitiveRun
             recordingStartedAt = Date()
             setState(.recording)
             busy = false
@@ -174,8 +179,15 @@ final class SttRunner {
             // Paste runs asynchronously (it may wait for a still-held hotkey
             // chord to clear). Stay busy across that wait so a press meanwhile
             // is queued as a fresh start rather than raced into a new recording.
-            paste(text) { [weak self] paste in
+            currentRunSensitive = currentRunSensitive || AppSettings.shared.sensitiveMode
+            let completion: (NativePasteResult) -> Void = { [weak self] paste in
                 self?.finishPaste(text: text, mode: mode, paste: paste, generation: generation)
+            }
+            if let paste { paste(text, completion) }
+            else {
+                NativePaste.copyAndPaste(text, sensitive: currentRunSensitive,
+                                        shouldContinue: { [weak self] in self?.runGeneration == generation },
+                                        completion: completion)
             }
         case .success:
             // Stop produced no transcript (nothing was recording). Settle quietly.
@@ -197,6 +209,7 @@ final class SttRunner {
             return
         }
         busy = false
+        currentRunSensitive = currentRunSensitive || AppSettings.shared.sensitiveMode
         switch paste {
         case .pasted:
             StatusStore.writeAppStatus(event: "native_paste_done", phase: "done", severity: "info", message: L("Transkript nativ eingefügt.", "Transcript pasted natively."), detail: "chars=\(text.count)")
@@ -206,12 +219,8 @@ final class SttRunner {
             setState(.error)
         }
         onTranscript?(text, mode, paste)
-        if AppSettings.shared.sensitiveMode {
-            // The raw voice recording is the more sensitive artifact; the
-            // native pipeline leaves it in place until the next run.
-            try? FileManager.default.removeItem(at: RuntimePaths.resultFile)
-            try? FileManager.default.removeItem(at: RuntimePaths.recordingFile)
-        }
+        // The backend finalizes its own unique audio before completion. Do not
+        // remove a shared runtime path here: it might belong to a newer run.
         settleAfterResult()
     }
 

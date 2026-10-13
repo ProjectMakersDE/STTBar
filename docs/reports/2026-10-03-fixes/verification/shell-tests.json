@@ -1,0 +1,46 @@
+[
+  {
+    "test": "test-eval-proxy.sh",
+    "exit_code": 0
+  },
+  {
+    "test": "test-global-explicit-action.sh",
+    "exit_code": 0
+  },
+  {
+    "test": "test-postprocess-auto-raw-fallback.sh",
+    "exit_code": 0
+  },
+  {
+    "test": "test-postprocess-prompt-file.sh",
+    "exit_code": 0
+  },
+  {
+    "test": "test-record-legacy-runtime.sh",
+    "exit_code": 0
+  },
+  {
+    "test": "test-release-requires-developer-id.sh",
+    "exit_code": 0
+  },
+  {
+    "test": "test-replacements-extended-tsv.sh",
+    "exit_code": 0
+  },
+  {
+    "test": "test-runtime-private.sh",
+    "exit_code": 0
+  },
+  {
+    "test": "test-transcribe-decode-fields.sh",
+    "exit_code": 0
+  },
+  {
+    "test": "test-transcribe-prompt.sh",
+    "exit_code": 0
+  },
+  {
+    "test": "test-transcribe-timeout.sh",
+    "exit_code": 0
+  }
+]

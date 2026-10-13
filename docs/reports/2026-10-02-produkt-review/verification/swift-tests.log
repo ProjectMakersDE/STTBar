@@ -1,0 +1,520 @@
+Test Suite 'All tests' started at 2026-10-02 19:17:07.566.
+Test Suite 'STTBarPackageTests.xctest' started at 2026-10-02 19:17:07.568.
+Test Suite 'ApiKeyRequestTests' started at 2026-10-02 19:17:07.568.
+Test Case '-[STTBarTests.ApiKeyRequestTests testChatCompletionsURLsInferTheOpenAIProvider]' started.
+Test Case '-[STTBarTests.ApiKeyRequestTests testChatCompletionsURLsInferTheOpenAIProvider]' passed (0.002 seconds).
+Test Case '-[STTBarTests.ApiKeyRequestTests testLLMRequestCarriesTheKeyAndTheOpenAIBody]' started.
+Test Case '-[STTBarTests.ApiKeyRequestTests testLLMRequestCarriesTheKeyAndTheOpenAIBody]' passed (0.003 seconds).
+Test Case '-[STTBarTests.ApiKeyRequestTests testLLMRequestWithoutKeyHasNoAuthorization]' started.
+Test Case '-[STTBarTests.ApiKeyRequestTests testLLMRequestWithoutKeyHasNoAuthorization]' passed (0.000 seconds).
+Test Case '-[STTBarTests.ApiKeyRequestTests testWhisperRequestCarriesTheKey]' started.
+Test Case '-[STTBarTests.ApiKeyRequestTests testWhisperRequestCarriesTheKey]' passed (0.004 seconds).
+Test Case '-[STTBarTests.ApiKeyRequestTests testWhisperRequestWithoutKeyHasNoAuthorization]' started.
+Test Case '-[STTBarTests.ApiKeyRequestTests testWhisperRequestWithoutKeyHasNoAuthorization]' passed (0.000 seconds).
+Test Suite 'ApiKeyRequestTests' passed at 2026-10-02 19:17:07.577.
+	 Executed 5 tests, with 0 failures (0 unexpected) in 0.009 (0.009) seconds
+Test Suite 'ApiKeyStoreTests' started at 2026-10-02 19:17:07.577.
+Test Case '-[STTBarTests.ApiKeyStoreTests testAccountIsTheLowercasedHostWithExplicitPort]' started.
+Test Case '-[STTBarTests.ApiKeyStoreTests testAccountIsTheLowercasedHostWithExplicitPort]' passed (0.000 seconds).
+Test Case '-[STTBarTests.ApiKeyStoreTests testAccountRejectsAnythingButHttpWithAHost]' started.
+Test Case '-[STTBarTests.ApiKeyStoreTests testAccountRejectsAnythingButHttpWithAHost]' passed (0.000 seconds).
+Test Case '-[STTBarTests.ApiKeyStoreTests testAuthorizeSetsABearerHeaderOnlyForANonEmptyKey]' started.
+Test Case '-[STTBarTests.ApiKeyStoreTests testAuthorizeSetsABearerHeaderOnlyForANonEmptyKey]' passed (0.000 seconds).
+Test Suite 'ApiKeyStoreTests' passed at 2026-10-02 19:17:07.578.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'AudioCaptureBufferTests' started at 2026-10-02 19:17:07.578.
+Test Case '-[STTBarTests.AudioCaptureBufferTests testAFreshSinkReportsNoDrops]' started.
+Test Case '-[STTBarTests.AudioCaptureBufferTests testAFreshSinkReportsNoDrops]' passed (0.050 seconds).
+Test Case '-[STTBarTests.AudioCaptureBufferTests testCapacityFollowsTheUnitWhenItAsksForMore]' started.
+Test Case '-[STTBarTests.AudioCaptureBufferTests testCapacityFollowsTheUnitWhenItAsksForMore]' passed (0.000 seconds).
+Test Case '-[STTBarTests.AudioCaptureBufferTests testCapacityNeverDropsBelowTheSafetyFloor]' started.
+Test Case '-[STTBarTests.AudioCaptureBufferTests testCapacityNeverDropsBelowTheSafetyFloor]' passed (0.000 seconds).
+Test Case '-[STTBarTests.AudioCaptureBufferTests testCapacitySurvivesAUnitThatReportsNothing]' started.
+Test Case '-[STTBarTests.AudioCaptureBufferTests testCapacitySurvivesAUnitThatReportsNothing]' passed (0.000 seconds).
+Test Case '-[STTBarTests.AudioCaptureBufferTests testRejectedCallbacksAreCounted]' started.
+Test Case '-[STTBarTests.AudioCaptureBufferTests testRejectedCallbacksAreCounted]' passed (0.001 seconds).
+Test Case '-[STTBarTests.AudioCaptureBufferTests testSinkAcceptsAFullBuffer]' started.
+Test Case '-[STTBarTests.AudioCaptureBufferTests testSinkAcceptsAFullBuffer]' passed (0.001 seconds).
+Test Case '-[STTBarTests.AudioCaptureBufferTests testSinkRejectsMoreFramesThanItCanHold]' started.
+Test Case '-[STTBarTests.AudioCaptureBufferTests testSinkRejectsMoreFramesThanItCanHold]' passed (0.001 seconds).
+Test Suite 'AudioCaptureBufferTests' passed at 2026-10-02 19:17:07.632.
+	 Executed 7 tests, with 0 failures (0 unexpected) in 0.053 (0.054) seconds
+Test Suite 'AudioInputCatalogTests' started at 2026-10-02 19:17:07.632.
+Test Case '-[STTBarTests.AudioInputCatalogTests testAutomaticIsAlwaysFirstAndPresentWhenNothingAvailable]' started.
+Test Case '-[STTBarTests.AudioInputCatalogTests testAutomaticIsAlwaysFirstAndPresentWhenNothingAvailable]' passed (0.000 seconds).
+Test Case '-[STTBarTests.AudioInputCatalogTests testAvailableDevicesFollowAutomaticInOrder]' started.
+Test Case '-[STTBarTests.AudioInputCatalogTests testAvailableDevicesFollowAutomaticInOrder]' passed (0.000 seconds).
+Test Case '-[STTBarTests.AudioInputCatalogTests testCurrentDeviceInAvailableIsNotDuplicated]' started.
+Test Case '-[STTBarTests.AudioInputCatalogTests testCurrentDeviceInAvailableIsNotDuplicated]' passed (0.000 seconds).
+Test Case '-[STTBarTests.AudioInputCatalogTests testDuplicateAndEmptyAvailableNamesAreDropped]' started.
+Test Case '-[STTBarTests.AudioInputCatalogTests testDuplicateAndEmptyAvailableNamesAreDropped]' passed (0.000 seconds).
+Test Case '-[STTBarTests.AudioInputCatalogTests testUnpluggedCurrentDeviceIsStillIncludedSoSelectionIsNotLost]' started.
+Test Case '-[STTBarTests.AudioInputCatalogTests testUnpluggedCurrentDeviceIsStillIncludedSoSelectionIsNotLost]' passed (0.000 seconds).
+Test Suite 'AudioInputCatalogTests' passed at 2026-10-02 19:17:07.633.
+	 Executed 5 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'AudioInputResolverTests' started at 2026-10-02 19:17:07.633.
+Test Case '-[STTBarTests.AudioInputResolverTests testBluetoothDefaultFallsBackToAnyWiredInput]' started.
+Test Case '-[STTBarTests.AudioInputResolverTests testBluetoothDefaultFallsBackToAnyWiredInput]' passed (0.000 seconds).
+Test Case '-[STTBarTests.AudioInputResolverTests testBluetoothDefaultFallsBackToUsbWhenNoBuiltInExists]' started.
+Test Case '-[STTBarTests.AudioInputResolverTests testBluetoothDefaultFallsBackToUsbWhenNoBuiltInExists]' passed (0.000 seconds).
+Test Case '-[STTBarTests.AudioInputResolverTests testBluetoothDefaultPrefersBuiltInOverUsb]' started.
+Test Case '-[STTBarTests.AudioInputResolverTests testBluetoothDefaultPrefersBuiltInOverUsb]' passed (0.000 seconds).
+Test Case '-[STTBarTests.AudioInputResolverTests testBluetoothLowEnergyCountsAsBluetooth]' started.
+Test Case '-[STTBarTests.AudioInputResolverTests testBluetoothLowEnergyCountsAsBluetooth]' passed (0.000 seconds).
+Test Case '-[STTBarTests.AudioInputResolverTests testBluetoothOnlySetupKeepsRecordingOnTheHeadset]' started.
+Test Case '-[STTBarTests.AudioInputResolverTests testBluetoothOnlySetupKeepsRecordingOnTheHeadset]' passed (0.000 seconds).
+Test Case '-[STTBarTests.AudioInputResolverTests testDisconnectedSelectionFallsBackToNonBluetoothDevice]' started.
+Test Case '-[STTBarTests.AudioInputResolverTests testDisconnectedSelectionFallsBackToNonBluetoothDevice]' passed (0.000 seconds).
+Test Case '-[STTBarTests.AudioInputResolverTests testExplicitBluetoothSelectionBeatsTheGuard]' started.
+Test Case '-[STTBarTests.AudioInputResolverTests testExplicitBluetoothSelectionBeatsTheGuard]' passed (0.000 seconds).
+Test Case '-[STTBarTests.AudioInputResolverTests testExplicitSelectionIgnoresSurroundingWhitespace]' started.
+Test Case '-[STTBarTests.AudioInputResolverTests testExplicitSelectionIgnoresSurroundingWhitespace]' passed (0.000 seconds).
+Test Case '-[STTBarTests.AudioInputResolverTests testExplicitSelectionIsUsed]' started.
+Test Case '-[STTBarTests.AudioInputResolverTests testExplicitSelectionIsUsed]' passed (0.000 seconds).
+Test Case '-[STTBarTests.AudioInputResolverTests testGuardOffKeepsSystemDefaultEvenOnBluetooth]' started.
+Test Case '-[STTBarTests.AudioInputResolverTests testGuardOffKeepsSystemDefaultEvenOnBluetooth]' passed (0.000 seconds).
+Test Case '-[STTBarTests.AudioInputResolverTests testLabelFallsBackToTheIdWhenTheDeviceIsGone]' started.
+Test Case '-[STTBarTests.AudioInputResolverTests testLabelFallsBackToTheIdWhenTheDeviceIsGone]' passed (0.000 seconds).
+Test Case '-[STTBarTests.AudioInputResolverTests testLabelMarksAnUnknownSystemDefault]' started.
+Test Case '-[STTBarTests.AudioInputResolverTests testLabelMarksAnUnknownSystemDefault]' passed (0.000 seconds).
+Test Case '-[STTBarTests.AudioInputResolverTests testLabelNamesTheDeviceBehindSystemDefault]' started.
+Test Case '-[STTBarTests.AudioInputResolverTests testLabelNamesTheDeviceBehindSystemDefault]' passed (0.000 seconds).
+Test Case '-[STTBarTests.AudioInputResolverTests testLabelNamesThePinnedDevice]' started.
+Test Case '-[STTBarTests.AudioInputResolverTests testLabelNamesThePinnedDevice]' passed (0.000 seconds).
+Test Case '-[STTBarTests.AudioInputResolverTests testNonBluetoothDefaultIsLeftAlone]' started.
+Test Case '-[STTBarTests.AudioInputResolverTests testNonBluetoothDefaultIsLeftAlone]' passed (0.000 seconds).
+Test Case '-[STTBarTests.AudioInputResolverTests testUnknownDefaultInputKeepsSystemDefault]' started.
+Test Case '-[STTBarTests.AudioInputResolverTests testUnknownDefaultInputKeepsSystemDefault]' passed (0.000 seconds).
+Test Suite 'AudioInputResolverTests' passed at 2026-10-02 19:17:07.636.
+	 Executed 16 tests, with 0 failures (0 unexpected) in 0.002 (0.003) seconds
+Test Suite 'AudioLevelReaderTests' started at 2026-10-02 19:17:07.636.
+Test Case '-[STTBarTests.AudioLevelReaderTests testLoudIsHigher]' started.
+Test Case '-[STTBarTests.AudioLevelReaderTests testLoudIsHigher]' passed (0.004 seconds).
+Test Case '-[STTBarTests.AudioLevelReaderTests testMissingFileReturnsZeros]' started.
+Test Case '-[STTBarTests.AudioLevelReaderTests testMissingFileReturnsZeros]' passed (0.000 seconds).
+Test Case '-[STTBarTests.AudioLevelReaderTests testSilenceIsLow]' started.
+Test Case '-[STTBarTests.AudioLevelReaderTests testSilenceIsLow]' passed (0.002 seconds).
+Test Suite 'AudioLevelReaderTests' passed at 2026-10-02 19:17:07.642.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.006 (0.006) seconds
+Test Suite 'AudioRecorderTests' started at 2026-10-02 19:17:07.642.
+Test Case '-[STTBarTests.AudioRecorderTests testDeadInputFormatsAreRejected]' started.
+Test Case '-[STTBarTests.AudioRecorderTests testDeadInputFormatsAreRejected]' passed (0.000 seconds).
+Test Case '-[STTBarTests.AudioRecorderTests testLiveInputFormatsAreAccepted]' started.
+Test Case '-[STTBarTests.AudioRecorderTests testLiveInputFormatsAreAccepted]' passed (0.000 seconds).
+Test Case '-[STTBarTests.AudioRecorderTests testNoAudioInputErrorExplainsItself]' started.
+Test Case '-[STTBarTests.AudioRecorderTests testNoAudioInputErrorExplainsItself]' passed (0.000 seconds).
+Test Case '-[STTBarTests.AudioRecorderTests testTargetFormatIs16kMono16bit]' started.
+Test Case '-[STTBarTests.AudioRecorderTests testTargetFormatIs16kMono16bit]' passed (0.000 seconds).
+Test Suite 'AudioRecorderTests' passed at 2026-10-02 19:17:07.644.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'DataFolderModelTests' started at 2026-10-02 19:17:07.644.
+Test Case '-[STTBarTests.DataFolderModelTests testCleanUpRechecksIdleAtClickTime]' started.
+Test Case '-[STTBarTests.DataFolderModelTests testCleanUpRechecksIdleAtClickTime]' passed (0.003 seconds).
+Test Case '-[STTBarTests.DataFolderModelTests testCleanUpRefusesWhenNotConfirmed]' started.
+Test Case '-[STTBarTests.DataFolderModelTests testCleanUpRefusesWhenNotConfirmed]' passed (0.001 seconds).
+Test Case '-[STTBarTests.DataFolderModelTests testCleanUpRefusesWhenNotIdle]' started.
+Test Case '-[STTBarTests.DataFolderModelTests testCleanUpRefusesWhenNotIdle]' passed (0.001 seconds).
+Test Case '-[STTBarTests.DataFolderModelTests testCleanUpRemovesOnlyAllowlistedFiles]' started.
+Test Case '-[STTBarTests.DataFolderModelTests testCleanUpRemovesOnlyAllowlistedFiles]' passed (0.006 seconds).
+Test Suite 'DataFolderModelTests' passed at 2026-10-02 19:17:07.655.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.011 (0.011) seconds
+Test Suite 'DataLocationsTests' started at 2026-10-02 19:17:07.655.
+Test Case '-[STTBarTests.DataLocationsTests testCountsDotFiles]' started.
+Test Case '-[STTBarTests.DataLocationsTests testCountsDotFiles]' passed (0.001 seconds).
+Test Case '-[STTBarTests.DataLocationsTests testEveryLocationHasATitle]' started.
+Test Case '-[STTBarTests.DataLocationsTests testEveryLocationHasATitle]' passed (0.000 seconds).
+Test Case '-[STTBarTests.DataLocationsTests testExcludesNestedDirectory]' started.
+Test Case '-[STTBarTests.DataLocationsTests testExcludesNestedDirectory]' passed (0.001 seconds).
+Test Case '-[STTBarTests.DataLocationsTests testExcludingDoesNotMatchSiblingPrefix]' started.
+Test Case '-[STTBarTests.DataLocationsTests testExcludingDoesNotMatchSiblingPrefix]' passed (0.001 seconds).
+Test Case '-[STTBarTests.DataLocationsTests testMissingDirectoryIsZero]' started.
+Test Case '-[STTBarTests.DataLocationsTests testMissingDirectoryIsZero]' passed (0.000 seconds).
+Test Case '-[STTBarTests.DataLocationsTests testRuntimeLocationIsInsideConfigLocation]' started.
+/Users/simon-danielmarz/.codex/worktrees/sttbar-review/STTBar/macos-app/Tests/STTBarTests/DataLocationsTests.swift:64: -[STTBarTests.DataLocationsTests testRuntimeLocationIsInsideConfigLocation] : Test skipped - Pfad-Overrides heben die hier geprüfte Verschachtelung auf
+Test Case '-[STTBarTests.DataLocationsTests testRuntimeLocationIsInsideConfigLocation]' skipped (0.001 seconds).
+Test Case '-[STTBarTests.DataLocationsTests testSumsFilesRecursively]' started.
+Test Case '-[STTBarTests.DataLocationsTests testSumsFilesRecursively]' passed (0.004 seconds).
+Test Suite 'DataLocationsTests' passed at 2026-10-02 19:17:07.664.
+	 Executed 7 tests, with 1 test skipped and 0 failures (0 unexpected) in 0.009 (0.010) seconds
+Test Suite 'EnvStoreTests' started at 2026-10-02 19:17:07.664.
+Test Case '-[STTBarTests.EnvStoreTests testEscapesShellSensitiveCharacters]' started.
+Test Case '-[STTBarTests.EnvStoreTests testEscapesShellSensitiveCharacters]' passed (0.004 seconds).
+Test Case '-[STTBarTests.EnvStoreTests testReadsQuotedAndUnquotedValues]' started.
+Test Case '-[STTBarTests.EnvStoreTests testReadsQuotedAndUnquotedValues]' passed (0.001 seconds).
+Test Case '-[STTBarTests.EnvStoreTests testSetUnknownKeyAppends]' started.
+Test Case '-[STTBarTests.EnvStoreTests testSetUnknownKeyAppends]' passed (0.002 seconds).
+Test Case '-[STTBarTests.EnvStoreTests testUpdatePreservesCommentsAndUnknownKeys]' started.
+Test Case '-[STTBarTests.EnvStoreTests testUpdatePreservesCommentsAndUnknownKeys]' passed (0.002 seconds).
+Test Suite 'EnvStoreTests' passed at 2026-10-02 19:17:07.674.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.009 (0.009) seconds
+Test Suite 'HealthCenterModelTests' started at 2026-10-02 19:17:07.674.
+Test Case '-[STTBarTests.HealthCenterModelTests testBeginObservingRunsChecks]' started.
+Test Case '-[STTBarTests.HealthCenterModelTests testBeginObservingRunsChecks]' passed (0.051 seconds).
+Test Case '-[STTBarTests.HealthCenterModelTests testEndObservingStopsTheWatchdogRefresh]' started.
+Test Case '-[STTBarTests.HealthCenterModelTests testEndObservingStopsTheWatchdogRefresh]' passed (0.025 seconds).
+Test Case '-[STTBarTests.HealthCenterModelTests testFreshModelRunsNoChecksUntilObserved]' started.
+Test Case '-[STTBarTests.HealthCenterModelTests testFreshModelRunsNoChecksUntilObserved]' passed (0.007 seconds).
+Test Case '-[STTBarTests.HealthCenterModelTests testRefreshIfObservedRunsWhileObserved]' started.
+Test Case '-[STTBarTests.HealthCenterModelTests testRefreshIfObservedRunsWhileObserved]' passed (0.041 seconds).
+Test Case '-[STTBarTests.HealthCenterModelTests testRefreshIfObservedSkipsWorkWhileUnobserved]' started.
+Test Case '-[STTBarTests.HealthCenterModelTests testRefreshIfObservedSkipsWorkWhileUnobserved]' passed (0.007 seconds).
+Test Suite 'HealthCenterModelTests' passed at 2026-10-02 19:17:07.806.
+	 Executed 5 tests, with 0 failures (0 unexpected) in 0.131 (0.132) seconds
+Test Suite 'HotkeyFunctionKeyTests' started at 2026-10-02 19:17:07.806.
+Test Case '-[STTBarTests.HotkeyFunctionKeyTests testF5HasAReadableName]' started.
+Test Case '-[STTBarTests.HotkeyFunctionKeyTests testF5HasAReadableName]' passed (0.000 seconds).
+Test Suite 'HotkeyFunctionKeyTests' passed at 2026-10-02 19:17:07.806.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'HudAnchorOffsetTests' started at 2026-10-02 19:17:07.806.
+Test Case '-[STTBarTests.HudAnchorOffsetTests testOffsetShiftsOriginByExactAmount]' started.
+Test Case '-[STTBarTests.HudAnchorOffsetTests testOffsetShiftsOriginByExactAmount]' passed (0.000 seconds).
+Test Case '-[STTBarTests.HudAnchorOffsetTests testZeroOffsetMatchesBaseOrigin]' started.
+Test Case '-[STTBarTests.HudAnchorOffsetTests testZeroOffsetMatchesBaseOrigin]' passed (0.000 seconds).
+Test Suite 'HudAnchorOffsetTests' passed at 2026-10-02 19:17:07.806.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'HudAnchorTests' started at 2026-10-02 19:17:07.806.
+Test Case '-[STTBarTests.HudAnchorTests testAllAnchorsResolveToUniquePositions]' started.
+Test Case '-[STTBarTests.HudAnchorTests testAllAnchorsResolveToUniquePositions]' passed (0.000 seconds).
+Test Suite 'HudAnchorTests' passed at 2026-10-02 19:17:07.807.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'HudLayoutTests' started at 2026-10-02 19:17:07.807.
+Test Case '-[STTBarTests.HudLayoutTests testBaseGeometryIsIndependentOfScale]' started.
+Test Case '-[STTBarTests.HudLayoutTests testBaseGeometryIsIndependentOfScale]' passed (0.000 seconds).
+Test Case '-[STTBarTests.HudLayoutTests testContentRightLeavesRightMargin]' started.
+Test Case '-[STTBarTests.HudLayoutTests testContentRightLeavesRightMargin]' passed (0.000 seconds).
+Test Case '-[STTBarTests.HudLayoutTests testHidingIconRemovesIconRectAndRecentersContent]' started.
+Test Case '-[STTBarTests.HudLayoutTests testHidingIconRemovesIconRectAndRecentersContent]' passed (0.000 seconds).
+Test Case '-[STTBarTests.HudLayoutTests testHidingTimerShrinksHeightAndCentersVertically]' started.
+Test Case '-[STTBarTests.HudLayoutTests testHidingTimerShrinksHeightAndCentersVertically]' passed (0.000 seconds).
+Test Case '-[STTBarTests.HudLayoutTests testPanelSizeScalesLinearlyWithScale]' started.
+Test Case '-[STTBarTests.HudLayoutTests testPanelSizeScalesLinearlyWithScale]' passed (0.000 seconds).
+Test Case '-[STTBarTests.HudLayoutTests testVisibleTimerKeepsFullWidthWhenWaveformOff]' started.
+Test Case '-[STTBarTests.HudLayoutTests testVisibleTimerKeepsFullWidthWhenWaveformOff]' passed (0.000 seconds).
+Test Case '-[STTBarTests.HudLayoutTests testWaveformAndTimerBothOffCollapsesContentAreaAndPanelWidth]' started.
+Test Case '-[STTBarTests.HudLayoutTests testWaveformAndTimerBothOffCollapsesContentAreaAndPanelWidth]' passed (0.000 seconds).
+Test Suite 'HudLayoutTests' passed at 2026-10-02 19:17:07.808.
+	 Executed 7 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'HudPhaseTimelineTests' started at 2026-10-02 19:17:07.808.
+Test Case '-[STTBarTests.HudPhaseTimelineTests testLlmFreezesWhisperAndRunsTotal]' started.
+Test Case '-[STTBarTests.HudPhaseTimelineTests testLlmFreezesWhisperAndRunsTotal]' passed (0.000 seconds).
+Test Case '-[STTBarTests.HudPhaseTimelineTests testRecordingRunsAsSinglePhase]' started.
+Test Case '-[STTBarTests.HudPhaseTimelineTests testRecordingRunsAsSinglePhase]' passed (0.000 seconds).
+Test Case '-[STTBarTests.HudPhaseTimelineTests testWhisperFreezesRecordingAndAddsTotal]' started.
+Test Case '-[STTBarTests.HudPhaseTimelineTests testWhisperFreezesRecordingAndAddsTotal]' passed (0.000 seconds).
+Test Suite 'HudPhaseTimelineTests' passed at 2026-10-02 19:17:07.809.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
+Test Suite 'HudWaveStyleTests' started at 2026-10-02 19:17:07.809.
+Test Case '-[STTBarTests.HudWaveStyleTests testEveryStyleHasANonEmptyLabel]' started.
+Test Case '-[STTBarTests.HudWaveStyleTests testEveryStyleHasANonEmptyLabel]' passed (0.000 seconds).
+Test Case '-[STTBarTests.HudWaveStyleTests testFiveSwitchableStylesIncludingBars]' started.
+Test Case '-[STTBarTests.HudWaveStyleTests testFiveSwitchableStylesIncludingBars]' passed (0.000 seconds).
+Test Case '-[STTBarTests.HudWaveStyleTests testRawValueRoundTripsForPersistence]' started.
+Test Case '-[STTBarTests.HudWaveStyleTests testRawValueRoundTripsForPersistence]' passed (0.000 seconds).
+Test Suite 'HudWaveStyleTests' passed at 2026-10-02 19:17:07.809.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
+Test Suite 'InstallPathsTests' started at 2026-10-02 19:17:07.809.
+Test Case '-[STTBarTests.InstallPathsTests testEmptyOverrideUsesContainer]' started.
+Test Case '-[STTBarTests.InstallPathsTests testEmptyOverrideUsesContainer]' passed (0.000 seconds).
+Test Case '-[STTBarTests.InstallPathsTests testNoOverrideUsesContainer]' started.
+Test Case '-[STTBarTests.InstallPathsTests testNoOverrideUsesContainer]' passed (0.000 seconds).
+Test Case '-[STTBarTests.InstallPathsTests testReadableOverrideIsHonored]' started.
+Test Case '-[STTBarTests.InstallPathsTests testReadableOverrideIsHonored]' passed (0.000 seconds).
+Test Case '-[STTBarTests.InstallPathsTests testUnreadableOverrideFallsBackToContainer]' started.
+Test Case '-[STTBarTests.InstallPathsTests testUnreadableOverrideFallsBackToContainer]' passed (0.001 seconds).
+Test Suite 'InstallPathsTests' passed at 2026-10-02 19:17:07.811.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.002 (0.002) seconds
+Test Suite 'LLMClientAuthTests' started at 2026-10-02 19:17:07.811.
+Test Case '-[STTBarTests.LLMClientAuthTests testCleanSendsTheKeyAndReadsTheAnswer]' started.
+Test Case '-[STTBarTests.LLMClientAuthTests testCleanSendsTheKeyAndReadsTheAnswer]' passed (0.004 seconds).
+Test Case '-[STTBarTests.LLMClientAuthTests testCleanWithoutKeySurfacesTheHTTPError]' started.
+Test Case '-[STTBarTests.LLMClientAuthTests testCleanWithoutKeySurfacesTheHTTPError]' passed (0.001 seconds).
+Test Suite 'LLMClientAuthTests' passed at 2026-10-02 19:17:07.816.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.004 (0.005) seconds
+Test Suite 'LLMClientTests' started at 2026-10-02 19:17:07.816.
+Test Case '-[STTBarTests.LLMClientTests testLMStudioBodyUsesInputField]' started.
+Test Case '-[STTBarTests.LLMClientTests testLMStudioBodyUsesInputField]' passed (0.000 seconds).
+Test Case '-[STTBarTests.LLMClientTests testOpenAIBodyHasSystemAndUserMessages]' started.
+Test Case '-[STTBarTests.LLMClientTests testOpenAIBodyHasSystemAndUserMessages]' passed (0.000 seconds).
+Test Case '-[STTBarTests.LLMClientTests testParseLMStudioResponseConcatenatesMessageContent]' started.
+Test Case '-[STTBarTests.LLMClientTests testParseLMStudioResponseConcatenatesMessageContent]' passed (0.000 seconds).
+Test Case '-[STTBarTests.LLMClientTests testParseOpenAIResponse]' started.
+Test Case '-[STTBarTests.LLMClientTests testParseOpenAIResponse]' passed (0.000 seconds).
+Test Suite 'LLMClientTests' passed at 2026-10-02 19:17:07.817.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'LineJournalTests' started at 2026-10-02 19:17:07.817.
+Test Case '-[STTBarTests.LineJournalTests testAppendCreatesAndAppends]' started.
+Test Case '-[STTBarTests.LineJournalTests testAppendCreatesAndAppends]' passed (0.001 seconds).
+Test Case '-[STTBarTests.LineJournalTests testAppendTrimsOversizedFileToCompleteTailLines]' started.
+Test Case '-[STTBarTests.LineJournalTests testAppendTrimsOversizedFileToCompleteTailLines]' passed (0.002 seconds).
+Test Case '-[STTBarTests.LineJournalTests testTailDropsPartialFirstLineWhenCapped]' started.
+Test Case '-[STTBarTests.LineJournalTests testTailDropsPartialFirstLineWhenCapped]' passed (0.001 seconds).
+Test Case '-[STTBarTests.LineJournalTests testTailLinesDropsPartialFirstLineWhenCapped]' started.
+Test Case '-[STTBarTests.LineJournalTests testTailLinesDropsPartialFirstLineWhenCapped]' passed (0.001 seconds).
+Test Case '-[STTBarTests.LineJournalTests testTailLinesKeepsMultiByteScalars]' started.
+Test Case '-[STTBarTests.LineJournalTests testTailLinesKeepsMultiByteScalars]' passed (0.001 seconds).
+Test Case '-[STTBarTests.LineJournalTests testTailLinesOfMissingFileIsEmpty]' started.
+Test Case '-[STTBarTests.LineJournalTests testTailLinesOfMissingFileIsEmpty]' passed (0.000 seconds).
+Test Case '-[STTBarTests.LineJournalTests testTailLinesSplitsOnNewlineBytes]' started.
+Test Case '-[STTBarTests.LineJournalTests testTailLinesSplitsOnNewlineBytes]' passed (0.001 seconds).
+Test Case '-[STTBarTests.LineJournalTests testTailOfMissingFileIsNil]' started.
+Test Case '-[STTBarTests.LineJournalTests testTailOfMissingFileIsNil]' passed (0.000 seconds).
+Test Case '-[STTBarTests.LineJournalTests testTailReturnsWholeSmallFile]' started.
+Test Case '-[STTBarTests.LineJournalTests testTailReturnsWholeSmallFile]' passed (0.001 seconds).
+Test Suite 'LineJournalTests' passed at 2026-10-02 19:17:07.825.
+	 Executed 9 tests, with 0 failures (0 unexpected) in 0.008 (0.008) seconds
+Test Suite 'LocalizationTests' started at 2026-10-02 19:17:07.825.
+Test Case '-[STTBarTests.LocalizationTests testAppLanguageRoundTrips]' started.
+Test Case '-[STTBarTests.LocalizationTests testAppLanguageRoundTrips]' passed (0.001 seconds).
+Test Case '-[STTBarTests.LocalizationTests testLReturnsPerLanguageString]' started.
+Test Case '-[STTBarTests.LocalizationTests testLReturnsPerLanguageString]' passed (0.000 seconds).
+Test Case '-[STTBarTests.LocalizationTests testSetAppLanguageSwitchesWhisperAndPrompt]' started.
+Test Case '-[STTBarTests.LocalizationTests testSetAppLanguageSwitchesWhisperAndPrompt]' passed (0.014 seconds).
+Test Suite 'LocalizationTests' passed at 2026-10-02 19:17:07.842.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.016 (0.016) seconds
+Test Suite 'LoginItemTests' started at 2026-10-02 19:17:07.842.
+Test Case '-[STTBarTests.LoginItemTests testIsEnabledIsReadable]' started.
+Test Case '-[STTBarTests.LoginItemTests testIsEnabledIsReadable]' passed (0.005 seconds).
+Test Suite 'LoginItemTests' passed at 2026-10-02 19:17:07.847.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.005 (0.005) seconds
+Test Suite 'NativeBackendModeTests' started at 2026-10-02 19:17:07.847.
+Test Case '-[STTBarTests.NativeBackendModeTests testModeMapping]' started.
+Test Case '-[STTBarTests.NativeBackendModeTests testModeMapping]' passed (0.000 seconds).
+Test Suite 'NativeBackendModeTests' passed at 2026-10-02 19:17:07.848.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'NativePasteTests' started at 2026-10-02 19:17:07.848.
+Test Case '-[STTBarTests.NativePasteTests testChunkingEmptyTextYieldsNoChunks]' started.
+Test Case '-[STTBarTests.NativePasteTests testChunkingEmptyTextYieldsNoChunks]' passed (0.000 seconds).
+Test Case '-[STTBarTests.NativePasteTests testChunkingShorterThanSizeIsSingleChunk]' started.
+Test Case '-[STTBarTests.NativePasteTests testChunkingShorterThanSizeIsSingleChunk]' passed (0.000 seconds).
+Test Case '-[STTBarTests.NativePasteTests testChunkingSplitsByUTF16Size]' started.
+Test Case '-[STTBarTests.NativePasteTests testChunkingSplitsByUTF16Size]' passed (0.000 seconds).
+Test Case '-[STTBarTests.NativePasteTests testDescribeEmptyIsNone]' started.
+Test Case '-[STTBarTests.NativePasteTests testDescribeEmptyIsNone]' passed (0.000 seconds).
+Test Case '-[STTBarTests.NativePasteTests testDescribeListsModifiersInStableOrder]' started.
+Test Case '-[STTBarTests.NativePasteTests testDescribeListsModifiersInStableOrder]' passed (0.000 seconds).
+Test Case '-[STTBarTests.NativePasteTests testHeldModifiersDropsCapsLockAndFn]' started.
+Test Case '-[STTBarTests.NativePasteTests testHeldModifiersDropsCapsLockAndFn]' passed (0.000 seconds).
+Test Case '-[STTBarTests.NativePasteTests testHeldModifiersKeepsChordModifiers]' started.
+Test Case '-[STTBarTests.NativePasteTests testHeldModifiersKeepsChordModifiers]' passed (0.000 seconds).
+Test Case '-[STTBarTests.NativePasteTests testWaitPollsUntilModifiersRelease]' started.
+Test Case '-[STTBarTests.NativePasteTests testWaitPollsUntilModifiersRelease]' passed (0.000 seconds).
+Test Case '-[STTBarTests.NativePasteTests testWaitReturnsImmediatelyWhenNothingHeld]' started.
+Test Case '-[STTBarTests.NativePasteTests testWaitReturnsImmediatelyWhenNothingHeld]' passed (0.000 seconds).
+Test Case '-[STTBarTests.NativePasteTests testWaitTimesOutWhileHeldWithoutHanging]' started.
+Test Case '-[STTBarTests.NativePasteTests testWaitTimesOutWhileHeldWithoutHanging]' passed (0.000 seconds).
+Test Suite 'NativePasteTests' passed at 2026-10-02 19:17:07.850.
+	 Executed 10 tests, with 0 failures (0 unexpected) in 0.002 (0.002) seconds
+Test Suite 'OnboardingModelTests' started at 2026-10-02 19:17:07.850.
+Test Case '-[STTBarTests.OnboardingModelTests testCannotGoBeyondBounds]' started.
+Test Case '-[STTBarTests.OnboardingModelTests testCannotGoBeyondBounds]' passed (0.000 seconds).
+Test Case '-[STTBarTests.OnboardingModelTests testStepProgression]' started.
+Test Case '-[STTBarTests.OnboardingModelTests testStepProgression]' passed (0.000 seconds).
+Test Suite 'OnboardingModelTests' passed at 2026-10-02 19:17:07.851.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
+Test Suite 'OnboardingReadinessTests' started at 2026-10-02 19:17:07.851.
+Test Case '-[STTBarTests.OnboardingReadinessTests testCompletionFlagRoundTrip]' started.
+Test Case '-[STTBarTests.OnboardingReadinessTests testCompletionFlagRoundTrip]' passed (0.002 seconds).
+Test Case '-[STTBarTests.OnboardingReadinessTests testLocalIgnoresServerURL]' started.
+Test Case '-[STTBarTests.OnboardingReadinessTests testLocalIgnoresServerURL]' passed (0.000 seconds).
+Test Case '-[STTBarTests.OnboardingReadinessTests testLocalModelDownloadedScan]' started.
+Test Case '-[STTBarTests.OnboardingReadinessTests testLocalModelDownloadedScan]' passed (0.001 seconds).
+Test Case '-[STTBarTests.OnboardingReadinessTests testLocalNeedsMicAndModel]' started.
+Test Case '-[STTBarTests.OnboardingReadinessTests testLocalNeedsMicAndModel]' passed (0.000 seconds).
+Test Case '-[STTBarTests.OnboardingReadinessTests testLocalUsableWhenMicAndModelPresent]' started.
+Test Case '-[STTBarTests.OnboardingReadinessTests testLocalUsableWhenMicAndModelPresent]' passed (0.000 seconds).
+Test Case '-[STTBarTests.OnboardingReadinessTests testPreferredInitialSourceKeepsRealRemote]' started.
+Test Case '-[STTBarTests.OnboardingReadinessTests testPreferredInitialSourceKeepsRealRemote]' passed (0.000 seconds).
+Test Case '-[STTBarTests.OnboardingReadinessTests testPreferredInitialSourcePrefersDownloadedLocalModel]' started.
+Test Case '-[STTBarTests.OnboardingReadinessTests testPreferredInitialSourcePrefersDownloadedLocalModel]' passed (0.000 seconds).
+Test Case '-[STTBarTests.OnboardingReadinessTests testPreferredInitialSourceSteersFreshUserToLocal]' started.
+Test Case '-[STTBarTests.OnboardingReadinessTests testPreferredInitialSourceSteersFreshUserToLocal]' passed (0.000 seconds).
+Test Case '-[STTBarTests.OnboardingReadinessTests testSelfHostBehavesLikeServer]' started.
+Test Case '-[STTBarTests.OnboardingReadinessTests testSelfHostBehavesLikeServer]' passed (0.000 seconds).
+Test Case '-[STTBarTests.OnboardingReadinessTests testServerNeedsValidURL]' started.
+Test Case '-[STTBarTests.OnboardingReadinessTests testServerNeedsValidURL]' passed (0.000 seconds).
+Test Case '-[STTBarTests.OnboardingReadinessTests testServerUsableWithURLAndMic]' started.
+Test Case '-[STTBarTests.OnboardingReadinessTests testServerUsableWithURLAndMic]' passed (0.000 seconds).
+Test Case '-[STTBarTests.OnboardingReadinessTests testValidHTTPURL]' started.
+Test Case '-[STTBarTests.OnboardingReadinessTests testValidHTTPURL]' passed (0.000 seconds).
+Test Suite 'OnboardingReadinessTests' passed at 2026-10-02 19:17:07.857.
+	 Executed 12 tests, with 0 failures (0 unexpected) in 0.005 (0.006) seconds
+Test Suite 'PlaceholderTests' started at 2026-10-02 19:17:07.857.
+Test Case '-[STTBarTests.PlaceholderTests testScaffoldCompiles]' started.
+Test Case '-[STTBarTests.PlaceholderTests testScaffoldCompiles]' passed (0.000 seconds).
+Test Suite 'PlaceholderTests' passed at 2026-10-02 19:17:07.857.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'PromptStoreTests' started at 2026-10-02 19:17:07.857.
+Test Case '-[STTBarTests.PromptStoreTests testAddSwitchAndPersist]' started.
+Test Case '-[STTBarTests.PromptStoreTests testAddSwitchAndPersist]' passed (0.006 seconds).
+Test Case '-[STTBarTests.PromptStoreTests testFallsBackToInMemoryStoreWhenDirectoryIsUnwritable]' started.
+Test Case '-[STTBarTests.PromptStoreTests testFallsBackToInMemoryStoreWhenDirectoryIsUnwritable]' passed (0.002 seconds).
+Test Case '-[STTBarTests.PromptStoreTests testLoadOrFallbackPersistsNormallyWhenWritable]' started.
+Test Case '-[STTBarTests.PromptStoreTests testLoadOrFallbackPersistsNormallyWhenWritable]' passed (0.002 seconds).
+Test Case '-[STTBarTests.PromptStoreTests testMigratesLegacyBuiltInPromptAndKeepsVersion]' started.
+Test Case '-[STTBarTests.PromptStoreTests testMigratesLegacyBuiltInPromptAndKeepsVersion]' passed (0.004 seconds).
+Test Case '-[STTBarTests.PromptStoreTests testSeedsDefaultAndMirrorsActiveFile]' started.
+Test Case '-[STTBarTests.PromptStoreTests testSeedsDefaultAndMirrorsActiveFile]' passed (0.002 seconds).
+Test Case '-[STTBarTests.PromptStoreTests testSeedsMultipleBuiltInPrompts]' started.
+Test Case '-[STTBarTests.PromptStoreTests testSeedsMultipleBuiltInPrompts]' passed (0.002 seconds).
+Test Case '-[STTBarTests.PromptStoreTests testUpdateActiveBodyRewritesMirror]' started.
+Test Case '-[STTBarTests.PromptStoreTests testUpdateActiveBodyRewritesMirror]' passed (0.003 seconds).
+Test Case '-[STTBarTests.PromptStoreTests testUpdateStoresPreviousPromptVersion]' started.
+Test Case '-[STTBarTests.PromptStoreTests testUpdateStoresPreviousPromptVersion]' passed (0.003 seconds).
+Test Suite 'PromptStoreTests' passed at 2026-10-02 19:17:07.882.
+	 Executed 8 tests, with 0 failures (0 unexpected) in 0.023 (0.024) seconds
+Test Suite 'RGBAColorTests' started at 2026-10-02 19:17:07.882.
+Test Case '-[STTBarTests.RGBAColorTests testCodableRoundTrip]' started.
+Test Case '-[STTBarTests.RGBAColorTests testCodableRoundTrip]' passed (0.000 seconds).
+Test Case '-[STTBarTests.RGBAColorTests testInitFromColorRoundTrips]' started.
+Test Case '-[STTBarTests.RGBAColorTests testInitFromColorRoundTrips]' passed (0.001 seconds).
+Test Case '-[STTBarTests.RGBAColorTests testNSColorPreservesAlpha]' started.
+Test Case '-[STTBarTests.RGBAColorTests testNSColorPreservesAlpha]' passed (0.000 seconds).
+Test Suite 'RGBAColorTests' passed at 2026-10-02 19:17:07.883.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.002 (0.002) seconds
+Test Suite 'RecordingToggleTests' started at 2026-10-02 19:17:07.883.
+Test Case '-[STTBarTests.RecordingToggleTests testBusyWithLiveRecordingStops]' started.
+Test Case '-[STTBarTests.RecordingToggleTests testBusyWithLiveRecordingStops]' passed (0.000 seconds).
+Test Case '-[STTBarTests.RecordingToggleTests testBusyWithoutLiveRecordingQueuesStart]' started.
+Test Case '-[STTBarTests.RecordingToggleTests testBusyWithoutLiveRecordingQueuesStart]' passed (0.001 seconds).
+Test Case '-[STTBarTests.RecordingToggleTests testDebounceAppliesEvenWhileRecording]' started.
+Test Case '-[STTBarTests.RecordingToggleTests testDebounceAppliesEvenWhileRecording]' passed (0.000 seconds).
+Test Case '-[STTBarTests.RecordingToggleTests testIdlePressStartsCleanly]' started.
+Test Case '-[STTBarTests.RecordingToggleTests testIdlePressStartsCleanly]' passed (0.000 seconds).
+Test Case '-[STTBarTests.RecordingToggleTests testLiveRecordingPressStops]' started.
+Test Case '-[STTBarTests.RecordingToggleTests testLiveRecordingPressStops]' passed (0.000 seconds).
+Test Case '-[STTBarTests.RecordingToggleTests testPressAfterDebounceIsHonored]' started.
+Test Case '-[STTBarTests.RecordingToggleTests testPressAfterDebounceIsHonored]' passed (0.000 seconds).
+Test Case '-[STTBarTests.RecordingToggleTests testRapidRefirePressIsIgnored]' started.
+Test Case '-[STTBarTests.RecordingToggleTests testRapidRefirePressIsIgnored]' passed (0.000 seconds).
+Test Suite 'RecordingToggleTests' passed at 2026-10-02 19:17:07.887.
+	 Executed 7 tests, with 0 failures (0 unexpected) in 0.001 (0.004) seconds
+Test Suite 'ReplacementStoreTests' started at 2026-10-02 19:17:07.887.
+Test Case '-[STTBarTests.ReplacementStoreTests testLoadsLegacyAndExtendedTsv]' started.
+Test Case '-[STTBarTests.ReplacementStoreTests testLoadsLegacyAndExtendedTsv]' passed (0.002 seconds).
+Test Suite 'ReplacementStoreTests' passed at 2026-10-02 19:17:07.889.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.002 (0.002) seconds
+Test Suite 'RuntimePathsTests' started at 2026-10-02 19:17:07.889.
+Test Case '-[STTBarTests.RuntimePathsTests testDerivedFilesLiveInsideDirectory]' started.
+Test Case '-[STTBarTests.RuntimePathsTests testDerivedFilesLiveInsideDirectory]' passed (0.000 seconds).
+Test Case '-[STTBarTests.RuntimePathsTests testDirectoryIsUnderApplicationSupportNotTmp]' started.
+Test Case '-[STTBarTests.RuntimePathsTests testDirectoryIsUnderApplicationSupportNotTmp]' passed (0.000 seconds).
+Test Suite 'RuntimePathsTests' passed at 2026-10-02 19:17:07.890.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'ScreenPickerTests' started at 2026-10-02 19:17:07.890.
+Test Case '-[STTBarTests.ScreenPickerTests testReturnsIndexOfRectContainingPoint]' started.
+Test Case '-[STTBarTests.ScreenPickerTests testReturnsIndexOfRectContainingPoint]' passed (0.000 seconds).
+Test Case '-[STTBarTests.ScreenPickerTests testReturnsNilWhenNoRectContainsPoint]' started.
+Test Case '-[STTBarTests.ScreenPickerTests testReturnsNilWhenNoRectContainsPoint]' passed (0.000 seconds).
+Test Case '-[STTBarTests.ScreenPickerTests testWindowAbovePrimaryFlipsYCorrectly]' started.
+Test Case '-[STTBarTests.ScreenPickerTests testWindowAbovePrimaryFlipsYCorrectly]' passed (0.000 seconds).
+Test Case '-[STTBarTests.ScreenPickerTests testWindowOnHorizontalSecondMonitorMapsToThatScreen]' started.
+Test Case '-[STTBarTests.ScreenPickerTests testWindowOnHorizontalSecondMonitorMapsToThatScreen]' passed (0.000 seconds).
+Test Suite 'ScreenPickerTests' passed at 2026-10-02 19:17:07.891.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'StatusStoreMetricsTests' started at 2026-10-02 19:17:07.891.
+Test Case '-[STTBarTests.StatusStoreMetricsTests testAppendRunMetricRoundTrips]' started.
+Test Case '-[STTBarTests.StatusStoreMetricsTests testAppendRunMetricRoundTrips]' passed (0.001 seconds).
+Test Suite 'StatusStoreMetricsTests' passed at 2026-10-02 19:17:07.892.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'SttRunnerTests' started at 2026-10-02 19:17:07.893.
+Test Case '-[STTBarTests.SttRunnerTests testLiveCompletionStillDelivers]' started.
+Test Case '-[STTBarTests.SttRunnerTests testLiveCompletionStillDelivers]' passed (0.916 seconds).
+Test Case '-[STTBarTests.SttRunnerTests testNonEmptyTranscriptIsDeliveredThroughAsyncPaste]' started.
+Test Case '-[STTBarTests.SttRunnerTests testNonEmptyTranscriptIsDeliveredThroughAsyncPaste]' passed (0.716 seconds).
+Test Case '-[STTBarTests.SttRunnerTests testPostprocessingPhaseSurfacesAsLLM]' started.
+Test Case '-[STTBarTests.SttRunnerTests testPostprocessingPhaseSurfacesAsLLM]' passed (0.616 seconds).
+Test Case '-[STTBarTests.SttRunnerTests testStaleCompletionAfterCancelIsDropped]' started.
+Test Case '-[STTBarTests.SttRunnerTests testStaleCompletionAfterCancelIsDropped]' passed (0.512 seconds).
+Test Case '-[STTBarTests.SttRunnerTests testStopAndTranscribeIsNoOpWhenIdle]' started.
+Test Case '-[STTBarTests.SttRunnerTests testStopAndTranscribeIsNoOpWhenIdle]' passed (0.000 seconds).
+Test Case '-[STTBarTests.SttRunnerTests testStopAndTranscribeStopsIntoWhisperPhase]' started.
+Test Case '-[STTBarTests.SttRunnerTests testStopAndTranscribeStopsIntoWhisperPhase]' passed (0.001 seconds).
+Test Suite 'SttRunnerTests' passed at 2026-10-02 19:17:10.656.
+	 Executed 6 tests, with 0 failures (0 unexpected) in 2.763 (2.764) seconds
+Test Suite 'TempFileCleanupTests' started at 2026-10-02 19:17:10.657.
+Test Case '-[STTBarTests.TempFileCleanupTests testDoesNotRemoveADirectoryNamedLikeATempFile]' started.
+Test Case '-[STTBarTests.TempFileCleanupTests testDoesNotRemoveADirectoryNamedLikeATempFile]' passed (0.002 seconds).
+Test Case '-[STTBarTests.TempFileCleanupTests testEmptyDirectoriesAreANoOp]' started.
+Test Case '-[STTBarTests.TempFileCleanupTests testEmptyDirectoriesAreANoOp]' passed (0.001 seconds).
+Test Case '-[STTBarTests.TempFileCleanupTests testNoRemovableURLPointsAtTheConfigDirectory]' started.
+Test Case '-[STTBarTests.TempFileCleanupTests testNoRemovableURLPointsAtTheConfigDirectory]' passed (0.001 seconds).
+Test Case '-[STTBarTests.TempFileCleanupTests testRemovesOnlyDisposableFiles]' started.
+Test Case '-[STTBarTests.TempFileCleanupTests testRemovesOnlyDisposableFiles]' passed (0.004 seconds).
+Test Suite 'TempFileCleanupTests' passed at 2026-10-02 19:17:10.666.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.009 (0.009) seconds
+Test Suite 'TranscriptionConfigTests' started at 2026-10-02 19:17:10.666.
+Test Case '-[STTBarTests.TranscriptionConfigTests testFromModelKeepsTranscribeAndPostprocessTimeoutsApart]' started.
+Test Case '-[STTBarTests.TranscriptionConfigTests testFromModelKeepsTranscribeAndPostprocessTimeoutsApart]' passed (0.008 seconds).
+Test Case '-[STTBarTests.TranscriptionConfigTests testLanguageOmittedWhenAuto]' started.
+Test Case '-[STTBarTests.TranscriptionConfigTests testLanguageOmittedWhenAuto]' passed (0.000 seconds).
+Test Suite 'TranscriptionConfigTests' passed at 2026-10-02 19:17:10.674.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.008 (0.008) seconds
+Test Suite 'TranscriptionSourceTests' started at 2026-10-02 19:17:10.674.
+Test Case '-[STTBarTests.TranscriptionSourceTests testIsLocalOnlyForLocal]' started.
+Test Case '-[STTBarTests.TranscriptionSourceTests testIsLocalOnlyForLocal]' passed (0.000 seconds).
+Test Case '-[STTBarTests.TranscriptionSourceTests testSourceMapping]' started.
+Test Case '-[STTBarTests.TranscriptionSourceTests testSourceMapping]' passed (0.000 seconds).
+Test Suite 'TranscriptionSourceTests' passed at 2026-10-02 19:17:10.674.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'TriggerTimingTests' started at 2026-10-02 19:17:10.674.
+Test Case '-[STTBarTests.TriggerTimingTests testFirstEventHasNoInterval]' started.
+Test Case '-[STTBarTests.TriggerTimingTests testFirstEventHasNoInterval]' passed (0.000 seconds).
+Test Case '-[STTBarTests.TriggerTimingTests testHandlingLatencyMeasuresMainThreadDelay]' started.
+Test Case '-[STTBarTests.TriggerTimingTests testHandlingLatencyMeasuresMainThreadDelay]' passed (0.000 seconds).
+Test Case '-[STTBarTests.TriggerTimingTests testIntervalBetweenConsecutiveRawEventsInMilliseconds]' started.
+Test Case '-[STTBarTests.TriggerTimingTests testIntervalBetweenConsecutiveRawEventsInMilliseconds]' passed (0.000 seconds).
+Test Case '-[STTBarTests.TriggerTimingTests testLatencyNeverNegative]' started.
+Test Case '-[STTBarTests.TriggerTimingTests testLatencyNeverNegative]' passed (0.000 seconds).
+Test Suite 'TriggerTimingTests' passed at 2026-10-02 19:17:10.675.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'WaveLevelFilterTests' started at 2026-10-02 19:17:10.675.
+Test Case '-[STTBarTests.WaveLevelFilterTests testDecaysTowardLowerTarget]' started.
+Test Case '-[STTBarTests.WaveLevelFilterTests testDecaysTowardLowerTarget]' passed (0.000 seconds).
+Test Case '-[STTBarTests.WaveLevelFilterTests testHigherDecaySpeedDecaysFasterPerFrame]' started.
+Test Case '-[STTBarTests.WaveLevelFilterTests testHigherDecaySpeedDecaysFasterPerFrame]' passed (0.000 seconds).
+Test Case '-[STTBarTests.WaveLevelFilterTests testResultStaysInUnitRange]' started.
+Test Case '-[STTBarTests.WaveLevelFilterTests testResultStaysInUnitRange]' passed (0.000 seconds).
+Test Case '-[STTBarTests.WaveLevelFilterTests testRisesTowardHigherTarget]' started.
+Test Case '-[STTBarTests.WaveLevelFilterTests testRisesTowardHigherTarget]' passed (0.000 seconds).
+Test Suite 'WaveLevelFilterTests' passed at 2026-10-02 19:17:10.676.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
+Test Suite 'WhisperClientTests' started at 2026-10-02 19:17:10.676.
+Test Case '-[STTBarTests.WhisperClientTests testBodyIncludesModelResponseFormatAndLanguage]' started.
+Test Case '-[STTBarTests.WhisperClientTests testBodyIncludesModelResponseFormatAndLanguage]' passed (0.001 seconds).
+Test Case '-[STTBarTests.WhisperClientTests testBodyOmitsLanguageWhenAuto]' started.
+Test Case '-[STTBarTests.WhisperClientTests testBodyOmitsLanguageWhenAuto]' passed (0.000 seconds).
+Test Case '-[STTBarTests.WhisperClientTests testParseTextReadsTextField]' started.
+Test Case '-[STTBarTests.WhisperClientTests testParseTextReadsTextField]' passed (0.000 seconds).
+Test Suite 'WhisperClientTests' passed at 2026-10-02 19:17:10.678.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.001 (0.002) seconds
+Test Suite 'WhisperDecodeFieldTests' started at 2026-10-02 19:17:10.678.
+Test Case '-[STTBarTests.WhisperDecodeFieldTests testBeamSizeIsValidated]' started.
+Test Case '-[STTBarTests.WhisperDecodeFieldTests testBeamSizeIsValidated]' passed (0.000 seconds).
+Test Case '-[STTBarTests.WhisperDecodeFieldTests testDefaultsRequestVadBeamAndNoFallback]' started.
+Test Case '-[STTBarTests.WhisperDecodeFieldTests testDefaultsRequestVadBeamAndNoFallback]' passed (0.000 seconds).
+Test Case '-[STTBarTests.WhisperDecodeFieldTests testFieldsCanBeTurnedOff]' started.
+Test Case '-[STTBarTests.WhisperDecodeFieldTests testFieldsCanBeTurnedOff]' passed (0.000 seconds).
+Test Suite 'WhisperDecodeFieldTests' passed at 2026-10-02 19:17:10.679.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'WhisperModelManagerTests' started at 2026-10-02 19:17:10.679.
+Test Case '-[STTBarTests.WhisperModelManagerTests testRecommendationScalesWithRAM]' started.
+Test Case '-[STTBarTests.WhisperModelManagerTests testRecommendationScalesWithRAM]' passed (0.000 seconds).
+Test Suite 'WhisperModelManagerTests' passed at 2026-10-02 19:17:10.679.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'WhisperPromptTests' started at 2026-10-02 19:17:10.679.
+Test Case '-[STTBarTests.WhisperPromptTests testBodyIncludesPrompt]' started.
+Test Case '-[STTBarTests.WhisperPromptTests testBodyIncludesPrompt]' passed (0.000 seconds).
+Test Case '-[STTBarTests.WhisperPromptTests testBodyOmitsPromptWhenOff]' started.
+Test Case '-[STTBarTests.WhisperPromptTests testBodyOmitsPromptWhenOff]' passed (0.000 seconds).
+Test Case '-[STTBarTests.WhisperPromptTests testEchoedPromptIsStrippedFromTranscript]' started.
+Test Case '-[STTBarTests.WhisperPromptTests testEchoedPromptIsStrippedFromTranscript]' passed (0.000 seconds).
+Test Case '-[STTBarTests.WhisperPromptTests testPromptParamFallsBackToLanguageDefault]' started.
+Test Case '-[STTBarTests.WhisperPromptTests testPromptParamFallsBackToLanguageDefault]' passed (0.000 seconds).
+Test Case '-[STTBarTests.WhisperPromptTests testPromptParamHonoursExplicitValueAndOff]' started.
+Test Case '-[STTBarTests.WhisperPromptTests testPromptParamHonoursExplicitValueAndOff]' passed (0.000 seconds).
+Test Suite 'WhisperPromptTests' passed at 2026-10-02 19:17:10.681.
+	 Executed 5 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'STTBarPackageTests.xctest' passed at 2026-10-02 19:17:10.681.
+	 Executed 189 tests, with 1 test skipped and 0 failures (0 unexpected) in 3.093 (3.113) seconds
+Test Suite 'All tests' passed at 2026-10-02 19:17:10.681.
+	 Executed 189 tests, with 1 test skipped and 0 failures (0 unexpected) in 3.093 (3.115) seconds

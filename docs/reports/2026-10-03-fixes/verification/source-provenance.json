@@ -1,0 +1,22 @@
+{
+  "base_commit": "f09a5cedf6c0782aba74d57ab7c2d5fc42060aa8",
+  "source_diff_sha256": "d6b2211f568fc39d26145ced435fa36790742558b4c8c2af1791384521e93c54",
+  "package": "/Users/simon-danielmarz/Documents/GitHub/STTBar/dist-appstore/fixes-2026-10-03/STTBar-1.7.0-build23.pkg",
+  "package_sha256": "a8c19f365edc4f0b72f239386e2c77ec3d9c8703d47cc33bccca35ecca9511ce",
+  "appstore_availability_before": 175,
+  "appstore_availability_after": 174,
+  "china_mainland_removed": true,
+  "availability_verified_after_reload": true,
+  "app_version": "1.7.0",
+  "build_number": "23",
+  "transporter_delivered_at": "2026-10-03 03:22 Europe/Berlin",
+  "appstore_processing_status": "Bereit zur Übermittlung",
+  "review_notes_saved": true,
+  "review_notes_verified_after_reload": true,
+  "automatic_release_after_approval": true,
+  "selected_build_id": "11dc2960-f0d0-48b3-9f93-805d7ece40a3",
+  "submission_id": "24906f41-5b19-4c82-b3fe-796de5c3a88d",
+  "appstore_submission_status": "Warten auf Prüfung",
+  "resubmission_verified_at": "2026-10-03T03:28:48.926058+02:00",
+  "apple_approved": false
+}

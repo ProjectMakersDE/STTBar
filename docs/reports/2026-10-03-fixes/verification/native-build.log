@@ -1,0 +1,16 @@
+[0/1] Planning build
+[1/1] Compiling plugin GenerateManual
+[2/2] Compiling plugin GenerateDoccReference
+Building for debugging...
+[2/8] Write sources
+[4/8] Write swift-version--58304C5D6DBC2206.txt
+[6/10] Compiling STTBar Transcriber.swift
+[7/10] Emitting module STTBar
+[7/12] Write Objects.LinkFileList
+[8/12] Linking STTBar
+[9/12] Applying STTBar
+[11/14] Emitting module STTBarTests
+[12/14] Compiling STTBarTests NativeBackendLifecycleTests.swift
+[12/14] Write Objects.LinkFileList
+[13/14] Linking STTBarPackageTests
+Build complete! (7.51s)

@@ -1,7 +1,7 @@
 import Foundation
 
 /// Immutable snapshot of the settings the native pipeline needs for one run.
-/// Taken on the main thread at stop() time, then handed to the async clients.
+/// Taken at recording start, then handed to the async clients unchanged.
 struct TranscriptionConfig {
     var whisperURL: String
     var whisperModel: String
@@ -41,6 +41,8 @@ struct TranscriptionConfig {
     /// Bearer keys for hosted endpoints (see ApiKeyStore). Empty = no header.
     var whisperAPIKey: String = ""
     var llmAPIKey: String = ""
+    var autoRawFallback: Bool = true
+    var sensitiveMode: Bool = false
 
     static let maxBeamSize = 8
 
@@ -95,6 +97,8 @@ struct TranscriptionConfig {
             beamSize: model.beamSize,
             temperatureFallback: model.temperatureFallback,
             whisperAPIKey: model.whisperAPIKey,
-            llmAPIKey: model.llmAPIKey)
+            llmAPIKey: model.llmAPIKey,
+            autoRawFallback: model.autoRawFallback,
+            sensitiveMode: AppSettings.shared.sensitiveMode)
     }
 }

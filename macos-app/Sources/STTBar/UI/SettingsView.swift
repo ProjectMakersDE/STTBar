@@ -88,8 +88,8 @@ private struct ServerTab: View {
                         .font(.caption).foregroundStyle(.secondary)
                     if model.transcriptionSource == TranscriptionSource.selfHost.rawValue {
                         Button(L("localhost einsetzen + Anleitung öffnen", "Use localhost + open guide")) {
-                            model.whisperURL = "http://localhost:8000/v1/audio/transcriptions"
-                            if let url = URL(string: "https://github.com/ProjectMakersDE/STTBar#self-hosting") {
+                            model.whisperURL = "http://localhost:8082/v1/audio/transcriptions"
+                            if let url = URL(string: "https://github.com/ProjectMakersDE/STTBar#local-whisper-server-nvidia-gpu-only") {
                                 NSWorkspace.shared.open(url)
                             }
                         }
@@ -195,11 +195,10 @@ private struct ProfilesTab: View {
                     }
                 }
                 .disabled(selected == nil)
-                Button(L("Profil testen", "Test profile")) { model.applyEnvChanges() }
-                    .disabled(selected == nil)
                 Button(L("Löschen", "Delete"), role: .destructive) { if let id = selected { model.removeProfile(id); selected = nil } }
                     .disabled(selected == nil)
             }
+            SettingsFeedback(model: model)
         }
         .padding(.top, 4)
         .onAppear { selected = model.profiles.activeId }
@@ -404,6 +403,18 @@ private struct PrivacyTab: View {
         Form {
             Section(L("Verlauf", "History")) {
                 Toggle(L("Sensitive Mode", "Sensitive mode"), isOn: $model.sensitiveMode)
+                Text(model.effectiveSensitiveMode
+                     ? L("Sensitive Mode ist aktiv.", "Sensitive mode is active.")
+                     : L("Sensitive Mode ist aus.", "Sensitive mode is off."))
+                    .font(.caption).foregroundStyle(.secondary)
+                Text(model.effectiveHistoryEnabled
+                     ? L("Transkriptverlauf wird gespeichert.", "Transcript history is being saved.")
+                     : L("Transkriptverlauf wird nicht gespeichert.", "Transcript history is not being saved."))
+                    .font(.caption).foregroundStyle(.secondary)
+                if model.privacyChangesPending {
+                    Text(L("Änderungen sind noch nicht angewendet.", "Changes have not been applied yet."))
+                        .font(.caption).foregroundStyle(.orange)
+                }
                 Toggle(L("Transkriptverlauf speichern", "Store transcript history"), isOn: $model.historyEnabled)
                     .disabled(model.sensitiveMode)
                 TextField(L("Auto-Löschen nach Stunden", "Auto-delete after hours"), text: $model.historyRetentionHours)
@@ -417,12 +428,24 @@ private struct PrivacyTab: View {
             }
             Section {
                 HStack {
-                    Button(L("Anwenden", "Apply")) { model.applyEnvChanges() }
+                    Button(L("Anwenden", "Apply")) { model.applyPrivacyChanges() }
                     Button(L("Rückgängig", "Revert")) { model.revertEnvChanges() }
+                    Spacer()
+                    SettingsFeedback(model: model)
                 }
             }
         }
         .formStyle(.grouped)
+    }
+}
+
+private struct SettingsFeedback: View {
+    @ObservedObject var model: SettingsModel
+    var body: some View {
+        if let message = model.validationMessage ?? model.saveMessage {
+            Text(message).font(.caption)
+                .foregroundStyle(model.validationMessage == nil ? Color.secondary : Color.red)
+        }
     }
 }
 
@@ -499,6 +522,7 @@ private struct GeneralTab: View {
                     Button(L("Exportieren", "Export")) { model.exportBundle() }
                     Button(L("Importieren", "Import")) { model.importBundle() }
                 }
+                SettingsFeedback(model: model)
             }
             DataFolderSection(model: dataFolders)
             Section(L("Version", "Version")) {

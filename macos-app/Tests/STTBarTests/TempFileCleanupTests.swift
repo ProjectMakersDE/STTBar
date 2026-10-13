@@ -64,6 +64,45 @@ final class TempFileCleanupTests: XCTestCase {
         XCTAssertEqual(result, TempFileCleanup.Result(removedFiles: 0, freedBytes: 0))
     }
 
+    func testStartupRemovesOnlyUniqueNativeRecordingFiles() throws {
+        let recording = runtime.appendingPathComponent("recording-\(UUID().uuidString).wav")
+        try write(42, to: recording)
+        let survivors = ["recording.wav", "recording-not-a-uuid.wav", "transcript-history.json"]
+        for name in survivors { try write(5, to: runtime.appendingPathComponent(name)) }
+        let nested = runtime.appendingPathComponent("nested")
+        try FileManager.default.createDirectory(at: nested, withIntermediateDirectories: true)
+        let nestedFile = nested.appendingPathComponent("recording-\(UUID().uuidString).wav")
+        try write(7, to: nestedFile)
+
+        XCTAssertEqual(TempFileCleanup.removeOrphanedRecordings(runtime: runtime),
+                       .init(removedFiles: 1, freedBytes: 42))
+        for name in survivors { XCTAssertTrue(FileManager.default.fileExists(atPath: runtime.appendingPathComponent(name).path)) }
+        XCTAssertTrue(FileManager.default.fileExists(atPath: nestedFile.path))
+    }
+
+    func testStartupDoesNotFollowRecordingSymlinksOrDeleteDirectories() throws {
+        let external = config.appendingPathComponent("keep.wav")
+        try write(10, to: external)
+        let link = runtime.appendingPathComponent("recording-\(UUID().uuidString).wav")
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: external)
+        let directory = runtime.appendingPathComponent("recording-\(UUID().uuidString).wav")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+
+        XCTAssertEqual(TempFileCleanup.removeOrphanedRecordings(runtime: runtime),
+                       .init(removedFiles: 0, freedBytes: 0))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: external.path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: link.path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: directory.path))
+    }
+
+    func testDefaultContainerMigrationRemovesOldFixedRecording() throws {
+        let oldRecording = runtime.appendingPathComponent("recording.wav")
+        try write(12, to: oldRecording)
+        XCTAssertEqual(TempFileCleanup.removeOrphanedRecordings(runtime: runtime, includeLegacy: true),
+                       .init(removedFiles: 1, freedBytes: 12))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: oldRecording.path))
+    }
+
     func testDoesNotRemoveADirectoryNamedLikeATempFile() throws {
         let trap = runtime.appendingPathComponent("phase")
         try FileManager.default.createDirectory(at: trap, withIntermediateDirectories: true)

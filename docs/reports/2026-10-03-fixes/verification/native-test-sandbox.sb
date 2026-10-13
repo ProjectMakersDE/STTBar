@@ -1,0 +1,7 @@
+(version 1)
+(allow default)
+(deny network*)
+(deny file-write* (subpath "/Users/simon-danielmarz/Library"))
+(deny file-read* (subpath "/Users/simon-danielmarz/Library/Keychains"))
+(deny mach-lookup (global-name "com.apple.securityd"))
+(deny mach-lookup (global-name "com.apple.securityd.xpc"))

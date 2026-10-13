@@ -12,8 +12,7 @@ stt_runtime_init
 
 STT_AUDIO_DEVICE="${STT_AUDIO_DEVICE:-}"
 STT_MACOS_AVOID_BLUETOOTH_PROFILE_SWITCH="${STT_MACOS_AVOID_BLUETOOTH_PROFILE_SWITCH:-1}"
-STT_LEGACY_PID_FILE="${STT_LEGACY_PID_FILE:-/tmp/stt-recording.pid}"
-STT_LEGACY_RECORD_FILE="${STT_LEGACY_RECORD_FILE:-/tmp/stt-recording.wav}"
+STT_REC_IDENTITY_FILE="$STT_PID_FILE.identity"
 
 is_truthy() {
     case "${1:-}" in
@@ -114,42 +113,44 @@ resolve_audio_device() {
     printf '%s\n' "$audio_device"
 }
 
-legacy_recording_pids() {
-    [[ "$STT_LEGACY_RECORD_FILE" != "$STT_RECORD_FILE" ]] || return 0
-    ps ax -o pid=,args= 2>/dev/null | awk -v file="$STT_LEGACY_RECORD_FILE" '
-        index($0, file) > 0 && $0 ~ /(^|[[:space:]])rec([[:space:]]|$)/ {
-            print $1
-        }
-    '
+# A PID alone is not a recording identity. Only a recorder launched into this
+# private runtime, with its owner/start time and recorder command verified, may
+# be signalled. Interpreter exec (env -> bash in tests) preserves that identity.
+# Shared /tmp legacy PID files and process-name scans are deliberately ignored.
+recorder_identity() {
+    local pid="$1" owner args
+    [[ "$pid" =~ ^[1-9][0-9]*$ && "$pid" != 1 ]] || return 1
+    owner="$(ps -p "$pid" -o uid= 2>/dev/null | tr -d '[:space:]')"
+    [[ "$owner" == "$(id -u)" ]] || return 1
+    args="$(ps -p "$pid" -o args= 2>/dev/null)"
+    [[ "$args" =~ (^|[[:space:]])([^[:space:]]*/)?(rec|sox)([[:space:]]|$) ]] || return 1
+    [[ "$args" == *" $STT_RECORD_FILE" ]] || return 1
+    ps -p "$pid" -o uid=,lstart= 2>/dev/null
 }
 
-first_legacy_recording_pid() {
-    legacy_recording_pids | head -n 1
+trusted_recording_pid() {
+    [[ -f "$STT_PID_FILE" && ! -L "$STT_PID_FILE" && -O "$STT_PID_FILE" ]] || return 1
+    [[ -f "$STT_REC_IDENTITY_FILE" && ! -L "$STT_REC_IDENTITY_FILE" && -O "$STT_REC_IDENTITY_FILE" ]] || return 1
+    local pid identity
+    pid="$(cat "$STT_PID_FILE" 2>/dev/null)"
+    identity="$(recorder_identity "$pid")" || return 1
+    [[ -n "$identity" && "$identity" == "$(cat "$STT_REC_IDENTITY_FILE" 2>/dev/null)" ]] || return 1
+    printf '%s\n' "$pid"
 }
 
 start_recording() {
     # A force start (the app decided this press is unambiguously a start because
-    # no recording was live) tears down any stale pid/lock/wav and any orphan
-    # rec process first, so the toggle can never get stuck on leftovers.
+    # no recording was live) tears down the trusted recorder and this runtime's
+    # stale files first, so the toggle cannot get stuck on leftovers.
     if is_truthy "${STT_FORCE_START:-0}"; then
         force_clear_recordings
     fi
-    if [[ -f "$STT_PID_FILE" ]] && kill -0 "$(cat "$STT_PID_FILE")" 2>/dev/null; then
+    if trusted_recording_pid >/dev/null; then
         echo "ERROR: Recording already in progress" >&2
         stt_status_event "recording_already_running" "recording" "warning" "recording_already_running" "A recording is already running."
         return 1
     fi
-    if [[ "$STT_LEGACY_PID_FILE" != "$STT_PID_FILE" ]] && [[ -f "$STT_LEGACY_PID_FILE" ]] && kill -0 "$(cat "$STT_LEGACY_PID_FILE")" 2>/dev/null; then
-        echo "ERROR: Legacy recording already in progress" >&2
-        stt_status_event "legacy_recording_running" "recording" "warning" "legacy_recording_running" "A stale /tmp recording is already running." "$STT_LEGACY_PID_FILE"
-        return 1
-    fi
-    if [[ -n "$(first_legacy_recording_pid)" ]]; then
-        echo "ERROR: Legacy orphan recording already in progress" >&2
-        stt_status_event "legacy_recording_running" "recording" "warning" "legacy_recording_running" "A stale /tmp recording without a PID file is already running." "$STT_LEGACY_RECORD_FILE"
-        return 1
-    fi
-    rm -f "$STT_PID_FILE" "$STT_LOCK_FILE" "$STT_RECORD_FILE" 2>/dev/null || true
+    rm -f "$STT_PID_FILE" "$STT_REC_IDENTITY_FILE" "$STT_LOCK_FILE" "$STT_RECORD_FILE" 2>/dev/null || true
     printf '%s\n' "$$" > "$STT_LOCK_FILE" 2>/dev/null || true
     stt_new_run_id >/dev/null
     stt_now_ms > "$STT_RECORDING_STARTED_FILE" 2>/dev/null || true
@@ -167,47 +168,44 @@ start_recording() {
         rec -q --buffer "$record_buffer_bytes" -r 16000 -c 1 -b 16 "$STT_RECORD_FILE" &
     fi
     local rec_pid=$!
+    local identity="" i
+    # Allow the launched child to exec rec/sox before capturing its identity.
+    for i in 1 2 3 4 5 6 7 8 9 10; do
+        identity="$(recorder_identity "$rec_pid" || true)"
+        [[ -n "$identity" ]] && break
+        sleep 0.05
+    done
+    if [[ -z "$identity" ]]; then
+        kill "$rec_pid" 2>/dev/null || true
+        rm -f "$STT_LOCK_FILE"
+        echo "ERROR: Recorder did not start" >&2
+        return 1
+    fi
+    printf '%s\n' "$identity" > "$STT_REC_IDENTITY_FILE"
     echo "$rec_pid" > "$STT_PID_FILE"
     stt_status_event "recording_started" "recording" "info" "" "Recording." "device=$audio_device"
     echo "$STT_RECORD_FILE"
 }
 
 stop_recording() {
-    local pid_file="$STT_PID_FILE"
-    local record_file="$STT_RECORD_FILE"
-    if [[ ! -f "$pid_file" ]] && [[ "$STT_LEGACY_PID_FILE" != "$STT_PID_FILE" ]] && [[ -f "$STT_LEGACY_PID_FILE" ]] && kill -0 "$(cat "$STT_LEGACY_PID_FILE")" 2>/dev/null; then
-        pid_file="$STT_LEGACY_PID_FILE"
-        record_file="$STT_LEGACY_RECORD_FILE"
-        stt_status_event "legacy_recording_stop_requested" "whisper" "warning" "legacy_recording" "Stopping stale /tmp recording." "$STT_LEGACY_PID_FILE"
-    fi
-
-    local rec_pid
-    if [[ -f "$pid_file" ]]; then
-        rec_pid="$(cat "$pid_file")"
-    else
-        rec_pid="$(first_legacy_recording_pid)"
-        if [[ -n "$rec_pid" ]]; then
-            record_file="$STT_LEGACY_RECORD_FILE"
-            stt_status_event "legacy_recording_stop_requested" "whisper" "warning" "legacy_recording" "Stopping stale /tmp recording without a PID file." "$STT_LEGACY_RECORD_FILE"
-        fi
-    fi
-
-    if [[ -z "${rec_pid:-}" ]]; then
-        echo "ERROR: No recording in progress" >&2
+    local rec_pid record_file="$STT_RECORD_FILE"
+    rec_pid="$(trusted_recording_pid || true)"
+    if [[ -z "$rec_pid" ]]; then
+        echo "ERROR: No trusted recording in progress" >&2
         stt_status_event "recording_missing" "idle" "warning" "recording_missing" "No active recording found."
         return 1
     fi
-
-    if kill -0 "$rec_pid" 2>/dev/null; then
-        kill -SIGINT "$rec_pid" 2>/dev/null
-        # Wait for rec process to actually exit
-        local i=0
-        while kill -0 "$rec_pid" 2>/dev/null && (( i++ < 20 )); do
-            sleep 0.1
-        done
+    kill -SIGINT "$rec_pid" 2>/dev/null || true
+    local i=0
+    while trusted_recording_pid >/dev/null && (( i++ < 20 )); do
+        sleep 0.1
+    done
+    # A recorder still writing must not be passed to transcription.
+    if trusted_recording_pid >/dev/null; then
+        echo "ERROR: Recorder did not stop" >&2
+        return 1
     fi
-
-    rm -f "$pid_file" "$STT_LOCK_FILE"
+    rm -f "$STT_PID_FILE" "$STT_REC_IDENTITY_FILE" "$STT_LOCK_FILE"
 
     # Check if file exists and has audio content (> 44 bytes = WAV header only)
     if [[ ! -f "$record_file" ]] || [[ "$(wc -c < "$record_file" 2>/dev/null || echo 0)" -le 44 ]]; then
@@ -221,34 +219,21 @@ stop_recording() {
     echo "$record_file"
 }
 
-# Kill any recording (own pid, legacy pid, orphan rec) and remove its files,
-# without emitting any phase/status events. Shared by `cancel` and force start.
+# Stop only the recorder identified by this runtime, then remove its files.
 force_clear_recordings() {
-    for pid_file in "$STT_PID_FILE" "$STT_LEGACY_PID_FILE"; do
-        [[ -f "$pid_file" ]] || continue
-        local rec_pid
-        rec_pid="$(cat "$pid_file" 2>/dev/null || true)"
-        if [[ -n "$rec_pid" ]] && kill -0 "$rec_pid" 2>/dev/null; then
-            kill -SIGINT "$rec_pid" 2>/dev/null || true
-            local i=0
-            while kill -0 "$rec_pid" 2>/dev/null && (( i++ < 20 )); do
-                sleep 0.1
-            done
+    local rec_pid
+    rec_pid="$(trusted_recording_pid || true)"
+    if [[ -n "$rec_pid" ]]; then
+        kill -SIGINT "$rec_pid" 2>/dev/null || true
+        local i=0
+        while trusted_recording_pid >/dev/null && (( i++ < 20 )); do
+            sleep 0.1
+        done
+        if trusted_recording_pid >/dev/null; then
             kill "$rec_pid" 2>/dev/null || true
         fi
-    done
-    while read -r rec_pid; do
-        [[ -n "$rec_pid" ]] || continue
-        if kill -0 "$rec_pid" 2>/dev/null; then
-            kill -SIGINT "$rec_pid" 2>/dev/null || true
-            local i=0
-            while kill -0 "$rec_pid" 2>/dev/null && (( i++ < 20 )); do
-                sleep 0.1
-            done
-            kill "$rec_pid" 2>/dev/null || true
-        fi
-    done < <(legacy_recording_pids)
-    rm -f "$STT_PID_FILE" "$STT_LEGACY_PID_FILE" "$STT_LOCK_FILE" "$STT_RECORD_FILE" "$STT_LEGACY_RECORD_FILE" "$STT_RECORDING_STARTED_FILE" 2>/dev/null || true
+    fi
+    rm -f "$STT_PID_FILE" "$STT_REC_IDENTITY_FILE" "$STT_LOCK_FILE" "$STT_RECORD_FILE" "$STT_RECORDING_STARTED_FILE" 2>/dev/null || true
 }
 
 cancel_recording() {
@@ -258,17 +243,11 @@ cancel_recording() {
 }
 
 get_status() {
-    if [[ -f "$STT_PID_FILE" ]] && kill -0 "$(cat "$STT_PID_FILE")" 2>/dev/null; then
-        echo "recording"
-    elif [[ "$STT_LEGACY_PID_FILE" != "$STT_PID_FILE" ]] && [[ -f "$STT_LEGACY_PID_FILE" ]] && kill -0 "$(cat "$STT_LEGACY_PID_FILE")" 2>/dev/null; then
-        echo "recording"
-    elif [[ -n "$(first_legacy_recording_pid)" ]]; then
+    if trusted_recording_pid >/dev/null; then
         echo "recording"
     else
-        rm -f "$STT_PID_FILE"
-        if [[ "$STT_LEGACY_PID_FILE" != "$STT_PID_FILE" ]] && [[ -f "$STT_LEGACY_PID_FILE" ]] && ! kill -0 "$(cat "$STT_LEGACY_PID_FILE")" 2>/dev/null; then
-            rm -f "$STT_LEGACY_PID_FILE"
-        fi
+        # A reader can observe launch between the identity and PID writes.
+        # Only start/stop/cancel may clean files, so polling cannot orphan rec.
         echo "idle"
     fi
 }

@@ -12,7 +12,7 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("AppIndicator3", "0.1")
 from gi.repository import Gtk, AppIndicator3, GLib
 
-RUNTIME_DIR = os.environ.get("STT_RUNTIME_DIR") or os.path.join(os.environ.get("TMPDIR", "/tmp"), "de.projectmakers.stt")
+RUNTIME_DIR = os.environ.get("STT_RUNTIME_DIR") or os.path.join(os.environ.get("TMPDIR", "/tmp"), f"de.projectmakers.stt-{os.getuid()}")
 STATE_FILE = os.path.join(RUNTIME_DIR, "state")
 PID_FILE = os.path.join(RUNTIME_DIR, "recording.pid")
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))

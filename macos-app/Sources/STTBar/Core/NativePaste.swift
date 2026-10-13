@@ -7,12 +7,44 @@ enum NativePasteResult {
     case clipboardOnly(String)
 }
 
+/// Data snapshots preserve all pasteboard formats, item ordering and concealed
+/// markers. Tests use an in-memory implementation instead of the real clipboard.
+protocol ClipboardAccess: AnyObject {
+    var changeCount: Int { get }
+    func contents() -> [[NSPasteboard.PasteboardType: Data]]
+    @discardableResult func replaceContents(with items: [[NSPasteboard.PasteboardType: Data]]) -> Int
+}
+
+private final class SystemClipboard: ClipboardAccess {
+    private let pasteboard: NSPasteboard
+    init(_ pasteboard: NSPasteboard) { self.pasteboard = pasteboard }
+    var changeCount: Int { pasteboard.changeCount }
+    func contents() -> [[NSPasteboard.PasteboardType: Data]] {
+        (pasteboard.pasteboardItems ?? []).map { item in
+            var formats: [NSPasteboard.PasteboardType: Data] = [:]
+            for type in item.types { if let data = item.data(forType: type) { formats[type] = data } }
+            return formats
+        }
+    }
+    @discardableResult func replaceContents(with items: [[NSPasteboard.PasteboardType: Data]]) -> Int {
+        pasteboard.clearContents()
+        let objects = items.map { formats -> NSPasteboardItem in
+            let item = NSPasteboardItem()
+            for (type, data) in formats { item.setData(data, forType: type) }
+            return item
+        }
+        if !objects.isEmpty { pasteboard.writeObjects(objects) }
+        return pasteboard.changeCount
+    }
+}
+
 /// Inserts transcribed text into the focused app using a staged strategy so the
 /// common case never touches the clipboard:
 ///   1. Accessibility: write into the focused element (replaces selection / inserts at caret).
 ///   2. Synthesized Unicode typing (CGEvent) — no clipboard.
 ///   3. Clipboard + Cmd+V, saving and restoring the previous clipboard contents.
 enum NativePaste {
+    static let concealedType = NSPasteboard.PasteboardType("org.nspasteboard.ConcealedType")
     /// Modifier bits a still-held hotkey chord (e.g. Raw = Ctrl+Shift+Space) can
     /// leak into a synthesized paste. Caps-lock and Fn are deliberately ignored.
     static let relevantModifiers: CGEventFlags = [.maskCommand, .maskControl, .maskShift, .maskAlternate]
@@ -77,10 +109,17 @@ enum NativePaste {
     /// queue. When the hotkey chord is still held, the wait is asynchronous so
     /// the app never freezes.
     static func copyAndPaste(_ text: String, completion: @escaping (NativePasteResult) -> Void) {
+        copyAndPaste(text, sensitive: AppSettings.shared.sensitiveMode, shouldContinue: { true }, completion: completion)
+    }
+
+    static func copyAndPaste(_ text: String, sensitive: Bool, shouldContinue: @escaping () -> Bool,
+                             completion: @escaping (NativePasteResult) -> Void) {
+        guard shouldContinue() else { return completion(.clipboardOnly(L("Diktat abgebrochen.", "Dictation cancelled."))) }
         guard !text.isEmpty else { return completion(.pasted) }
+        let effectiveSensitive = sensitive || AppSettings.shared.sensitiveMode
 
         guard Permissions.accessibilityTrusted else {
-            setClipboard(text)
+            copyToClipboard(text, sensitive: effectiveSensitive)
             return completion(.clipboardOnly(L("Bedienungshilfen fehlen; Text liegt in der Zwischenablage.",
                                                 "Accessibility permission is missing; the text is on the clipboard.")))
         }
@@ -93,27 +132,29 @@ enum NativePaste {
         // the user to lift the keys before injecting anything.
         let held = heldModifiers(CGEventSource.flagsState(.combinedSessionState))
         AppLogger.log("native_paste begin held_mods=\(describe(held)) chars=\(text.count)")
-        guard !held.isEmpty else { return completion(inject(text)) }
+        guard !held.isEmpty else { return completion(inject(text, sensitive: effectiveSensitive)) }
 
         awaitModifiersClear { remaining in
+            guard shouldContinue() else { return completion(.clipboardOnly(L("Diktat abgebrochen.", "Dictation cancelled."))) }
+            let effectiveSensitive = sensitive || AppSettings.shared.sensitiveMode
             AppLogger.log("native_paste waited remaining_mods=\(describe(remaining))")
             if !remaining.isEmpty {
                 // Still held after the wait. Injecting now would type into the live
                 // modifiers and insert nothing, losing the transcript — so leave it
                 // on the clipboard for a manual paste instead.
-                setClipboard(text)
+                copyToClipboard(text, sensitive: effectiveSensitive)
                 AppLogger.log("native_paste stage=clipboard_only_modifiers_held")
                 return completion(.clipboardOnly(L("Modifier-Tasten gehalten; Text liegt in der Zwischenablage (⌘V).",
                                                     "Modifier keys were held; the text is on the clipboard (⌘V).")))
             }
-            completion(inject(text))
+            completion(inject(text, sensitive: effectiveSensitive))
         }
     }
 
     /// The staged, non-blocking injection: Accessibility, then Unicode typing,
     /// then clipboard + Cmd+V. Assumes accessibility is granted and no modifier
     /// chord is held (both checked by `copyAndPaste`).
-    private static func inject(_ text: String) -> NativePasteResult {
+    private static func inject(_ text: String, sensitive: Bool) -> NativePasteResult {
         // Stage 1 — Accessibility direct write (no clipboard).
         if insertViaAccessibility(text) { AppLogger.log("native_paste stage=ax"); return .pasted }
 
@@ -122,7 +163,7 @@ enum NativePaste {
 
         // Stage 3 — Clipboard + Cmd+V, restoring the previous clipboard.
         AppLogger.log("native_paste stage=clipboard")
-        return pasteViaClipboard(text)
+        return pasteViaClipboard(text, sensitive: sensitive)
     }
 
     // MARK: - Stage 1: Accessibility
@@ -149,7 +190,20 @@ enum NativePaste {
     static func utf16Chunks(_ text: String, size: Int) -> [[UniChar]] {
         let units = Array(text.utf16)
         guard size > 0, !units.isEmpty else { return units.isEmpty ? [] : [units] }
-        return stride(from: 0, to: units.count, by: size).map { Array(units[$0..<min($0 + size, units.count)]) }
+        var chunks: [[UniChar]] = []
+        var start = 0
+        while start < units.count {
+            var end = min(start + size, units.count)
+            if end < units.count, (0xD800...0xDBFF).contains(units[end - 1]),
+               (0xDC00...0xDFFF).contains(units[end]) {
+                // A size-one chunk must grow to fit the scalar; normal chunks
+                // shrink by one so each event stays within its size budget.
+                end = end - 1 > start ? end - 1 : end + 1
+            }
+            chunks.append(Array(units[start..<end]))
+            start = end
+        }
+        return chunks
     }
 
     static func typeUnicode(_ text: String) -> Bool {
@@ -167,45 +221,61 @@ enum NativePaste {
 
     // MARK: - Stage 3: Clipboard fallback
 
-    static func pasteViaClipboard(_ text: String) -> NativePasteResult {
-        let pasteboard = NSPasteboard.general
-        let previous = pasteboard.string(forType: .string)
-        setClipboard(text)
+    static func pasteViaClipboard(_ text: String, sensitive: Bool? = nil,
+                                  clipboard: ClipboardAccess? = nil,
+                                  postPaste: () -> Bool = postCommandV,
+                                  scheduleRestore: (TimeInterval, @escaping () -> Void) -> Void = {
+                                      DispatchQueue.main.asyncAfter(deadline: .now() + $0, execute: $1)
+                                  }) -> NativePasteResult {
+        let clipboard = clipboard ?? SystemClipboard(.general)
+        let previousCount = clipboard.changeCount
+        let previous = clipboard.contents()
+        // Reading promised representations can run another app. Refuse to
+        // overwrite a clipboard that changed while its contents were read.
+        guard previousCount == clipboard.changeCount else {
+            return .clipboardOnly(L("Zwischenablage wurde geändert; bitte das letzte Transkript erneut kopieren.",
+                                    "The clipboard changed; copy the last transcript again."))
+        }
+        let insertedCount = copyToClipboard(text, sensitive: sensitive, clipboard: clipboard)
+        guard postPaste() else {
+            return .clipboardOnly(L("Paste-Event konnte nicht erzeugt werden; Text liegt in der Zwischenablage.",
+                                    "Could not create the paste event; the text is on the clipboard."))
+        }
+        scheduleRestore(0.4) {
+            // A newer user/application copy always wins over our restoration.
+            guard clipboard.changeCount == insertedCount else { return }
+            clipboard.replaceContents(with: previous)
+        }
+        return .pasted
+    }
 
+    private static func postCommandV() -> Bool {
         guard let source = CGEventSource(stateID: .hidSystemState),
               let down = CGEvent(keyboardEventSource: source, virtualKey: CGKeyCode(kVK_ANSI_V), keyDown: true),
               let up = CGEvent(keyboardEventSource: source, virtualKey: CGKeyCode(kVK_ANSI_V), keyDown: false)
         else {
-            return .clipboardOnly(L("Paste-Event konnte nicht erzeugt werden; Text liegt in der Zwischenablage.",
-                                "Could not create the paste event; the text is on the clipboard."))
+            return false
         }
         down.flags = .maskCommand
         up.flags = .maskCommand
         down.post(tap: .cghidEventTap)
         up.post(tap: .cghidEventTap)
 
-        // Restore the previous clipboard after the target app has had time to read ours.
-        if let previous {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                let pb = NSPasteboard.general
-                pb.clearContents()
-                pb.setString(previous, forType: .string)
-            }
-        }
-        return .pasted
+        return true
     }
 
     // MARK: - Helpers
 
-    private static func setClipboard(_ text: String) {
-        let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        pasteboard.setString(text, forType: .string)
-        if AppSettings.shared.sensitiveMode {
+    @discardableResult static func copyToClipboard(_ text: String, sensitive: Bool? = nil,
+                                                   clipboard: ClipboardAccess? = nil) -> Int {
+        let clipboard = clipboard ?? SystemClipboard(.general)
+        var formats: [NSPasteboard.PasteboardType: Data] = [.string: Data(text.utf8)]
+        if sensitive ?? AppSettings.shared.sensitiveMode {
             // nspasteboard.org convention: clipboard managers skip entries
             // marked as concealed, so sensitive dictations stay out of their
             // histories.
-            pasteboard.setString("", forType: NSPasteboard.PasteboardType("org.nspasteboard.ConcealedType"))
+            formats[concealedType] = Data()
         }
+        return clipboard.replaceContents(with: [formats])
     }
 }

@@ -1,0 +1,8 @@
+{
+  "release_commit": "f09a5cedf6c0782aba74d57ab7c2d5fc42060aa8",
+  "env": "fresh_save=success\nfresh_destination_exists=true\nexisting_save=success source=local",
+  "sensitive_failure": "sensitive_failure_state=error\nsensitive_failure_wav_exists=true",
+  "history": "expired_on_load=1\nexpired_after_sensitive_add=1\nexpired_after_normal_add=0",
+  "privacy_apply": "sensitive_draft=true effective_sensitive=false validation=Timeouts and time values must be numbers.\nlocal_hidden_url_validation=The Whisper URL must start with http:// or https://. effective_sensitive=false",
+  "legacy_pid_signals_intercepted": "-0 424242\n-SIGINT 424242\n-0 424242\n424242"
+}

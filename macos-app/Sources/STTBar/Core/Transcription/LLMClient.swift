@@ -13,7 +13,11 @@ enum LLMError: LocalizedError {
 
 /// Optional LLM cleanup (replaces stt-postprocess.sh). Supports the LM Studio
 /// `input` shape and the OpenAI `messages` shape.
-struct LLMClient {
+protocol TranscriptCleaning {
+    func clean(transcript: String, config: TranscriptionConfig, translateTo: String?) async throws -> String
+}
+
+struct LLMClient: TranscriptCleaning {
     var session: URLSession = .shared
 
     static let openRouterURL = "https://openrouter.ai/api/v1/chat/completions"

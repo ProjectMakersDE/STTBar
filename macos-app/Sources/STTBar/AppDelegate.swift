@@ -17,6 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var watchdogTimer: Timer?
     private let history = TranscriptHistoryStore()
     private var lastTranscript: String?
+    private var lastTranscriptSensitive = false
     let installDir = InstallPaths.resolve()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -30,9 +31,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         RuntimePaths.ensureDirectory()
+        TempFileCleanup.removeOrphanedRecordings(runtime: RuntimePaths.directory,
+            includeLegacy: ProcessInfo.processInfo.environment["STT_RUNTIME_DIR"] == nil)
         try? FileManager.default.createDirectory(at: installDir, withIntermediateDirectories: true)
-        // Model first: the native backend snapshots its settings at stop() time.
+        // Model first: the native backend snapshots its settings at start().
         model = SettingsModel(installDir: installDir)
+        history.purgeExpired()
         let settingsModel = model!
         let backend = NativeBackend(config: { TranscriptionConfig.from(settingsModel) })
         runner = SttRunner(backend: backend)
@@ -49,8 +53,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         model.onClearHistory = { [weak self] in
             self?.history.clear()
             self?.lastTranscript = nil
+            self?.lastTranscriptSensitive = false
             self?.menu.setLastTranscriptAvailable(false)
         }
+        model.onPrivacySettingsChanged = { [weak self] in self?.history.purgeExpired() }
 
         runner.onState = { [weak self] state in
             self?.menu.setState(state)
@@ -68,11 +74,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
         runner.onTranscript = { [weak self] text, mode, paste in
-            self?.lastTranscript = text
-            self?.onboardingWindow?.flow.lastTestTranscript = text
-            self?.menu.setLastTranscriptAvailable(true)
-            self?.history.add(text: text, mode: mode)
-            self?.updateLastRunSummary()
+            guard let self else { return }
+            self.lastTranscript = text
+            self.lastTranscriptSensitive = self.runner.currentRunSensitive || AppSettings.shared.sensitiveMode
+            self.onboardingWindow?.flow.lastTestTranscript = text
+            self.menu.setLastTranscriptAvailable(true)
+            if !self.lastTranscriptSensitive { self.history.add(text: text, mode: mode) }
+            self.updateLastRunSummary()
             switch paste {
             case .pasted: AppLogger.log("native_paste ok chars=\(text.count)")
             case .clipboardOnly(let reason): AppLogger.log("native_paste clipboard_only reason=\(reason)")
@@ -105,6 +113,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if OnboardingReadiness.needsOnboarding(model: model) { showOnboarding(force: true) }
     }
 
+    func applicationWillTerminate(_ notification: Notification) {
+        watchdogTimer?.invalidate()
+        if runner?.isRunActive == true { runner?.cancelRecording() }
+    }
+
     private func showOnboarding(force: Bool = false) {
         if onboardingWindow == nil {
             let w = OnboardingWindow(model: model)
@@ -124,7 +137,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func showSettings() {
         if settingsWindow == nil {
             // Cleanup must stay locked during whisper/llm too: the backend is
-            // still reading recording.wav in those phases. Gate on isRunActive,
+            // still reading the current WAV in those phases. Gate on isRunActive,
             // not `state == .idle` — `.error` is sticky (e.g. a clipboard-only
             // paste fallback) and would lock the button for the rest of the
             // session. With `self` nil this reads `nil == false`, i.e. `false`,
@@ -156,13 +169,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func copyLastTranscript() {
         guard let lastTranscript else { return }
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(lastTranscript, forType: .string)
+        NativePaste.copyToClipboard(lastTranscript, sensitive: lastTranscriptSensitive || AppSettings.shared.sensitiveMode)
     }
 
     private func reinsertLastTranscript() {
         guard let lastTranscript else { return }
-        NativePaste.copyAndPaste(lastTranscript) { [weak self] result in
+        NativePaste.copyAndPaste(lastTranscript, sensitive: lastTranscriptSensitive || AppSettings.shared.sensitiveMode,
+                                shouldContinue: { true }) { [weak self] result in
             guard case .clipboardOnly(let reason) = result else { return }
             StatusStore.writeAppStatus(event: "last_transcript_clipboard_only", phase: "done", severity: "warning", code: "paste_permission_missing", message: L("Letztes Transkript liegt in der Zwischenablage.", "The last transcript is on the clipboard."), detail: reason)
             self?.menu.setLastProblem(StatusStore.latestProblem())
@@ -173,6 +186,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         watchdogTimer?.invalidate()
         let timer = Timer(timeInterval: 2, repeats: true) { [weak self] _ in
             guard let self else { return }
+            self.history.purgeExpired()
             let report = self.runner.watchdog(maxDuration: TimeInterval(AppSettings.shared.maxRecordingSeconds))
             if report.isRecording && self.runner.state == .idle {
                 self.menu.setState(.recording)

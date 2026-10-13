@@ -27,6 +27,7 @@ cp "$HERE/Resources/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
 COMMIT="unknown"
 if command -v git >/dev/null 2>&1 && git -C "$HERE/.." rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     COMMIT="$(git -C "$HERE/.." rev-parse --short HEAD 2>/dev/null || echo unknown)"
+    if ! git -C "$HERE/.." diff --quiet HEAD --; then COMMIT="$COMMIT-dirty"; fi
 fi
 VERSION="unknown"
 BUILD="unknown"

@@ -1,0 +1,37 @@
+[
+  {
+    "verdict": "confirmed",
+    "title": "Cross-user process signaling through a shared legacy PID file",
+    "description": "The optional legacy recorder shell scripts trust the globally shared /tmp/stt-recording.pid. A different local OS account can precreate this absent file readable by the victim and put a known victim-owned unrelated process PID in it. When the victim uses legacy cancel or force-start, the script sends SIGINT and then SIGTERM to that process using the victim's permissions. The native macOS application does not invoke these scripts. An isolated reproduction copied the unchanged release scripts without .env and intercepted every kill call with a Bash function: positive synthetic PID 424242 reached both signal arguments; no real process was signaled.",
+    "root_cause": "force_clear_recordings in stt-record.sh does not verify the ownership and recorder identity of the PID obtained from the shared legacy file, allowing another local user to select an unrelated victim process for signaling.",
+    "intended_behavior": "Cancel and force-start should stop only the caller's STT audio recorder, including a trusted recorder left over from an older version.",
+    "trace": [
+      {"kind": "entrypoint", "file": "stt-record.sh", "line": 255, "scope": "cancel_recording", "description": "The cancel/abort CLI dispatch at lines 283-284 invokes cancel_recording, which calls force_clear_recordings. The shared legacy PID path defaults to /tmp/stt-recording.pid at top-level line 15."},
+      {"kind": "propagation", "file": "stt-record.sh", "line": 227, "scope": "force_clear_recordings", "description": "The loop includes both the current runtime PID path and the shared legacy PID path."},
+      {"kind": "propagation", "file": "stt-record.sh", "line": 230, "scope": "force_clear_recordings", "description": "The file content becomes rec_pid without an owner or recorder-identity check."},
+      {"kind": "propagation", "file": "stt-record.sh", "line": 231, "scope": "force_clear_recordings", "description": "kill -0 checks only whether the victim can signal the supplied process."},
+      {"kind": "sink", "file": "stt-record.sh", "line": 232, "scope": "force_clear_recordings", "description": "SIGINT is sent to the supplied PID, followed by a default SIGTERM at line 237."}
+    ],
+    "conditions": [
+      {"kind": "authentication_level", "description": "The attacker has a different local OS account on the same machine."},
+      {"kind": "system_configuration", "description": "The victim uses the optional legacy shell recorder, not the current native macOS app, and the legacy PID path is /tmp/stt-recording.pid or another location the attacker can precreate."},
+      {"kind": "data_state", "description": "The attacker can create the absent global legacy PID file readable by the victim and knows a live positive PID owned by the victim."},
+      {"kind": "user_interaction", "description": "The victim subsequently invokes legacy cancel or force-start. A separate stop path attempts SIGINT only. The demonstrated trace uses cancel."}
+    ],
+    "execution": {
+      "attacker_perspective": "A second local account that cannot directly signal the victim's unrelated process.",
+      "payloads": ["A readable /tmp/stt-recording.pid containing the decimal positive PID of an unrelated victim-owned process followed by a newline."],
+      "instructions": ["Determine a live victim-owned process PID.", "Precreate the absent shared legacy PID file with that PID and read permission for the victim.", "Wait for the victim to use legacy cancel or force-start.", "The victim script reads the file and attempts SIGINT and SIGTERM against the selected process."],
+      "expected_result": "The unrelated process receives signals using the victim's permissions. It may terminate or lose unsaved work. The safe synthetic reproduction records '-SIGINT 424242' and '424242' without calling the real kill builtin."
+    },
+    "remediation": {
+      "strategy": "Remove automatic signaling from global legacy PID files. If migration support is retained, require a regular file owned by the current user in private per-user storage, a strictly positive decimal PID, and verified recorder process identity before signaling. Apply the same policy to stop, cancel, status and force-start paths."
+    },
+    "severity": {
+      "likelihood": {"score": "low", "reason": "Requires another local account, a known live victim PID, precreation of the legacy file and subsequent legacy-tool use."},
+      "impact": {"score": "low", "reason": "Targeted local process interruption with possible unsaved-work loss. No confidentiality, privilege acquisition or native-app compromise was established."},
+      "overall_severity": "low"
+    },
+    "confidence": {"score": "high", "reason": "Exact release source is traced and independently reviewed. The isolated interceptor confirms data propagation to signal arguments. No real cross-account process termination was performed."}
+  }
+]

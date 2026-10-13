@@ -22,6 +22,10 @@ APP="$DEST/STTBar.app"
 BUNDLE_ID="de.projectmakers.sttbar"
 
 [[ -f "$PROFILE" ]] || { echo "ERROR: provisioning profile not found: $PROFILE" >&2; exit 1; }
+if [[ -n "${STT_BUILD_NUMBER:-}" && ! "$STT_BUILD_NUMBER" =~ ^[1-9][0-9]*$ ]]; then
+    echo "ERROR: STT_BUILD_NUMBER must be a positive integer." >&2
+    exit 1
+fi
 
 APP_IDENTITY="${STT_APPSTORE_APP_IDENTITY:-$(security find-identity -v -p codesigning | awk -F'"' '/Apple Distribution/{print $2; exit}')}"
 INSTALLER_IDENTITY="${STT_APPSTORE_INSTALLER_IDENTITY:-$(security find-identity -v | awk -F'"' '/3rd Party Mac Developer Installer|Mac Installer Distribution/{print $2; exit}')}"
@@ -46,6 +50,7 @@ STT_APPSTORE=1 bash "$HERE/build-app.sh" "$DEST"
 
 if [[ -n "${STT_BUILD_NUMBER:-}" ]]; then
     /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $STT_BUILD_NUMBER" "$APP/Contents/Info.plist"
+    sed -i '' "s/^build=.*/build=$STT_BUILD_NUMBER/" "$APP/Contents/Resources/version.txt"
 fi
 
 cp "$HERE/Resources/STTBar.entitlements" "$TMPD/appstore.entitlements"
