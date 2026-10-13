@@ -1,0 +1,30 @@
+STTBar macht aus Sprache fertigen Text, in jeder App auf Ihrem Mac.
+
+Drücken Sie ein Tastenkürzel und sprechen Sie. Beim zweiten Druck transkribiert STTBar die Aufnahme, direkt auf Ihrem Mac oder auf einem Server Ihrer Wahl. Der Text erscheint dort, wo Ihr Cursor steht: in einer E-Mail, einem Chat, Ihrem Editor oder im Eingabefeld eines KI-Assistenten.
+
+Was STTBar kann:
+• Drei Tastenkürzel: bereinigter Text, Rohtranskript und englische Ausgabe aus deutscher Sprache.
+• Lokale Spracherkennung mit Parakeet oder WhisperKit. Nach dem Modelldownload funktioniert die Erkennung offline. Lokale Modelle werden beim App-Start vorgeladen.
+• Alternativ ein Whisper-Server im eigenen Netzwerk oder im Internet, bei Bedarf mit API-Schlüssel.
+• Optionale Bereinigung mit einem Sprachmodell Ihrer Wahl: lokal, etwa mit LM Studio oder Ollama, oder über OpenRouter und andere OpenAI-kompatible Dienste. Es entfernt Füllwörter und strukturiert den Text. Im Bereinigungsmodus ist auf Wunsch ein Rückfall auf das Rohtranskript möglich. Die englische Ausgabe benötigt einen funktionierenden Sprachmodell-Endpunkt.
+• API-Schlüssel bleiben im macOS-Schlüsselbund und werden nur an den zugehörigen Server gesendet.
+• Ein kleines Overlay mit Wellenform zeigt Aufnahme, Transkription und Bereinigung an.
+• Wortersetzungen für Namen und Fachbegriffe.
+• Verlauf mit Datenschutzeinstellungen und ein sensibler Modus, der Diktate nicht speichert.
+• Deutsche oder englische Oberfläche.
+
+Kein Konto, kein Abo, keine Werbung. Aufnahmen und Texte verlassen Ihren Mac nur, wenn Sie selbst einen Server oder Dienst eintragen.
+
+STTBar benötigt Zugriff auf das Mikrofon und die Bedienungshilfen. Der Zugriff auf die Bedienungshilfen dient dazu, den Text in die aktive App einzufügen.
+
+Erfordert macOS 14 und einen Mac mit Apple Silicon. Für die lokale Erkennung werden Modelldateien einmalig heruntergeladen. Das erste Herunterladen und Vorbereiten kann 1 bis 5 Minuten dauern.
+
+NEUES IN DIESER VERSION
+
+Neu in 1.8.0:
+• Schnellere lokale Transkription mit Parakeet. WhisperKit bleibt verfügbar.
+• Lokale Modelle werden beim App-Start geladen und vorbereitet. Dadurch ist das erste Diktat schneller bereit.
+• Klarere Hinweise zum einmaligen Herunterladen und Vorbereiten eines Modells.
+• Flüssigerer App-Start beim Laden von API-Schlüsseln.
+• Aktualisierte Angaben im Datenschutzmanifest.
+

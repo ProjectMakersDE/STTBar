@@ -1,0 +1,35 @@
+App Store Connect — https://appstoreconnect.apple.com/apps/6817328154/distribution/reviewsubmissions/details/d2b2886f-3f21-4dbc-afd5-7039a403c902
+Characters 0-364 of 364
+
+STTBar
+VertriebAnalyseTestFlight
+App-Prüfung
+macOS-Übermittlung
+
+Warten auf Prüfung
+
+Übermittelte Elemente (1)
+ELEMENT
+	
+TYP
+	
+PRÜFUNGSSTATUS
+	
+	
+
+
+macOS-App 1.8.0
+
+	
+App-Version
+	
+Warten auf Prüfung
+	
+	
+Übermittlungsdatum
+14. Okt. 2026 um 01:32 Uhr
+Übermittlungskennung
+d2b2886f-3f21-4dbc-afd5-7039a403c902
+Übermittelt von
+Simon-Daniel März
+Übermittlung abbrechen

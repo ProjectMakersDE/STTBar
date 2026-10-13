@@ -1,0 +1,30 @@
+STTBar turns your voice into finished text, in any app on your Mac.
+
+Press a hotkey and speak. Press it again and STTBar transcribes the recording, on your Mac or on a server of your choice. The text appears where your cursor is: in an email, a chat, your editor or the prompt field of an AI assistant.
+
+What STTBar does:
+• Three hotkeys: cleaned-up text, raw transcript and English output (speak German, paste English).
+• On-device speech recognition with Parakeet or WhisperKit. After the model download, recognition works offline. Local models are preloaded when the app starts.
+• Or a Whisper server: on a computer in your network or on the internet, with an API key if it needs one.
+• Optional cleanup with a language model of your choice: locally, for example in LM Studio or Ollama, or hosted through OpenRouter and other OpenAI-compatible services. It removes filler words and gives the text a clear structure. Cleanup mode can fall back to the raw transcript if enabled. English output requires a working language model endpoint.
+• API keys stay in your Mac's keychain and only go to the server they belong to.
+• A small overlay with a live waveform shows whether STTBar is recording, transcribing or cleaning up.
+• Word replacements for names and jargon, so they are always spelled right.
+• History with privacy controls, and a sensitive mode that never stores a dictation.
+• German or English interface.
+
+No account, no subscription, no ads. Recordings and texts leave your Mac only if you add a server or service yourself.
+
+STTBar needs access to the microphone and to Accessibility. Accessibility is required to insert the text into the active app.
+
+Requires macOS 14 and a Mac with Apple silicon. On-device recognition downloads model files once. The first download and preparation can take 1 to 5 minutes.
+
+WHAT'S NEW
+
+New in 1.8.0:
+• Faster on-device transcription with Parakeet. WhisperKit remains available.
+• Local models are loaded and warmed when the app starts, reducing the wait before your first dictation.
+• Clearer guidance during the one-time model download and preparation.
+• Improved launch responsiveness when loading API keys.
+• Updated privacy manifest declarations.
+

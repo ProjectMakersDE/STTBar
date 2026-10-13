@@ -1,0 +1,12 @@
+STTBar is a menu bar app (no Dock icon). After launch, click the microphone icon in the menu bar.
+
+1. Onboarding asks for microphone access and Accessibility. Accessibility is used only to insert the transcribed text into the focused text field. STTBar does not read or store the content of other apps.
+2. Choose on-device transcription. Version 1.8.0 uses Parakeet via FluidAudio by default. WhisperKit remains available. Model files are downloaded into the sandbox container (data only, no downloaded executable code). The first download and preparation can take 1 to 5 minutes. Wait until the model is ready. It is preloaded at subsequent app launches.
+3. Put the cursor into a text field, for example in TextEdit. Press Control+Shift+Space, speak a sentence, then press Control+Shift+Space again. The text appears in the field.
+
+Optional cleanup needs a language model endpoint such as LM Studio, Ollama, or an OpenAI-compatible service with the user's own API key. Cleanup is off by default. No login is required for STTBar.
+
+Version 1.8.0 (build 24) adds Parakeet on-device transcription and model preloading, explains the one-time model preparation, moves API key loading off the main thread, and updates required-reason API declarations in the privacy manifest.
+
+China mainland remains excluded from distribution, as agreed in the review of version 1.7.0. The configurable transcription and optional AI cleanup endpoints remain available in the other selected storefronts.
+

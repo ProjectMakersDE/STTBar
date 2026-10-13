@@ -1,4 +1,23 @@
-# App Store review: STTBar 1.7.0
+# App Store review
+
+## Version 1.8.0 (24), submitted 14 October 2026
+
+Built from the clean release tag `v1.8.0`, commit
+`4fadcefc39af901b860b9967c619a943d43961c9`. Transporter delivered build 24 on
+14 October 2026 at 01:28 Europe/Berlin. App Store Connect completed processing
+and accepted the submission with status **Waiting for Review**.
+
+Submission: `d2b2886f-3f21-4dbc-afd5-7039a403c902`.
+Build: `b79c6914-83c3-4118-af36-c46370f19fa5`.
+Automatic publication after approval is retained. China mainland remains the
+only excluded storefront, with 174 storefronts available. German and English
+descriptions and release notes were updated for Parakeet and model preloading.
+Review instructions describe the one-time model preparation. Source versions
+and the changelog were not changed for the App Store upload.
+
+See [submission evidence](reports/2026-10-14-appstore-1.8.0/REPORT.md).
+
+## Version 1.7.0, historical review and resolution
 
 Review of 2 October 2026: submission `24906f41-5b19-4c82-b3fe-796de5c3a88d`,
 app `6817328154`, version 1.7.0 (22).
@@ -24,7 +43,8 @@ Build 1.7.0 (23) was delivered with Transporter on 3 October 2026 at 03:22 local
 time. After processing, build 23 replaced build 22 in version 1.7.0, and the
 existing submission was resubmitted. App Store Connect confirmed **Waiting for
 Review** (`Warten auf Prüfung`) for both the submission and app version.
-Apple approval remains pending.
+At the start of the 1.8.0 submission on 14 October 2026, App Store Connect
+confirmed that 1.7.0 (23) was **Ready for Distribution**.
 
 1. Open [STTBar in App Store Connect](https://appstoreconnect.apple.com/apps/6817328154).
 2. Open **Pricing and Availability → App Availability → Manage → Manage

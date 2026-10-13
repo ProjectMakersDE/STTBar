@@ -1,0 +1,66 @@
+Fetching https://github.com/argmaxinc/WhisperKit.git from cache
+Fetching https://github.com/FluidInference/FluidAudio.git from cache
+Fetching https://github.com/apple/swift-argument-parser.git from cache
+Fetched https://github.com/FluidInference/FluidAudio.git from cache (0.52s)
+Fetched https://github.com/argmaxinc/WhisperKit.git from cache (0.52s)
+Fetched https://github.com/apple/swift-argument-parser.git from cache (0.52s)
+Computing version for https://github.com/FluidInference/FluidAudio.git
+Computed https://github.com/FluidInference/FluidAudio.git at 0.17.7 (1.43s)
+Computing version for https://github.com/argmaxinc/WhisperKit.git
+Computed https://github.com/argmaxinc/WhisperKit.git at 1.0.0 (0.90s)
+Computing version for https://github.com/apple/swift-argument-parser.git
+Computed https://github.com/apple/swift-argument-parser.git at 1.8.2 (0.54s)
+Creating working copy for https://github.com/FluidInference/FluidAudio.git
+Working copy of https://github.com/FluidInference/FluidAudio.git resolved at 0.17.7
+Creating working copy for https://github.com/apple/swift-argument-parser.git
+Working copy of https://github.com/apple/swift-argument-parser.git resolved at 1.8.2
+Creating working copy for https://github.com/argmaxinc/WhisperKit.git
+Working copy of https://github.com/argmaxinc/WhisperKit.git resolved at 1.0.0
+Fetching binary artifact https://github.com/FluidInference/text-processing-rs/releases/download/v0.3.1/NemoTextProcessing.xcframework.zip from cache
+Fetched https://github.com/FluidInference/text-processing-rs/releases/download/v0.3.1/NemoTextProcessing.xcframework.zip from cache (2.68s)
+[1/1] Compiling plugin GenerateManual
+[2/2] Compiling plugin GenerateDoccReference
+Building for production...
+[2/14] Copying libtext_processing_rs.a
+[2/14] Copying luxtts_en_us_lexicon.tsv.zz
+[2/14] Write sources
+[8/14] Copying luxtts_en_us_g2p_aux.json
+[9/14] Write swift-version--58304C5D6DBC2206.txt
+[10/16] Compiling MachTaskSelfWrapper MachTaskSelf.c
+[11/16] Compiling FastClusterWrapper FastClusterWrapper.cpp
+[13/17] Emitting module ArgmaxCore
+[14/17] Compiling ArgmaxCore ArgmaxCoreError.swift
+[16/20] Compiling WhisperKit AudioChunker.swift
+[17/20] Emitting module WhisperKit
+[19/21] Compiling FluidAudio CanaryConfig.swift
+[20/22] Compiling STTBar AppDelegate.swift
+/Users/simon-danielmarz/.codex/worktrees/sttbar-180-apple/STTBar/macos-app/Sources/STTBar/Core/Transcription/NativeBackend.swift:163:17: warning: capture of 'self' with non-Sendable type 'NativeBackend?' in a '@Sendable' closure [#SendableClosureCaptures]
+ 20 | /// Lifecycle entry points run on the main thread; async work only captures its
+ 21 | /// own run, so late cancellation/completion cannot touch a newer recording.
+ 22 | final class NativeBackend: TranscriptionBackend {
+    |             `- note: class 'NativeBackend' does not conform to the 'Sendable' protocol
+ 23 |     private struct Run {
+ 24 |         let id = UUID()
+    :
+161 |             let finishedMetric = metric
+162 |             DispatchQueue.main.async { [weak self] in
+163 |                 self?.finish(run: run, result: result, metric: finishedMetric, completion: completion)
+    |                 `- warning: capture of 'self' with non-Sendable type 'NativeBackend?' in a '@Sendable' closure [#SendableClosureCaptures]
+164 |             }
+165 |         }
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[20/22] Write Objects.LinkFileList
+[21/22] Linking STTBar
+Build complete! (151.92s)
+Built /Users/simon-danielmarz/.codex/worktrees/sttbar-180-apple/STTBar/dist-appstore/1.8.0-build24/STTBar.app (App Store variant, unsigned)
+/Users/simon-danielmarz/.codex/worktrees/sttbar-180-apple/STTBar/dist-appstore/1.8.0-build24/STTBar.app: replacing existing signature
+/Users/simon-danielmarz/.codex/worktrees/sttbar-180-apple/STTBar/dist-appstore/1.8.0-build24/STTBar.app: valid on disk
+/Users/simon-danielmarz/.codex/worktrees/sttbar-180-apple/STTBar/dist-appstore/1.8.0-build24/STTBar.app: satisfies its Designated Requirement
+productbuild: Adding component at /Users/simon-danielmarz/.codex/worktrees/sttbar-180-apple/STTBar/dist-appstore/1.8.0-build24/STTBar.app
+productbuild: Signing product with identity "3rd Party Mac Developer Installer: Simon-Daniel Marz (V7ZXN75Q2L)" from keychain /Users/simon-danielmarz/Library/Keychains/login.keychain-db
+productbuild: Adding certificate "Apple Worldwide Developer Relations Certification Authority"
+productbuild: Adding certificate "Apple Root CA"
+productbuild: Wrote product to /Users/simon-danielmarz/.codex/worktrees/sttbar-180-apple/STTBar/dist-appstore/1.8.0-build24/STTBar.pkg
+productbuild: Supported OS versions: [Min: 14.0, Before: None]
+Built /Users/simon-danielmarz/.codex/worktrees/sttbar-180-apple/STTBar/dist-appstore/1.8.0-build24/STTBar.pkg (version 1.8.0, build 24). Upload it with Transporter.

@@ -1,0 +1,28 @@
+{
+  "before_bytes": 1288613888,
+  "after_cache_cleanup_bytes": 38764544,
+  "regenerable_bytes_removed": 1249849344,
+  "nested_checkouts": [
+    {
+      "dependency": "FluidAudio",
+      "head": "503b4bd1bbf7220882de39fe8ae6716aae4132da",
+      "clean": true,
+      "remote_backed": true
+    },
+    {
+      "dependency": "WhisperKit",
+      "head": "25c62997041c134b03ca82731ce2f6fd2cae1eb9",
+      "clean": true,
+      "remote_backed": true
+    },
+    {
+      "dependency": "swift-argument-parser",
+      "head": "6a52f3251125d74daf04fcbd5e6f08a75d074382",
+      "clean": true,
+      "remote_backed": true
+    }
+  ],
+  "package_backup": "/Users/simon-danielmarz/Documents/GitHub/STTBar/dist-appstore/1.8.0-build24/STTBar.pkg",
+  "source_backup": "origin tag v1.8.0 (4fadcefc39af901b860b9967c619a943d43961c9)",
+  "build_process_exit_code": 0
+}
