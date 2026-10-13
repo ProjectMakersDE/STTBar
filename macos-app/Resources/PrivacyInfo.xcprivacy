@@ -24,6 +24,27 @@
 				<string>CA92.1</string>
 			</array>
 		</dict>
+		<!-- File metadata (FileManager.attributesOfItem) of files inside the app
+		     container only: recording sizes for run metrics, local model cache
+		     checks, and FluidAudio's model download resume. Reason C617.1. -->
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryFileTimestamp</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>C617.1</string>
+			</array>
+		</dict>
+		<!-- ProcessInfo.systemUptime measures how long the paste step waits for
+		     held hotkey modifiers, time between events inside the app. Reason 35F9.1. -->
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategorySystemBootTime</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>35F9.1</string>
+			</array>
+		</dict>
 	</array>
 </dict>
 </plist>
