@@ -25,7 +25,11 @@ enum SttMode: String, CaseIterable {
 /// App-owned settings persisted in UserDefaults (HUD appearance + hotkeys).
 final class AppSettings {
     static let shared = AppSettings()
-    private let d = UserDefaults.standard
+    private let d: UserDefaults
+
+    init(defaults: UserDefaults = .standard) {
+        self.d = defaults
+    }
 
     var hudAnchor: HudAnchor {
         get { HudAnchor(rawValue: d.string(forKey: "hudAnchor") ?? "") ?? .topCenter }

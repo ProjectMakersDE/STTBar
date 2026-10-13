@@ -11,5 +11,8 @@
 	<!-- Requests microphone access for speech-to-text recording. -->
 	<key>com.apple.security.device.audio-input</key>
 	<true/>
+	<!-- User-selected vocabulary, profiles and history import/export panels. -->
+	<key>com.apple.security.files.user-selected.read-write</key>
+	<true/>
 </dict>
 </plist>

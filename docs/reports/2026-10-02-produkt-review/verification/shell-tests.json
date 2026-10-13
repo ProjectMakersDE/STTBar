@@ -1,0 +1,47 @@
+[
+  {
+    "test": "test-global-explicit-action.sh",
+    "exit_code": 0,
+    "output": "PASS global-force-start-restarts-cleanly\nPASS global-stop-noop-when-idle\n"
+  },
+  {
+    "test": "test-postprocess-auto-raw-fallback.sh",
+    "exit_code": 0,
+    "output": "PASS postprocess-auto-raw-fallback\n"
+  },
+  {
+    "test": "test-postprocess-prompt-file.sh",
+    "exit_code": 0,
+    "output": "PASS file-prompt\nPASS inline-precedence\nALL PASS\n"
+  },
+  {
+    "test": "test-record-legacy-runtime.sh",
+    "exit_code": 0,
+    "output": "PASS record-legacy-runtime\nPASS record-legacy-orphan-runtime\n"
+  },
+  {
+    "test": "test-release-requires-developer-id.sh",
+    "exit_code": 0,
+    "output": "PASS release-requires-developer-id\n"
+  },
+  {
+    "test": "test-replacements-extended-tsv.sh",
+    "exit_code": 0,
+    "output": "PASS replacements-extended-tsv\n"
+  },
+  {
+    "test": "test-transcribe-decode-fields.sh",
+    "exit_code": 0,
+    "output": "PASS transcribe-decode-fields\n"
+  },
+  {
+    "test": "test-transcribe-prompt.sh",
+    "exit_code": 0,
+    "output": "PASS transcribe-prompt\n"
+  },
+  {
+    "test": "test-transcribe-timeout.sh",
+    "exit_code": 0,
+    "output": "PASS transcribe-timeout\n"
+  }
+]

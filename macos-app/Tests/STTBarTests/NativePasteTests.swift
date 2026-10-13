@@ -1,5 +1,6 @@
 import XCTest
 import CoreGraphics
+import AppKit
 @testable import STTBar
 
 final class NativePasteTests: XCTestCase {
@@ -77,5 +78,112 @@ final class NativePasteTests: XCTestCase {
         let chunks = NativePaste.utf16Chunks("hi", size: 20)
         XCTAssertEqual(chunks.count, 1)
         XCTAssertEqual(chunks[0], Array("hi".utf16))
+    }
+
+    func testChunkingKeepsSurrogatePairsIntactAtBoundary() {
+        let text = String(repeating: "a", count: 19) + "😀Z"
+        let chunks = NativePaste.utf16Chunks(text, size: 20)
+        XCTAssertEqual(chunks.map { String(decoding: $0, as: UTF16.self) }.joined(), text)
+        XCTAssertTrue(chunks.allSatisfy { $0.count <= 20 })
+        XCTAssertEqual(chunks[0].count, 19)
+    }
+
+    func testChunkingSizeOneStillKeepsEmojiIntact() {
+        let text = "a😀b"
+        let chunks = NativePaste.utf16Chunks(text, size: 1)
+        XCTAssertEqual(chunks.map { String(decoding: $0, as: UTF16.self) }.joined(), text)
+    }
+}
+
+private final class SyntheticClipboard: ClipboardAccess {
+    var changeCount = 0
+    var items: [[NSPasteboard.PasteboardType: Data]] = []
+    var onRead: (() -> Void)?
+    func contents() -> [[NSPasteboard.PasteboardType: Data]] {
+        let previous = items
+        onRead?()
+        return previous
+    }
+    @discardableResult func replaceContents(with items: [[NSPasteboard.PasteboardType: Data]]) -> Int {
+        self.items = items
+        changeCount += 1
+        return changeCount
+    }
+}
+
+final class NativeClipboardTests: XCTestCase {
+    func testCancelledPasteStopsBeforePermissionOrClipboardAccess() {
+        var completed = false
+        NativePaste.copyAndPaste("cancelled", sensitive: true, shouldContinue: { false }) { result in
+            guard case .clipboardOnly = result else { return XCTFail("Expected cancellation") }
+            completed = true
+        }
+        XCTAssertTrue(completed)
+    }
+
+    func testExplicitSensitiveCopyIncludesConcealedMarker() {
+        let clipboard = SyntheticClipboard()
+        NativePaste.copyToClipboard("private", sensitive: true, clipboard: clipboard)
+        XCTAssertEqual(clipboard.items.first?[.string], Data("private".utf8))
+        XCTAssertNotNil(clipboard.items.first?[NativePaste.concealedType])
+    }
+
+    func testClipboardFallbackRestoresAllFormatsAndItems() {
+        let clipboard = SyntheticClipboard()
+        let original: [[NSPasteboard.PasteboardType: Data]] = [
+            [.string: Data("old".utf8), .rtf: Data([1, 2]), NativePaste.concealedType: Data()],
+            [.png: Data([3, 4]), .fileURL: Data("file:///synthetic".utf8)]
+        ]
+        clipboard.items = original
+        var restore: (() -> Void)?
+        _ = NativePaste.pasteViaClipboard("new", sensitive: false, clipboard: clipboard,
+                                          postPaste: { true }, scheduleRestore: { _, action in restore = action })
+        XCTAssertEqual(clipboard.items.first?[.string], Data("new".utf8))
+        restore?()
+        XCTAssertEqual(clipboard.items, original)
+    }
+
+    func testClipboardFallbackDoesNotOverwriteNewerCopy() {
+        let clipboard = SyntheticClipboard()
+        clipboard.items = [[.string: Data("old".utf8)]]
+        var restore: (() -> Void)?
+        _ = NativePaste.pasteViaClipboard("dictation", sensitive: false, clipboard: clipboard,
+                                          postPaste: { true }, scheduleRestore: { _, action in restore = action })
+        clipboard.replaceContents(with: [[.string: Data("newer user copy".utf8)]])
+        restore?()
+        XCTAssertEqual(clipboard.items.first?[.string], Data("newer user copy".utf8))
+    }
+
+    func testClipboardChangeDuringSnapshotIsNotOverwritten() {
+        let clipboard = SyntheticClipboard()
+        clipboard.items = [[.string: Data("old".utf8)]]
+        clipboard.onRead = { clipboard.replaceContents(with: [[.string: Data("newer".utf8)]]) }
+        var posted = false, scheduled = false
+        let result = NativePaste.pasteViaClipboard("dictation", sensitive: false, clipboard: clipboard,
+                                                   postPaste: { posted = true; return true },
+                                                   scheduleRestore: { _, _ in scheduled = true })
+        guard case .clipboardOnly = result else { return XCTFail("Expected changed snapshot") }
+        XCTAssertFalse(posted)
+        XCTAssertFalse(scheduled)
+        XCTAssertEqual(clipboard.items.first?[.string], Data("newer".utf8))
+    }
+
+    func testClipboardFallbackRestoresPreviouslyEmptyClipboard() {
+        let clipboard = SyntheticClipboard()
+        var restore: (() -> Void)?
+        _ = NativePaste.pasteViaClipboard("dictation", sensitive: false, clipboard: clipboard,
+                                          postPaste: { true }, scheduleRestore: { _, action in restore = action })
+        restore?()
+        XCTAssertTrue(clipboard.items.isEmpty)
+    }
+
+    func testFailedPasteKeepsSensitiveManualFallback() {
+        let clipboard = SyntheticClipboard()
+        var scheduled = false
+        let result = NativePaste.pasteViaClipboard("private", sensitive: true, clipboard: clipboard,
+                                                   postPaste: { false }, scheduleRestore: { _, _ in scheduled = true })
+        guard case .clipboardOnly = result else { return XCTFail("Expected manual fallback") }
+        XCTAssertFalse(scheduled)
+        XCTAssertNotNil(clipboard.items.first?[NativePaste.concealedType])
     }
 }

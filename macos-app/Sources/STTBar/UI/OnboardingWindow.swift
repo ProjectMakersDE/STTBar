@@ -37,8 +37,7 @@ final class OnboardingWindow {
     }
 
     private func finish() {
-        OnboardingReadiness.markCompleted()
-        model.applyEnvChanges()
+        guard flow.complete(inputs: OnboardingReadiness.currentInputs(model: model), apply: model.applyEnvChanges) else { return }
         onCompleted()
         window?.close()
     }

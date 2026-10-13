@@ -1,0 +1,3 @@
+PASS file-prompt
+PASS inline-precedence
+ALL PASS

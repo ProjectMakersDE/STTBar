@@ -1,0 +1,2 @@
+PASS global-force-start-restarts-cleanly
+PASS global-stop-noop-when-idle

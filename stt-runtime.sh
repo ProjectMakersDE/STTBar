@@ -9,9 +9,16 @@ stt_truthy() {
 }
 
 stt_runtime_init() {
-    STT_RUNTIME_DIR="${STT_RUNTIME_DIR:-${TMPDIR:-/tmp}/de.projectmakers.stt}"
+    # /tmp may be shared between accounts (Linux), unlike macOS's TMPDIR.
+    umask 077
+    STT_RUNTIME_DIR="${STT_RUNTIME_DIR:-${TMPDIR:-/tmp}/de.projectmakers.stt-$(id -u)}"
     STT_RUNTIME_DIR="${STT_RUNTIME_DIR%/}"
-    mkdir -p "$STT_RUNTIME_DIR" 2>/dev/null || true
+    if [[ -L "$STT_RUNTIME_DIR" ]] || ! mkdir -p "$STT_RUNTIME_DIR" 2>/dev/null \
+        || [[ ! -d "$STT_RUNTIME_DIR" || ! -O "$STT_RUNTIME_DIR" ]] \
+        || ! chmod 700 "$STT_RUNTIME_DIR"; then
+        echo "ERROR: STT runtime must be a private directory owned by the current user" >&2
+        return 1
+    fi
 
     STT_PID_FILE="${STT_PID_FILE:-$STT_RUNTIME_DIR/recording.pid}"
     STT_RECORD_FILE="${STT_RECORD_FILE:-$STT_RUNTIME_DIR/recording.wav}"

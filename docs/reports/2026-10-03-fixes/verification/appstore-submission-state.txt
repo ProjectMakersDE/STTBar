@@ -1,0 +1,133 @@
+- banner "App Store Connect":
+  - heading "App Store Connect" [level=1]:
+    - link "App Store Connect":
+      - /url: /
+  - navigation "Global":
+    - list:
+      - link "Apps":
+        - /url: /apps
+      - link "Xcode Cloud":
+        - /url: /teams/9ecd07c3-a744-460a-9bf4-ccd87888f2c2/xcode-cloud
+      - link "Trends":
+        - /url: /trends
+      - link "Berichte":
+        - /url: /itc/payments_and_financial_reports
+      - link "Geschäftliches":
+        - /url: /business
+  - button "Simon-Daniel März Simon-Daniel Marz Account name menu":
+    - generic: Simon-Daniel März
+    - generic: Simon-Daniel Marz
+- button "App-Menü, STTBar, ausgewählt":
+  - generic "STTBar":
+    - img "STTBar"
+  - generic: STTBar
+- navigation "Apps":
+  - list:
+    - link "Vertrieb":
+      - /url: /apps/6817328154/distribution
+    - link "Analyse":
+      - /url: /apps/6817328154/analytics
+    - link "TestFlight":
+      - /url: /teams/9ecd07c3-a744-460a-9bf4-ccd87888f2c2/apps/6817328154/testflight
+- main:
+  - link "App-Prüfung":
+    - /url: /apps/6817328154/distribution/reviewsubmissions
+    - text: App-Prüfung
+  - heading "macOS-Übermittlung" [level=2]
+  - paragraph:
+    - text: Warten auf Prüfung
+  - heading "Übermittelte Elemente (1)" [level=3]
+  - table:
+    - rowgroup:
+      - row "Element Typ Prüfungsstatus":
+        - columnheader "Element":
+          - generic: Element
+        - columnheader "Typ":
+          - generic: Typ
+        - columnheader "Prüfungsstatus":
+          - generic: Prüfungsstatus
+        - columnheader
+        - columnheader
+    - rowgroup:
+      - row "App-Symbol macOS-App 1.7.0 1.7.0 (23) App-Version Warten auf Prüfung":
+        - cell "App-Symbol macOS-App 1.7.0 1.7.0 (23)":
+          - generic "App-Symbol":
+            - img "App-Symbol"
+          - paragraph: macOS-App 1.7.0
+          - paragraph:
+            - link "1.7.0 (23)":
+              - /url: /apps/6817328154/testflight/macos/11dc2960-f0d0-48b3-9f93-805d7ece40a3/metadata
+          - paragraph
+        - cell "App-Version":
+          - generic: App-Version
+        - cell "Warten auf Prüfung":
+          - text: Warten auf Prüfung
+        - cell
+        - cell
+  - heading "Nachrichten (1)" [level=3]
+  - button "AppleGestern 23:53" [expanded]:
+    - heading "AppleGestern 23:53" [level=6]
+  - region "AppleGestern 23:53":
+    - text: Hello,
+    - text: Thank you for submitting the new app, STTBar, for review. We noticed some issues that require your attention. Please see below for additional information.
+    - text: If you have any questions, we are here to help. Reply to this message in App Store Connect and let us know.
+    - heading "Review Environment" [level=3]
+    - text: "Submission ID: 24906f41-5b19-4c82-b3fe-796de5c3a88d"
+    - text: "Review date: October 02, 2026"
+    - text: "Review Device: MacBook Pro (14-inch, Nov 2024)"
+    - text: "Version reviewed: 1.7.0 (22)"
+    - heading "Guideline 5 - Legal" [level=3]
+    - text: Issue Description
+    - text: As you may know, the Chinese government has been tightening regulations associated with deep synthesis technologies (DST) and generative AI services, including ChatGPT. DST must fulfill permitting requirements to operate in China, including securing a license from the Ministry of Industry and Information Technology (MIIT) if the services are provided while connected to the Internet.
+    - text: "Based on our review, the app appears to be associated with ChatGPT, which does not have requisite permits to operate in China. Specifically, the app's metadata includes the following references to ChatGPT and/or OpenAI: OpenAI."
+    - text: Accordingly, pursuant to local Chinese law, this functionality must be deactivated in the version of the app that you make available on the China App Store and all references to ChatGPT or OpenAI must be removed from metadata fields such as app name, subtitle, promotional text, app description, and screenshots.
+    - text: Next Steps
+    - text: Since this app cannot be approved with ChatGPT functionality and/or metadata references in China, it would be appropriate to make the necessary changes, update the Review Notes to confirm you've suppressed this functionality, and resubmit the app for review.
+    - text: If you do not wish to make these changes, you can choose to not distribute this app in China by deselecting the China mainland storefront in the Availability settings in App Store Connect.
+    - text: If you believe you are already in compliance with the above-mentioned local law, you may reply to this message in App Store Connect and provide additional information. Apps with ChatGPT functionality or metadata references can continue to be used in apps outside of China.
+    - text: To offer the app in China with this functionality, please seek professional advice on compliance with the Administrative Provisions on Deep Synthesis of Internet-based Information Services.
+    - text: Resources
+    - text: "- See how to"
+    - link "change the app's Availability setting in App Store Connect":
+      - /url: https://developer.apple.com/help/app-store-connect/manage-your-apps-availability/manage-availability-for-your-app-on-the-app-store/
+    - text: .
+    - text: "- Learn more about legal requirements for apps on the App Store in"
+    - link "guideline 5":
+      - /url: https://developer.apple.com/app-store/review/guidelines/#5
+    - text: .
+    - heading "Support" [level=3]
+    - text: "- Reply to this message in your preferred language if you need assistance. If you need additional support, use the"
+    - link "Contact Us module":
+      - /url: https://developer.apple.com/contact/topic/#!/topic/select
+    - text: .
+    - text: "- Consult with fellow developers and Apple engineers on the"
+    - link "Apple Developer Forums":
+      - /url: https://developer.apple.com/forums/
+    - text: .
+    - text: "- Provide feedback on this message and your review experience by"
+    - link "completing a short survey":
+      - /url: https://survey.apple.com/axm/survey/as/6a46ca0d464463cf1e8158e8
+    - text: .
+  - generic: Übermittlungsdatum
+  - generic: 3. Okt. 2026 um 03:27 Uhr
+  - generic: Übermittlungskennung
+  - generic: 24906f41-5b19-4c82-b3fe-796de5c3a88d
+  - generic: Übermittelt von
+  - generic: Simon-Daniel März
+  - generic: Zuletzt aktualisiert von
+  - generic: Simon-Daniel März
+  - button "Übermittlung abbrechen"
+- contentinfo:
+  - list:
+    - link "App Store Connect":
+      - /url: /apps
+  - list:
+    - listitem: Copyright © 2026 Apple Inc. Alle Rechte vorbehalten. |
+    - link "Geschäftsbedingungen":
+      - /url: /WebObjects/iTunesConnect.woa/wa/termsOfService
+    - text: "|"
+    - link "Datenschutzrichtlinie":
+      - /url: https://www.apple.com/legal/privacy
+    - text: "|"
+    - link "Kontakt":
+      - /url: /contact-us

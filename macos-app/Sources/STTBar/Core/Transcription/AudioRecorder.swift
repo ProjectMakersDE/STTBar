@@ -99,7 +99,14 @@ final class CaptureSink {
 /// starts, no matter which microphone was selected. A bare input unit has no
 /// output side and leaves playback devices strictly alone. This is also what
 /// `sox` did in the shell backend, back when the problem did not exist.
-final class AudioRecorder {
+protocol AudioRecording: AnyObject {
+    var isRecording: Bool { get }
+    func start(outputURL: URL, input: AudioInputResolution) throws
+    func stop() -> URL?
+    func cancel()
+}
+
+final class AudioRecorder: AudioRecording {
     static let targetSettings: [String: Any] = [
         AVFormatIDKey: kAudioFormatLinearPCM,
         AVSampleRateKey: 16000,
@@ -273,12 +280,16 @@ final class AudioRecorder {
             AppLogger.log("capture_stats callbacks=\(sink.callbacks) dropped=\(sink.dropped)")
         }
         teardown()          // releasing the AVAudioFile flushes + finalizes the header
-        return outputURL
+        let finishedURL = outputURL
+        outputURL = nil
+        return finishedURL
     }
 
     func cancel() {
+        let cancelledURL = outputURL
         _ = stop()
-        if let url = outputURL { try? FileManager.default.removeItem(at: url) }
+        outputURL = nil
+        if let url = cancelledURL { try? FileManager.default.removeItem(at: url) }
     }
 
     private func teardown() {

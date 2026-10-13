@@ -154,7 +154,6 @@ final class HudView: NSView {
     private var lastFrameAt = Date()
     private var phase = 0.0
     private var waveTravel = 0.0
-    private let wav = RuntimePaths.recordingFile.path
 
     init(frame: NSRect, reader: AudioLevelReader, runner: SttRunner) {
         self.reader = reader; self.runner = runner
@@ -226,7 +225,8 @@ final class HudView: NSView {
     }
 
     private func drawWave(delta: TimeInterval) {
-        let target = reader.levels(from: URL(fileURLWithPath: wav))
+        let target = runner.recordingURL.map { reader.levels(from: $0) }
+            ?? [Double](repeating: 0, count: reader.bucketCount)
         let count = min(levels.count, target.count)
         guard count > 0 else { return }
         waveTravel = (waveTravel + delta * 20.0).truncatingRemainder(dividingBy: Double(count))

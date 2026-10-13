@@ -1,0 +1,23 @@
+{
+  "app_signature": {
+    "exit_code": 0,
+    "output": "/Users/simon-danielmarz/.codex/worktrees/sttbar-fixes/STTBar/dist-appstore/fixes-2026-10-03/STTBar.app: valid on disk\n/Users/simon-danielmarz/.codex/worktrees/sttbar-fixes/STTBar/dist-appstore/fixes-2026-10-03/STTBar.app: satisfies its Designated Requirement\n"
+  },
+  "package_signature": {
+    "exit_code": 0,
+    "output": "Package \"STTBar.pkg\":\n   Status: signed by a developer certificate issued by Apple (Development)\n   Certificate Chain:\n    1. 3rd Party Mac Developer Installer: Simon-Daniel Marz (V7ZXN75Q2L)\n       Expires: 2027-09-29 10:40:38 +0000\n       SHA256 Fingerprint:\n           2E 93 F0 01 F0 54 3F ED 91 02 30 A7 54 13 80 4B E0 FE 1E CD 45 AF \n           44 9B 44 A3 C7 41 1A 22 73 D8\n       ------------------------------------------------------------------------\n    2. Apple Worldwide Developer Relations Certification Authority\n       Expires: 2030-02-20 00:00:00 +0000\n       SHA256 Fingerprint:\n           DC F2 18 78 C7 7F 41 98 E4 B4 61 4F 03 D6 96 D8 9C 66 C6 60 08 D4 \n           24 4E 1B 99 16 1A AC 91 60 1F\n       ------------------------------------------------------------------------\n    3. Apple Root CA\n       Expires: 2035-02-09 21:40:36 +0000\n       SHA256 Fingerprint:\n           B0 B1 73 0E CB C7 FF 45 05 14 2C 49 F1 29 5E 6E DA 6B CA ED 7E 2C \n           68 C5 BE 91 B5 A1 10 01 F0 24\n\n"
+  },
+  "version": "1.7.0",
+  "build": "23",
+  "commit": "f09a5ce-dirty",
+  "version_txt": "version=1.7.0\nbuild=23\ncommit=f09a5ce-dirty\nbuilt_at=2026-10-03T03:07:09+0200\n",
+  "entitlements": {
+    "com.apple.application-identifier": "V7ZXN75Q2L.de.projectmakers.sttbar",
+    "com.apple.developer.team-identifier": "V7ZXN75Q2L",
+    "com.apple.security.app-sandbox": true,
+    "com.apple.security.device.audio-input": true,
+    "com.apple.security.files.user-selected.read-write": true,
+    "com.apple.security.network.client": true
+  },
+  "sha256": "a8c19f365edc4f0b72f239386e2c77ec3d9c8703d47cc33bccca35ecca9511ce"
+}

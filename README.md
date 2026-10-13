@@ -21,7 +21,7 @@ coding agents without touching the keyboard. That is why STTBar ships with
 agent-ready cleanup prompts that turn rambling speech into precise, structured
 instructions, in German or with English output.
 
-Your audio stays under your control. Run everything on-device with WhisperKit,
+Your audio stays under your control. Run everything on-device with Parakeet or WhisperKit,
 point STTBar at your own self-hosted Whisper server, or use any
 Whisper-compatible API. Fully offline operation is a first-class setup, not an
 afterthought.
@@ -56,15 +56,21 @@ afterthought.
 ## Features
 
 - Three dictation modes on separate global hotkeys: full cleanup, raw
-  transcript, and English output (speak German, paste English).
-- Transcription your way: fully on-device with WhisperKit (model
-  recommendations matched to your Mac's RAM), on your own server via the
+  transcript, and English output (speak German, paste English). English output
+  requires an enabled, working LLM endpoint; unavailable translation is reported
+  instead of silently inserting the original language.
+- Transcription your way: fully on-device with NVIDIA Parakeet (default, about
+  one second for three minutes of speech on an M1 Max, 25 European languages)
+  or a WhisperKit model, loaded and warmed at app launch so the first dictation
+  does not wait. The very first load takes 1 to 5 minutes once (download and
+  preparation for the Neural Engine); after that the model is ready in about a
+  second on every app start. Or transcribe on your own server via the
   included Docker Compose file, or any Whisper-compatible endpoint, in your
   network or on the internet, with an optional API key.
 - Optional LLM cleanup with a local model (LM Studio, Ollama) or a hosted one
   through any OpenAI-compatible API such as OpenRouter, with an optional API
-  key. If the LLM is unreachable, STTBar falls back to the raw transcript instead
-  of failing the dictation.
+  key. In cleanup mode, the optional raw fallback inserts the original transcript
+  if the LLM is unreachable. Turn it off to require successful cleanup.
 - Built-in Agent V4 prompt presets for German and English-output workflows,
   plus a full prompt editor with profiles for your own presets.
 - Live HUD with waveform and phase timeline, so you always see whether STTBar
@@ -72,7 +78,10 @@ afterthought.
 - Vocabulary replacements that get names, jargon, and product terms right
   every time.
 - Transcript history with privacy controls, and a sensitive mode that keeps
-  dictations out of history and removes the transcript file after pasting.
+  dictations out of history. The native pipeline keeps the last result in memory
+  instead of a temporary transcript file.
+  Temporary native audio is removed after success, errors and cancellation.
+  Expired history is removed while the app runs and when it next starts.
 - German/English interface switch that also aligns the Whisper language and
   the active prompt.
 - Native Swift menu-bar app: fast, small, and quiet. No Electron.
@@ -102,7 +111,8 @@ afterthought.
 3. Unzip the file and move `STTBar.app` to `/Applications`.
 4. Open STTBar. Allow microphone access when asked, and enable STTBar under
    System Settings > Privacy & Security > Accessibility so it can paste the
-   text into the focused app.
+   text into the focused app. Without Accessibility permission, copy the result
+   from STTBar and paste it manually.
 
 ### Build from source
 
@@ -155,7 +165,7 @@ Any other OpenAI-compatible service works the same way: its
 The included `docker-compose.yml` starts a Speaches/faster-whisper server from
 the CUDA image and reserves one NVIDIA GPU. It needs a host with an NVIDIA GPU
 and the NVIDIA Container Toolkit, so it does not run on a Mac. On a Mac, use the
-on-device WhisperKit transcription instead.
+on-device transcription instead.
 
 ```bash
 docker compose up -d

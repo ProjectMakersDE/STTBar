@@ -9,6 +9,10 @@ enum TranscriptionPhase { case transcribing, postprocessing }
 /// AVAudioEngine + URLSession implementation behind the same protocol.
 protocol TranscriptionBackend: AnyObject {
     var isRecording: Bool { get }
+    /// Only the live recording's file, used by the HUD waveform reader.
+    var recordingURL: URL? { get }
+    /// Privacy cannot be weakened by changing preferences after recording starts.
+    var isSensitiveRun: Bool { get }
     func start(mode: SttMode) throws
     /// Stops recording and asynchronously delivers the transcript text.
     /// `onPhase` reports pipeline progress (may fire on a background thread).
@@ -16,6 +20,11 @@ protocol TranscriptionBackend: AnyObject {
               onPhase: @escaping (TranscriptionPhase) -> Void,
               completion: @escaping (Result<String, Error>) -> Void)
     func cancel()
+}
+
+extension TranscriptionBackend {
+    var recordingURL: URL? { nil }
+    var isSensitiveRun: Bool { false }
 }
 
 enum TranscriptionBackendError: LocalizedError {

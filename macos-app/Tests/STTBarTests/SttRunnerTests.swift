@@ -6,6 +6,7 @@ private final class MockBackend: TranscriptionBackend {
     private(set) var startedModes: [SttMode] = []
     private(set) var stoppedModes: [SttMode] = []
     private(set) var cancelCount = 0
+    var isSensitiveRun = false
     var stopCompletion: ((Result<String, Error>) -> Void)?
     var stopOnPhase: ((TranscriptionPhase) -> Void)?
 
@@ -147,6 +148,44 @@ final class SttRunnerTests: XCTestCase {
 
         XCTAssertEqual(pasted, ["HELLO"])
         XCTAssertEqual(got, ["HELLO"])
+    }
+
+    func testCancelledPasteCompletionCannotFinishNewRecording() {
+        let backend = MockBackend()
+        let runner = SttRunner(backend: backend)
+        var finishPaste: ((NativePasteResult) -> Void)?
+        runner.paste = { _, done in finishPaste = done }
+        var got: [String] = []
+        runner.onTranscript = { text, _, _ in got.append(text) }
+        runner.trigger(mode: .raw)
+        runner.stopAndTranscribe()
+        backend.stopCompletion?(.success("STALE"))
+        drainMainQueue()
+        XCTAssertNotNil(finishPaste)
+        runner.cancelRecording()
+        waitOutDebounce()
+        runner.trigger(mode: .raw)
+        XCTAssertTrue(runner.isRecording)
+        finishPaste?(.pasted)
+        XCTAssertEqual(got, [])
+        XCTAssertEqual(runner.state, .recording)
+        runner.cancelRecording()
+    }
+
+    func testBackendPrivacySnapshotSurvivesThroughTranscriptCallback() {
+        let backend = MockBackend()
+        backend.isSensitiveRun = true
+        let runner = SttRunner(backend: backend)
+        runner.paste = { _, done in done(.pasted) }
+        var observedSensitive = false
+        runner.onTranscript = { _, _, _ in observedSensitive = runner.currentRunSensitive }
+        runner.trigger(mode: .raw)
+        XCTAssertTrue(runner.currentRunSensitive)
+        backend.isSensitiveRun = false
+        runner.stopAndTranscribe()
+        backend.stopCompletion?(.success("private"))
+        drainMainQueue()
+        XCTAssertTrue(observedSensitive)
     }
 }
 

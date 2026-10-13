@@ -26,8 +26,11 @@ EIGENES ZIEL / PORT:
     python3 stt-eval-proxy.py http://your-llm-host:1234 1235
 """
 import os
+import json
 import sys
 import time
+from pathlib import Path
+from urllib.parse import unquote, urlsplit
 import urllib.request
 import urllib.error
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -38,6 +41,7 @@ LISTEN_HOST = os.environ.get("STT_PROXY_HOST", "127.0.0.1")
 LISTEN_PORT = int(os.environ.get("STT_PROXY_PORT", "1235"))
 PAGE = os.environ.get("STT_PROXY_PAGE", "stt-postprocess-eval.html")
 ROOT = os.path.dirname(os.path.abspath(__file__))
+STATIC_ROOT = Path(os.environ.get("STT_PROXY_STATIC_ROOT", os.path.join(ROOT, "eval-assets"))).resolve()
 
 _args = [a for a in sys.argv[1:] if a]
 if len(_args) >= 1:
@@ -52,18 +56,32 @@ CONTENT_TYPES = {
     ".html": "text/html; charset=utf-8",
     ".js": "application/javascript; charset=utf-8",
     ".css": "text/css; charset=utf-8",
-    ".json": "application/json; charset=utf-8",
-    ".txt": "text/plain; charset=utf-8",
     ".svg": "image/svg+xml",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".webp": "image/webp",
+    ".ico": "image/x-icon",
 }
 
 
-def _cors(h):
-    h.send_header("Access-Control-Allow-Origin", "*")
-    h.send_header("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
-    h.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
-    h.send_header("Access-Control-Allow-Private-Network", "true")
-    h.send_header("Access-Control-Max-Age", "86400")
+def static_asset(path):
+    """Serve only public asset types inside the dedicated directory."""
+    value = unquote(urlsplit(path).path)
+    if value in ("/", ""):
+        value = "/" + PAGE
+    parts = value.lstrip("/").split("/")
+    if any(not part or part.startswith(".") for part in parts) or "\\" in value or "\0" in value:
+        return None
+    root = Path(STATIC_ROOT).resolve()
+    full = root.joinpath(*parts).resolve()
+    try:
+        relative = full.relative_to(root)
+    except ValueError:
+        return None
+    if any(part.startswith(".") for part in relative.parts):
+        return None
+    return full if full.suffix.lower() in CONTENT_TYPES and full.is_file() else None
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -74,28 +92,38 @@ class Handler(BaseHTTPRequestHandler):
 
     def _is_api(self):
         p = self.path.split("?", 1)[0]
-        return p.startswith(API_PREFIXES)
+        return any(p == prefix or p.startswith(prefix + "/") for prefix in API_PREFIXES)
+
+    def _empty(self, status):
+        self.send_response(status)
+        self.send_header("Content-Length", "0")
+        self.send_header("Connection", "close")
+        self.end_headers()
+        self.close_connection = True
+
+    def _same_origin(self):
+        # The page and API are intentionally same-origin; another website must
+        # not read local assets, forward requests or save results through us.
+        origin = self.headers.get("Origin")
+        host = self.headers.get("Host", "")
+        allowed = {f"127.0.0.1:{self.server.server_port}", f"localhost:{self.server.server_port}",
+                   f"{LISTEN_HOST}:{self.server.server_port}"}
+        if host not in allowed or (origin is not None and origin != "http://" + host):
+            self._empty(403)
+            return False
+        return True
 
     # ---------- statische Datei ausliefern ----------
     def _serve_static(self):
-        p = self.path.split("?", 1)[0]
-        if p in ("/", ""):
-            p = "/" + PAGE
-        rel = p.lstrip("/")
-        full = os.path.normpath(os.path.join(ROOT, rel))
-        if not full.startswith(ROOT) or not os.path.isfile(full):
-            self.send_response(404)
-            _cors(self)
-            self.send_header("Content-Length", "0")
-            self.end_headers()
+        full = static_asset(self.path)
+        if full is None:
+            self._empty(404)
             print(f"  GET {self.path} -> 404 (nicht gefunden)", flush=True)
             return
-        ext = os.path.splitext(full)[1].lower()
-        ctype = CONTENT_TYPES.get(ext, "application/octet-stream")
+        ctype = CONTENT_TYPES[full.suffix.lower()]
         with open(full, "rb") as f:
             data = f.read()
         self.send_response(200)
-        _cors(self)
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(data)))
         self.end_headers()
@@ -132,7 +160,6 @@ class Handler(BaseHTTPRequestHandler):
             rct = "application/json"
             print(f"  !! Weiterleitung an {url} fehlgeschlagen: {e}", flush=True)
         self.send_response(status)
-        _cors(self)
         self.send_header("Content-Type", rct)
         self.send_header("Content-Length", str(len(data)))
         self.end_headers()
@@ -141,12 +168,15 @@ class Handler(BaseHTTPRequestHandler):
         print(f"  {method} {self.path} -> {status} ({len(data)} B, {ms} ms) [an {TARGET}]", flush=True)
 
     def do_OPTIONS(self):
+        if not self._same_origin():
+            return
         self.send_response(204)
-        _cors(self)
         self.send_header("Content-Length", "0")
         self.end_headers()
 
     def do_GET(self):
+        if not self._same_origin():
+            return
         if self._is_api():
             self._forward("GET")
         else:
@@ -174,21 +204,24 @@ class Handler(BaseHTTPRequestHandler):
             status = 500
             print(f"  !! /save fehlgeschlagen: {e}", flush=True)
         self.send_response(status)
-        _cors(self)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(resp)))
         self.end_headers()
         self.wfile.write(resp)
 
     def do_POST(self):
+        if not self._same_origin():
+            return
         if self.path.split("?", 1)[0] == "/save":
             self._save()
-        else:
+        elif self._is_api():
             self._forward("POST")
+        else:
+            self._empty(404)
 
 
 def _json_str(s):
-    return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'
+    return json.dumps(s)
 
 
 def main():
@@ -197,6 +230,9 @@ def main():
     print("  STT-Eval Server (Seite + API, same-origin)")
     print(f"  Seite oeffnen : http://{LISTEN_HOST}:{LISTEN_PORT}/")
     print(f"  Leitet API an : {TARGET}")
+    print(f"  Statische Dateien: {STATIC_ROOT}")
+    if static_asset("/") is None:
+        print(f"  Hinweis: {PAGE} mit seinen oeffentlichen Assets in diesem Ordner bereitstellen.")
     print(f"  Endpoint i.d. Seite (Default): http://{LISTEN_HOST}:{LISTEN_PORT}/api/v1/chat")
     print("  -> Kein CORS / kein Private-Network-Block, weil Seite und API")
     print("     dieselbe Origin haben. (Beenden mit Ctrl+C)")
