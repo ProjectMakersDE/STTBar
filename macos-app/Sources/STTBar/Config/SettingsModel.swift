@@ -10,6 +10,10 @@ final class SettingsModel: ObservableObject {
     private let appSettings: AppSettings
     private let apiKeyReader: (String) -> String
     private let apiKeyWriter: (String, String) -> Void
+    /// False until the keychain was read. A rebuilt self-signed binary gets a
+    /// keychain prompt (the item is bound to its cdhash), so the app reads the
+    /// keys off the main thread instead of freezing launch until it is answered.
+    private var apiKeysLoaded = true
     @Published var prompts: PromptStore
     @Published var profiles: ProfileStore
     @Published var replacements: ReplacementStore
@@ -27,7 +31,7 @@ final class SettingsModel: ObservableObject {
     func clearHistory() { onClearHistory?() }
 
     @Published var whisperURL: String = "" {
-        didSet { if ApiKeyStore.account(for: whisperURL) != ApiKeyStore.account(for: oldValue) { whisperAPIKey = apiKeyReader(whisperURL) } }
+        didSet { if ApiKeyStore.account(for: whisperURL) != ApiKeyStore.account(for: oldValue) { whisperAPIKey = readApiKey(whisperURL) } }
     }
     /// Optional bearer key for the Whisper endpoint. Lives in the keychain under
     /// the URL's host (ApiKeyStore), so it follows the host, not the field.
@@ -46,7 +50,7 @@ final class SettingsModel: ObservableObject {
     @Published var postprocessEnabled: Bool = false
     @Published var lmStudioURL: String = "" {
         didSet {
-            if ApiKeyStore.account(for: lmStudioURL) != ApiKeyStore.account(for: oldValue) { llmAPIKey = apiKeyReader(lmStudioURL) }
+            if ApiKeyStore.account(for: lmStudioURL) != ApiKeyStore.account(for: oldValue) { llmAPIKey = readApiKey(lmStudioURL) }
             if let inferred = LLMClient.inferredProvider(for: lmStudioURL) { provider = inferred }
         }
     }
@@ -105,7 +109,9 @@ final class SettingsModel: ObservableObject {
 
     init(installDir: URL, appSettings: AppSettings = .shared,
          apiKeyReader: @escaping (String) -> String = { ApiKeyStore.key(for: $0) },
-         apiKeyWriter: @escaping (String, String) -> Void = { ApiKeyStore.setKey($0, for: $1) }) {
+         apiKeyWriter: @escaping (String, String) -> Void = { ApiKeyStore.setKey($0, for: $1) },
+         deferApiKeys: Bool = false) {
+        apiKeysLoaded = !deferApiKeys
         self.installDir = installDir
         self.appSettings = appSettings
         self.apiKeyReader = apiKeyReader
@@ -510,14 +516,35 @@ final class SettingsModel: ObservableObject {
         transcriptionSource = env.value("STT_SOURCE") ?? "server"
         localModel = env.value("STT_LOCAL_MODEL") ?? ""
         localPreload = (env.value("STT_LOCAL_PRELOAD") ?? "1") != "0"
-        whisperAPIKey = apiKeyReader(whisperURL)
-        llmAPIKey = apiKeyReader(lmStudioURL)
+        whisperAPIKey = readApiKey(whisperURL)
+        llmAPIKey = readApiKey(lmStudioURL)
         syncAppSettingsFromDraft()
+    }
+
+    private func readApiKey(_ url: String) -> String {
+        apiKeysLoaded ? apiKeyReader(url) : ""
+    }
+
+    /// Reads both keys on a background queue (used with `deferApiKeys`).
+    func loadApiKeysInBackground(completion: (() -> Void)? = nil) {
+        let whisper = whisperURL, llm = lmStudioURL, reader = apiKeyReader
+        DispatchQueue.global(qos: .userInitiated).async {
+            let whisperKey = reader(whisper), llmKey = reader(llm)
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.apiKeysLoaded = true
+                self.whisperAPIKey = self.whisperURL == whisper ? whisperKey : reader(self.whisperURL)
+                self.llmAPIKey = self.lmStudioURL == llm ? llmKey : reader(self.lmStudioURL)
+                completion?()
+            }
+        }
     }
 
     /// Whisper and LLM can share a host (one OpenAI key for both); then one
     /// keychain entry backs both fields and a blank field must not delete it.
+    /// Before the keychain was read the fields are empty, not cleared.
     private func saveApiKeys() {
+        guard apiKeysLoaded else { return }
         if ApiKeyStore.account(for: whisperURL) == ApiKeyStore.account(for: lmStudioURL) {
             let shared = llmAPIKey.isEmpty ? whisperAPIKey : llmAPIKey
             apiKeyWriter(shared, lmStudioURL)

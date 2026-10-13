@@ -35,7 +35,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             includeLegacy: ProcessInfo.processInfo.environment["STT_RUNTIME_DIR"] == nil)
         try? FileManager.default.createDirectory(at: installDir, withIntermediateDirectories: true)
         // Model first: the native backend snapshots its settings at start().
-        model = SettingsModel(installDir: installDir)
+        model = SettingsModel(installDir: installDir, deferApiKeys: true)
         history.purgeExpired()
         let settingsModel = model!
         let backend = NativeBackend(config: { TranscriptionConfig.from(settingsModel) })
@@ -62,6 +62,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .sink { [weak self] state in self?.menu.setLocalModelStatus(state) }
             .store(in: &cancellables)
         preloadLocalModel()
+        model.loadApiKeysInBackground()
 
         runner.onState = { [weak self] state in
             self?.menu.setState(state)

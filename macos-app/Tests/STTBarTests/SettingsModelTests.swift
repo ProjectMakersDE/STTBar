@@ -99,6 +99,24 @@ final class SettingsModelTests: XCTestCase {
         XCTAssertFalse(restored.localPreload)
     }
 
+    func testDeferredApiKeysLoadOffLaunchAndAreNotClearedBeforehand() throws {
+        var reads = 0, writes = 0
+        let model = SettingsModel(installDir: directory, appSettings: settings,
+                                  apiKeyReader: { _ in reads += 1; return "fixture-key" },
+                                  apiKeyWriter: { _, _ in writes += 1 },
+                                  deferApiKeys: true)
+        model.whisperURL = "https://example.invalid/v1/audio/transcriptions"
+        XCTAssertEqual(reads, 0)
+        XCTAssertEqual(model.whisperAPIKey, "")
+        XCTAssertTrue(model.applyEnvChanges())
+        XCTAssertEqual(writes, 0)
+        let loaded = expectation(description: "keys loaded")
+        model.loadApiKeysInBackground { loaded.fulfill() }
+        wait(for: [loaded], timeout: 5)
+        XCTAssertEqual(model.whisperAPIKey, "fixture-key")
+        XCTAssertGreaterThan(reads, 0)
+    }
+
     func testLocalPreloadDefaultsOn() {
         XCTAssertTrue(model().localPreload)
     }
