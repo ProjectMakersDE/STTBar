@@ -1,16 +1,13 @@
 name: CI
 
+# Native develop builds are explicit. Releases run their own tests.
 on:
-  pull_request:
-  push:
-    branches-ignore:
-      - master
+  workflow_dispatch:
 
 jobs:
   test:
-    # macos-15 ships Xcode 16 / the macOS 15 SDK, required by WhisperKit's
-    # ArgmaxCore (uses the CoreML MLState API that the macos-14 SDK lacks).
-    runs-on: macos-15
+    # Only the current release MacBook may execute native builds.
+    runs-on: [self-hosted, macOS, ARM64, daniel-macbook-native]
     steps:
       - uses: actions/checkout@v5
 

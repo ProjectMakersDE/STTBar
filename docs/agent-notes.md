@@ -91,3 +91,9 @@ git commit -m "feat(prompts): add english agent prompt"
 git commit -m "fix(hud): soften waveform release"
 git commit -m "docs: refresh public readme"
 ```
+
+Native CI is manual on develop. Release tests/builds and explicitly requested
+native CI run only on the registered `daniel-macbook-native` ARM64 macOS runner
+on Daniel's current MacBook. Public pull requests never execute automatically
+on that Mac. Start its runner locally for an approved build and stop it after
+the job. There is no GitHub-hosted or Proxmox fallback.
